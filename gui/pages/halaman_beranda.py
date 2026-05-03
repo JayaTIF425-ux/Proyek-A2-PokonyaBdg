@@ -1,150 +1,124 @@
 """
-gui/main_window.py — Jendela utama aplikasi dengan sidebar navigasi.
+gui/pages/halaman_beranda.py — Halaman beranda: ringkasan harga + perubahan.
 """
 
 from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
-    QFrame, QLabel, QPushButton, QStackedWidget, QSizePolicy
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+    QScrollArea, QGridLayout, QFrame, QComboBox
 )
-from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QFont
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
-from gui.pages.halaman_beranda import HalamanBeranda
-from gui.pages.halaman_pencarian import HalamanPencarian
-from gui.pages.halaman_penghitung import HalamanPenghitung
-from gui.pages.halaman_tutorial import HalamanTutorial
-from gui.pages.halaman_tentang import HalamanTentang
+from database.db_manager import DBManager
+from gui.components.product_card import ProductCard
+from gui.widgets.loading_widget import LoadingWidget
+from gui.widgets.refresh_widget import RefreshWidget
 
 
-class MainWindow(QMainWindow):
-    """Jendela utama dengan sidebar + konten stacked."""
+class DataWorker(QThread):
+    """Thread terpisah agar UI tidak freeze saat load data."""
+    selesai = pyqtSignal(list)
 
-    WARNA_SIDEBAR   = "#44101A"
-    WARNA_AKTIF     = "#6B1525"
-    WARNA_AKSEN     = "#F1C40F"
-    WARNA_TEKS      = "#FFFFFF"
+    def run(self):
+        data = DBManager().fetch_semua_produk_pihps()
+        self.selesai.emit(list(data))
+
+
+class HalamanBeranda(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("PokokNya.Bdg — Harga Bahan Pokok Bandung")
-        self.resize(1200, 800)
-        self.setMinimumSize(900, 600)
+        self._init_ui()
+        self._muat_data()
 
-        central = QWidget()
-        root_layout = QHBoxLayout(central)
-        root_layout.setContentsMargins(0, 0, 0, 0)
-        root_layout.setSpacing(0)
+    def _init_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 12)
+        layout.setSpacing(16)
 
-        # ── Sidebar ──────────────────────────────────────────────────────
-        self.sidebar = self._buat_sidebar()
+        # ── Header ────────────────────────────────────────────────────────
+        header = QHBoxLayout()
 
-        # ── Halaman ──────────────────────────────────────────────────────
-        self.pages = QStackedWidget()
-        self.halaman_beranda   = HalamanBeranda()
-        self.halaman_pencarian = HalamanPencarian()
-        self.halaman_penghitung = HalamanPenghitung()
-        self.halaman_tutorial  = HalamanTutorial()
-        self.halaman_tentang   = HalamanTentang()
+        judul = QLabel("Harga Rata-Rata dan Perubahan")
+        judul.setStyleSheet("font-size: 22px; font-weight: bold; color: #2c3e50;")
+        header.addWidget(judul)
+        header.addStretch()
 
-        self.pages.addWidget(self.halaman_beranda)    # 0
-        self.pages.addWidget(self.halaman_pencarian)  # 1
-        self.pages.addWidget(self.halaman_penghitung) # 2
-        self.pages.addWidget(self.halaman_tutorial)   # 3
-        self.pages.addWidget(self.halaman_tentang)    # 4
+        # Filter jenis pasar
+        lbl_filter = QLabel("Jenis pasar:")
+        lbl_filter.setStyleSheet("font-size: 13px; color: #666;")
+        self.combo_pasar = QComboBox()
+        self.combo_pasar.addItems(["Pasar Tradisional/Modern", "Pasar Tradisional", "Pasar Modern"])
+        self.combo_pasar.setFixedWidth(220)
+        self.combo_pasar.setStyleSheet("padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px;")
 
-        root_layout.addWidget(self.sidebar)
-        root_layout.addWidget(self.pages, 1)
-        self.setCentralWidget(central)
+        header.addWidget(lbl_filter)
+        header.addWidget(self.combo_pasar)
+        layout.addLayout(header)
 
-        # Tampilkan beranda saat mulai
-        self._set_halaman(0)
-
-    # ── Builder Sidebar ──────────────────────────────────────────────────
-
-    def _buat_sidebar(self) -> QFrame:
-        sidebar = QFrame()
-        sidebar.setFixedWidth(230)
-        sidebar.setStyleSheet(f"background-color: {self.WARNA_SIDEBAR};")
-        layout = QVBoxLayout(sidebar)
-        layout.setContentsMargins(0, 0, 0, 20)
-        layout.setSpacing(4)
-
-        # Brand / Logo
-        brand = QLabel("PokokNya")
-        brand.setStyleSheet(
-            f"color: {self.WARNA_AKSEN}; font-size: 22px; font-weight: bold; "
-            "padding: 24px 20px 4px 20px;"
+        # ── Refresh / Update toolbar ──────────────────────────────────────
+        self.refresh_bar = RefreshWidget()
+        self.refresh_bar.refresh_diminta.connect(self._muat_data)
+        self.refresh_bar.update_selesai.connect(
+            lambda ok: self.lbl_info.setText(
+                "✓ Data berhasil diperbarui!" if ok else "✗ Update gagal."
+            )
         )
-        sub = QLabel(".Bdg")
-        sub.setStyleSheet(
-            f"color: {self.WARNA_TEKS}; font-size: 13px; padding: 0 20px 20px 20px;"
-        )
-        layout.addWidget(brand)
-        layout.addWidget(sub)
+        layout.addWidget(self.refresh_bar)
 
-        # Separator
-        sep = QFrame()
-        sep.setFrameShape(QFrame.Shape.HLine)
-        sep.setStyleSheet(f"color: {self.WARNA_AKTIF};")
-        layout.addWidget(sep)
-        layout.addSpacing(8)
+        # ── Konten scroll ─────────────────────────────────────────────────
+        self.loading = LoadingWidget("Memuat data harga...")
 
-        # Menu Utama
-        self.menu_buttons: list[QPushButton] = []
-        menus = [
-            ("🏠  Beranda",           0),
-            ("🔍  Pencarian",         1),
-            ("🧮  Penghitung Belanja", 2),
-        ]
-        for teks, idx in menus:
-            btn = self._tombol_menu(teks, idx)
-            self.menu_buttons.append(btn)
-            layout.addWidget(btn)
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setStyleSheet("border: none; background: transparent;")
 
-        layout.addStretch()
+        self.grid_container = QWidget()
+        self.grid = QGridLayout(self.grid_container)
+        self.grid.setSpacing(12)
+        self.scroll.setWidget(self.grid_container)
 
-        # Menu Bawah
-        bawah = [
-            ("ℹ️  Tutorial",   3),
-            ("👥  Tentang Kami", 4),
-        ]
-        for teks, idx in bawah:
-            btn = self._tombol_menu(teks, idx)
-            self.menu_buttons.append(btn)
-            layout.addWidget(btn)
+        layout.addWidget(self.loading)
+        layout.addWidget(self.scroll)
 
-        return sidebar
+        # Footer info
+        self.lbl_info = QLabel("")
+        self.lbl_info.setStyleSheet("color: #888; font-size: 11px; padding: 4px;")
+        self.lbl_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.lbl_info)
 
-    def _tombol_menu(self, teks: str, index: int) -> QPushButton:
-        btn = QPushButton(teks)
-        btn.setCheckable(True)
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {self.WARNA_TEKS};
-                text-align: left;
-                padding: 12px 20px;
-                border: none;
-                border-left: 4px solid transparent;
-                font-size: 14px;
-            }}
-            QPushButton:hover {{
-                background-color: {self.WARNA_AKTIF};
-                border-left: 4px solid {self.WARNA_AKSEN};
-            }}
-            QPushButton:checked {{
-                background-color: {self.WARNA_AKTIF};
-                border-left: 4px solid {self.WARNA_AKSEN};
-                font-weight: bold;
-            }}
-        """)
-        btn.clicked.connect(lambda: self._set_halaman(index))
-        return btn
+    def _muat_data(self):
+        self.loading.show()
+        self.scroll.hide()
 
-    def _set_halaman(self, index: int):
-        self.pages.setCurrentIndex(index)
-        for i, btn in enumerate(self.menu_buttons):
-            # Petakan urutan tombol (3 utama + 2 bawah = idx 0-4)
-            btn_index = i if i < 3 else i  # sama karena append berurutan
-            btn.setChecked(btn_index == index)
+        self.worker = DataWorker()
+        self.worker.selesai.connect(self._tampilkan_data)
+        self.worker.start()
+
+    def _tampilkan_data(self, data: list):
+        self.loading.hide()
+        self.scroll.show()
+
+        # Bersihkan grid lama
+        for i in reversed(range(self.grid.count())):
+            w = self.grid.itemAt(i).widget()
+            if w:
+                w.setParent(None)
+
+        if not data:
+            lbl = QLabel("Belum ada data. Jalankan scraper terlebih dahulu.")
+            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            lbl.setStyleSheet("color: #999; font-size: 14px; padding: 40px;")
+            self.grid.addWidget(lbl, 0, 0)
+            return
+
+        KOLOM = 3
+        for i, row in enumerate(data):
+            card = ProductCard(
+                nama=row["komoditas"] if hasattr(row, "keys") else row[0],
+                harga=row["harga"] if hasattr(row, "keys") else row[1],
+                toko=row["toko"] if hasattr(row, "keys") else row[2],
+                tanggal=row["tanggal"] if hasattr(row, "keys") else row[3],
+            )
+            self.grid.addWidget(card, i // KOLOM, i % KOLOM)
+
+        self.lbl_info.setText(f"Menampilkan {len(data)} komoditas · Sumber: PIHPS Bandung")
