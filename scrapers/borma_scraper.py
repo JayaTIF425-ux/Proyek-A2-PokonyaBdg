@@ -86,13 +86,23 @@ def scrape_semua_produk(url_awal: str, is_promo: bool = False) -> list[dict]:
             if not kategori:
                 continue
 
+            # Struktur harga: item["price_sell"]["price"]["amount"]
+            # Harga dalam ribuan IDR, misal "29.90" = Rp 29.900
             harga = 0.0
             stok  = 0
-            sr    = item.get("stock_record_for_purchase", {})
-            if sr:
-                price_data = sr.get("price", {})
-                harga = float(price_data.get("amount", 0) or 0)
-                stok  = int(sr.get("net_stock_level", 0) or 0)
+            try:
+                price_sell = item.get("price_sell") or {}
+                amount_raw = price_sell.get("price", {}).get("amount", 0)
+                harga = round(float(amount_raw or 0))
+            except (TypeError, ValueError):
+                harga = 0.0
+            try:
+                stok = int(
+                    (item.get("inventory_generic") or {}).get("quantity_available", 0)
+                    or 0
+                )
+            except (TypeError, ValueError):
+                stok = 0
 
             hasil.append({
                 "toko":         NAMA_TOKO,
