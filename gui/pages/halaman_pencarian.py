@@ -1,11 +1,11 @@
 """
-gui/pages/halaman_pencarian.py — Pencarian harga per komoditas dari semua sumber.
+gui/pages/halaman_pencarian.py — Pencarian & Kelola (CRUD) harga komoditas.
 """
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QScrollArea, QGridLayout,
-    QFrame, QComboBox
+    QFrame, QComboBox, QDialog, QFormLayout, QMessageBox
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
@@ -14,7 +14,58 @@ from gui.components.product_card import ProductCard
 from gui.widgets.loading_widget import LoadingWidget
 from gui.widgets.refresh_widget import RefreshWidget
 
+# ── Class Dialog Form untuk Create & Update ───────────────────────
+class DialogFormProduk(QDialog):
+    def __init__(self, parent=None, data_awal=None):
+        super().__init__(parent)
+        self.setWindowTitle("Form Data Produk")
+        self.setFixedSize(350, 250)
+        
+        self.data_awal = data_awal # Jika None -> Create, Jika ada isinya -> Update
+        
+        layout = QFormLayout(self)
+        
+        self.input_nama = QLineEdit()
+        self.input_harga = QLineEdit()
+        self.input_toko = QLineEdit()
+        self.input_tanggal = QLineEdit()
+        self.input_tanggal.setPlaceholderText("YYYY-MM-DD")
+        
+        # Isi form jika sedang mode Edit (Update)
+        if self.data_awal:
+            self.input_nama.setText(self.data_awal[1])
+            self.input_harga.setText(str(self.data_awal[2]))
+            self.input_toko.setText(self.data_awal[3])
+            self.input_tanggal.setText(self.data_awal[4])
+            
+        layout.addRow("Nama Komoditas:", self.input_nama)
+        layout.addRow("Harga (Rp):", self.input_harga)
+        layout.addRow("Toko/Pasar:", self.input_toko)
+        layout.addRow("Tanggal:", self.input_tanggal)
+        
+        btn_layout = QHBoxLayout()
+        btn_simpan = QPushButton("Simpan")
+        btn_simpan.setStyleSheet("background-color: #3498db; color: white; padding: 6px;")
+        btn_simpan.clicked.connect(self.accept)
+        
+        btn_batal = QPushButton("Batal")
+        btn_batal.clicked.connect(self.reject)
+        
+        btn_layout.addWidget(btn_batal)
+        btn_layout.addWidget(btn_simpan)
+        
+        layout.addRow(btn_layout)
 
+    def get_data(self):
+        return {
+            "nama": self.input_nama.text(),
+            "harga": self.input_harga.text(),
+            "toko": self.input_toko.text(),
+            "tanggal": self.input_tanggal.text()
+        }
+
+
+# ── Thread Pencarian ──────────────────────────────────────────────
 class CariWorker(QThread):
     selesai = pyqtSignal(list)
 
@@ -27,6 +78,7 @@ class CariWorker(QThread):
         self.selesai.emit(list(data))
 
 
+# ── Halaman Utama Pencarian & CRUD ────────────────────────────────
 class HalamanPencarian(QWidget):
 
     def __init__(self):
@@ -39,7 +91,7 @@ class HalamanPencarian(QWidget):
         layout.setSpacing(16)
 
         # ── Header ────────────────────────────────────────────────────────
-        judul = QLabel("Informasi Harga Bahan Pokok")
+        judul = QLabel("Kelola & Informasi Harga Bahan Pokok")
         judul.setStyleSheet("font-size: 22px; font-weight: bold; color: #2c3e50;")
         layout.addWidget(judul)
 
@@ -51,44 +103,23 @@ class HalamanPencarian(QWidget):
         fl = QHBoxLayout(filter_frame)
         fl.setContentsMargins(12, 8, 12, 8)
 
-        # Komoditas
-        fl.addWidget(QLabel("Komoditas"))
-        self.combo_komoditas = QComboBox()
-        self.combo_komoditas.addItem("bahan pokok")
-        self.combo_komoditas.setFixedWidth(160)
-        fl.addWidget(self.combo_komoditas)
-
-        # Jenis info
-        fl.addWidget(QLabel("Jenis Informasi Harga"))
-        self.combo_jenis = QComboBox()
-        self.combo_jenis.addItems(["harga", "stok", "perubahan"])
-        self.combo_jenis.setFixedWidth(130)
-        fl.addWidget(self.combo_jenis)
-
-        # Jenis pasar
-        fl.addWidget(QLabel("Jenis pasar"))
-        self.combo_pasar = QComboBox()
-        self.combo_pasar.addItem("pasar")
-        self.combo_pasar.setFixedWidth(120)
-        fl.addWidget(self.combo_pasar)
-
-        # Tanggal
-        fl.addWidget(QLabel("Tanggal"))
-        self.combo_tanggal = QComboBox()
-        self.combo_tanggal.addItem("tgl/bln/thn")
-        self.combo_tanggal.setFixedWidth(120)
-        fl.addWidget(self.combo_tanggal)
-
         fl.addStretch()
 
         # Tombol cari
         self.btn_cari = QPushButton("Cari  🔍")
         self.btn_cari.setFixedHeight(36)
         self.btn_cari.setStyleSheet(
-            "background-color: #6B8E23; color: white; border-radius: 6px; "
-            "padding: 0 16px; font-weight: bold;"
+            "background-color: #6B8E23; color: white; border-radius: 6px; padding: 0 16px; font-weight: bold;"
         )
         fl.addWidget(self.btn_cari)
+        
+        # +++ TAMBAHAN CRUD (CREATE): Tombol Tambah Data +++
+        self.btn_tambah = QPushButton("Tambah Data ➕")
+        self.btn_tambah.setFixedHeight(36)
+        self.btn_tambah.setStyleSheet(
+            "background-color: #2980b9; color: white; border-radius: 6px; padding: 0 16px; font-weight: bold;"
+        )
+        fl.addWidget(self.btn_tambah)
 
         layout.addWidget(filter_frame)
 
@@ -106,7 +137,7 @@ class HalamanPencarian(QWidget):
         layout.addWidget(self.refresh_bar)
 
         # ── Loading ───────────────────────────────────────────────────────
-        self.loading = LoadingWidget("Mencari data...")
+        self.loading = LoadingWidget("Memproses data...")
         self.loading.hide()
         layout.addWidget(self.loading)
 
@@ -130,8 +161,9 @@ class HalamanPencarian(QWidget):
         # Koneksi
         self.btn_cari.clicked.connect(self._cari)
         self.input_cari.returnPressed.connect(self._cari)
+        self.btn_tambah.clicked.connect(self._tambah_data) # Koneksi tombol tambah
 
-    # ── Aksi ──────────────────────────────────────────────────────────────
+    # ── Aksi CRUD ─────────────────────────────────────────────────────────
 
     def _cari(self):
         keyword = self.input_cari.text().strip()
@@ -144,6 +176,41 @@ class HalamanPencarian(QWidget):
         self.worker = CariWorker(keyword)
         self.worker.selesai.connect(self._tampilkan_hasil)
         self.worker.start()
+
+    def _tambah_data(self):
+        """Logika CREATE Data"""
+        dialog = DialogFormProduk(self)
+        if dialog.exec():
+            data_baru = dialog.get_data()
+            # Asumsi Jaya sudah membuat fungsi tambah_produk() di DBManager
+            DBManager().tambah_produk(data_baru['nama'], data_baru['harga'], data_baru['toko'], data_baru['tanggal'])
+            self._cari() # Refresh tampilan setelah menambah data
+
+    def _edit_data(self, row_data):
+        """Logika UPDATE Data"""
+        dialog = DialogFormProduk(self, data_awal=row_data)
+        if dialog.exec():
+            data_update = dialog.get_data()
+            # Asumsi index 0 adalah ID produk di database
+            id_produk = row_data[0] 
+            # Asumsi Jaya sudah membuat fungsi update_produk() di DBManager
+            DBManager().update_produk(id_produk, data_update['nama'], data_update['harga'], data_update['toko'], data_update['tanggal'])
+            self._cari() # Refresh tampilan
+
+    def _hapus_data(self, id_produk):
+        """Logika DELETE Data"""
+        konfirmasi = QMessageBox.question(
+            self, "Konfirmasi Hapus", 
+            "Apakah Anda yakin ingin menghapus data ini?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        
+        if konfirmasi == QMessageBox.StandardButton.Yes:
+            # Asumsi Jaya sudah membuat fungsi hapus_produk() di DBManager
+            DBManager().hapus_produk(id_produk)
+            self._cari() # Refresh tampilan
+
+    # ── Menampilkan Data ──────────────────────────────────────────────────
 
     def _tampilkan_hasil(self, data: list):
         self.loading.hide()
@@ -159,9 +226,20 @@ class HalamanPencarian(QWidget):
 
         KOLOM = 3
         for i, row in enumerate(data):
+            # Asumsi format query dari Jaya: (id, nama, harga, toko, tanggal)
             card = ProductCard(
-                nama=row[0], harga=row[1], toko=row[2], tanggal=row[3]
+                nama=row[1], harga=row[2], toko=row[3], tanggal=row[4]
             )
+            
+            # --- CATATAN UNTUK HANA ---
+            # Hana harus menambahkan 'btn_edit' dan 'btn_hapus' di dalam ProductCard.py
+            # Jika sudah ada, Upi bisa menghubungkannya dengan fungsi CRUD di sini:
+            try:
+                card.btn_edit.clicked.connect(lambda checked, r=row: self._edit_data(r))
+                card.btn_hapus.clicked.connect(lambda checked, id_p=row[0]: self._hapus_data(id_p))
+            except AttributeError:
+                pass # Jika Hana belum merenovasi ProductCard, sistem tetap aman dan tidak error
+                
             self.grid.addWidget(card, i // KOLOM, i % KOLOM)
 
         self.lbl_info.setText(f"{len(data)} hasil ditemukan.")
