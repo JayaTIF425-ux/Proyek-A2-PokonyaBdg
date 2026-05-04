@@ -228,7 +228,7 @@ class HalamanPencarian(QWidget):
         for i, row in enumerate(data):
             # Asumsi format query dari Jaya: (id, nama, harga, toko, tanggal)
             card = ProductCard(
-                nama=row[1], harga=row[2], toko=row[3], tanggal=row[4]
+                nama=row[0], harga=row[1], toko=row[2], tanggal=row[3]
             )
             
             # --- CATATAN UNTUK HANA ---
