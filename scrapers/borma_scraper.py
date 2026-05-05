@@ -8,6 +8,8 @@ API: https://api.bormadago.com/api/search/search/
 import sys
 import os
 import requests
+import time
+import re
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -91,27 +93,56 @@ def scrape_semua_produk(url_awal: str, is_promo: bool = False) -> list[dict]:
     url   = url_awal
     hal   = 1
     hasil = []
+    MAX_RETRY = 3
+    TIMEOUT   = 20
 
     label = "Promo" if is_promo else "Reguler"
     print(f"\n  [{NAMA_TOKO}] Ambil produk {label}...")
 
     while url:
         print(f"    Halaman {hal}...", end=" ", flush=True)
-        try:
-            resp = requests.get(url, headers=HEADERS, timeout=15)
-            data = resp.json()
-        except Exception as e:
-            print(f"✗ {e}")
+
+        # ── retry loop ──
+        berhasil = False
+        data     = None
+
+        for percobaan in range(1, MAX_RETRY + 1):
+            try:
+                resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+                data = resp.json()
+                berhasil = True
+                break
+            except requests.exceptions.Timeout:
+                if percobaan < MAX_RETRY:
+                    print(f"\n  ⚠ Timeout, retry ({percobaan}/{MAX_RETRY})...",
+                          end=" ", flush=True)
+                    time.sleep(3)
+                else:
+                    print(f"\n  ✗ Gagal setelah {MAX_RETRY}x, skip halaman ini")
+            except Exception as e:
+                print(f"\n  ✗ Error: {e}, skip halaman ini")
+                break
+
+        if not berhasil:
+            hal += 1
+            if "page=" in url:
+                url = re.sub(r'page=\d+', f'page={hal}', url)
+            else:
+                sep = "&" if "?" in url else "?"
+                url = f"{url}{sep}page={hal}"
+            continue
+
+        results = data.get("results", [])
+        if not results:
+            print("✓ Semua halaman selesai")
             break
 
-        for item in data.get("results", []):
+        for item in results:
             nama     = item.get("title", "")
             kategori = deteksi_kategori(nama)
             if not kategori:
                 continue
 
-            # Struktur harga: item["price_sell"]["price"]["amount"]
-            # Harga dalam ribuan IDR, misal "29.90" = Rp 29.900
             harga = 0.0
             stok  = 0
             try:
@@ -122,18 +153,18 @@ def scrape_semua_produk(url_awal: str, is_promo: bool = False) -> list[dict]:
                 harga = 0.0
             try:
                 stok = int(
-                    (item.get("inventory_generic") or {}).get("quantity_available", 0)
-                    or 0
+                    (item.get("inventory_generic") or {})
+                    .get("quantity_available", 0) or 0
                 )
             except (TypeError, ValueError):
                 stok = 0
 
             hasil.append({
-                "toko":         NAMA_TOKO,
-                "kategori":     kategori,
-                "nama_produk":  nama,
-                "harga":        harga,
-                "stok":         stok,
+                "toko":          NAMA_TOKO,
+                "kategori":      kategori,
+                "nama_produk":   nama,
+                "harga":         harga,
+                "stok":          stok,
                 "thumbnail_url": item.get("thumbnail_url", ""),
             })
 
