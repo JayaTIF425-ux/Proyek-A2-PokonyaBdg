@@ -71,7 +71,7 @@ NEGATIF = {
     "mangkok", "veritop", "seblak", "sozzis", "cedea", "kencur", "tini", "wini",
     "herbadrink", "camilan", "paskali", "daiko", "kombinasi", "porstex", "garuda",
     "alamii", "pan", "colgate", "yogurt", "pronas", "asin", "puyuh", "teri", "desaku", 
-    "legging", "regulator", "caffe", "italian", "enzim", "setrika", "rak"
+    "legging", "regulator", "caffe", "italian", "enzim", "setrika", "rak", "kanzler"
 }
 
 
