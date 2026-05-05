@@ -245,11 +245,12 @@ class DBManager:
             )
 
     def insert_harga_supermarket(self, records: list[dict]):
-        """
-        Insert batch data supermarket.
-        Tiap record: {toko, kategori, nama_produk, harga, satuan?, stok?, thumbnail_url?}
-        """
+        if not records:
+            return
+    
         waktu = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        toko = records[0]["toko"]  # ambil nama toko dari data pertama
+    
         rows = [
             (
                 r["toko"], r.get("kategori", ""), r["nama_produk"],
@@ -259,6 +260,8 @@ class DBManager:
             for r in records
         ]
         with self._connect() as conn:
+            # Hapus data lama dari toko ini dulu sebelum insert baru
+            conn.execute("DELETE FROM harga_supermarket WHERE toko = ?", (toko,))
             conn.executemany(
                 "INSERT INTO harga_supermarket "
                 "(toko, kategori, nama_produk, harga, satuan, stok, thumbnail_url, tanggal_scraping) "
