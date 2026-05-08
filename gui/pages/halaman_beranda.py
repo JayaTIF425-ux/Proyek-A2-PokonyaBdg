@@ -25,7 +25,6 @@ class DataWorker(QThread):
 
 class HalamanBeranda(QWidget):
 
-    # ← TAMBAH signal ini — diteruskan ke MainWindow
     navigasi_pencarian = pyqtSignal(str)
 
     def __init__(self):
@@ -126,7 +125,6 @@ class HalamanBeranda(QWidget):
                 tanggal=row["tanggal"] if hasattr(row, "keys") else row[3],
             )
 
-            # ← SAMBUNGKAN signal card ke signal beranda
             card.lihat_pencarian.connect(self.navigasi_pencarian)
 
             self.grid.addWidget(card, i // KOLOM, i % KOLOM)
