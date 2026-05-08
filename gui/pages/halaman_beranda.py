@@ -25,6 +25,7 @@ class DataWorker(QThread):
 
 class HalamanBeranda(QWidget):
 
+    # ← TAMBAH signal ini — diteruskan ke MainWindow
     navigasi_pencarian = pyqtSignal(str)
 
     def __init__(self):
