@@ -249,3 +249,12 @@ class HalamanPencarian(QWidget):
             w = self.grid.itemAt(i).widget()
             if w:
                 w.setParent(None)
+
+    def set_keyword_dan_cari(self, keyword: str):
+        """
+        Dipanggil dari MainWindow saat user klik
+        'Lihat Harga Berbagai Merk' di card beranda.
+        Otomatis isi search box dan jalankan pencarian.
+        """
+        self.input_cari.setText(keyword)
+        self._cari()
