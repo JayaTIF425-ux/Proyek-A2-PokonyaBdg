@@ -10,13 +10,12 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 from database.db_manager import DBManager
 from gui.components.product_card import ProductCard
-from gui.components.price_chart import PriceChartWidget 
+from gui.components.price_chart import PriceChartWidget
 from gui.widgets.loading_widget import LoadingWidget
 from gui.widgets.refresh_widget import RefreshWidget
 
 
 class DataWorker(QThread):
-    """Thread terpisah agar UI tidak freeze saat load data."""
     selesai = pyqtSignal(list)
 
     def run(self):
@@ -25,6 +24,9 @@ class DataWorker(QThread):
 
 
 class HalamanBeranda(QWidget):
+
+    # ← TAMBAH signal ini — diteruskan ke MainWindow
+    navigasi_pencarian = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -38,25 +40,24 @@ class HalamanBeranda(QWidget):
 
         # ── Header ────────────────────────────────────────────────────────
         header = QHBoxLayout()
-
         judul = QLabel("Harga Rata-Rata dan Perubahan")
         judul.setStyleSheet("font-size: 22px; font-weight: bold; color: #2c3e50;")
         header.addWidget(judul)
         header.addStretch()
 
-        # Filter jenis pasar
         lbl_filter = QLabel("Jenis pasar:")
         lbl_filter.setStyleSheet("font-size: 13px; color: #666;")
         self.combo_pasar = QComboBox()
         self.combo_pasar.addItems(["Pasar Tradisional/Modern", "Pasar Tradisional", "Pasar Modern"])
         self.combo_pasar.setFixedWidth(220)
-        self.combo_pasar.setStyleSheet("padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px;")
-
+        self.combo_pasar.setStyleSheet(
+            "padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px;"
+        )
         header.addWidget(lbl_filter)
         header.addWidget(self.combo_pasar)
         layout.addLayout(header)
 
-        # ── Refresh / Update toolbar ──────────────────────────────────────
+        # ── Refresh bar ───────────────────────────────────────────────────
         self.refresh_bar = RefreshWidget()
         self.refresh_bar.refresh_diminta.connect(self._muat_data)
         self.refresh_bar.update_selesai.connect(
@@ -71,7 +72,7 @@ class HalamanBeranda(QWidget):
         self.chart.setFixedHeight(310)
         layout.addWidget(self.chart)
 
-        # ── Konten scroll ─────────────────────────────────────────────────
+        # ── Grid kartu komoditas ──────────────────────────────────────────
         self.loading = LoadingWidget("Memuat data harga...")
 
         self.scroll = QScrollArea()
@@ -86,7 +87,6 @@ class HalamanBeranda(QWidget):
         layout.addWidget(self.loading)
         layout.addWidget(self.scroll)
 
-        # Footer info
         self.lbl_info = QLabel("")
         self.lbl_info.setStyleSheet("color: #888; font-size: 11px; padding: 4px;")
         self.lbl_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -95,7 +95,6 @@ class HalamanBeranda(QWidget):
     def _muat_data(self):
         self.loading.show()
         self.scroll.hide()
-
         self.worker = DataWorker()
         self.worker.selesai.connect(self._tampilkan_data)
         self.worker.start()
@@ -103,7 +102,7 @@ class HalamanBeranda(QWidget):
     def _tampilkan_data(self, data: list):
         self.loading.hide()
         self.scroll.show()
-        self.chart.refresh()  # Reset grafik saat data baru dimuat
+        self.chart.refresh()
 
         # Bersihkan grid lama
         for i in reversed(range(self.grid.count())):
@@ -122,10 +121,16 @@ class HalamanBeranda(QWidget):
         for i, row in enumerate(data):
             card = ProductCard(
                 nama=row["komoditas"] if hasattr(row, "keys") else row[0],
-                harga=row["harga"] if hasattr(row, "keys") else row[1],
-                toko=row["toko"] if hasattr(row, "keys") else row[2],
+                harga=row["harga"]    if hasattr(row, "keys") else row[1],
+                toko=row["toko"]      if hasattr(row, "keys") else row[2],
                 tanggal=row["tanggal"] if hasattr(row, "keys") else row[3],
             )
+
+            # ← SAMBUNGKAN signal card ke signal beranda
+            card.lihat_pencarian.connect(self.navigasi_pencarian)
+
             self.grid.addWidget(card, i // KOLOM, i % KOLOM)
 
-        self.lbl_info.setText(f"Menampilkan {len(data)} komoditas · Sumber: PIHPS Bandung")
+        self.lbl_info.setText(
+            f"Menampilkan {len(data)} komoditas · Sumber: PIHPS Bandung"
+        )
