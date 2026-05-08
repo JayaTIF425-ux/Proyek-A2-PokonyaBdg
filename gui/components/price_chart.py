@@ -182,6 +182,14 @@ class GrafikCanvas(FigureCanvas):
         )
         self.ax.tick_params(axis="y", labelsize=7)
 
+        # Hapus Rp 0 sebagai batas bawah, 
+        # ganti dengan sedikit di bawah nilai minimum data
+        margin = (max(harga_list) - min(harga_list)) * 0.3 or max(harga_list) * 0.05 
+        self.ax.set_ylim(
+        bottom=min(harga_list) - margin,
+        top=max(harga_list) + margin
+        )
+
         # ── Grid & styling ──
         self.ax.grid(True, axis="y", color=self.WARNA_GRID,
                      linewidth=0.8, linestyle="--")
