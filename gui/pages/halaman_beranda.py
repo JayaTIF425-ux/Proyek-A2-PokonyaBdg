@@ -10,7 +10,6 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 from database.db_manager import DBManager
 from gui.components.product_card import ProductCard
-from gui.components.price_chart import PriceChartWidget
 from gui.widgets.loading_widget import LoadingWidget
 from gui.widgets.refresh_widget import RefreshWidget
 
@@ -67,11 +66,6 @@ class HalamanBeranda(QWidget):
         )
         layout.addWidget(self.refresh_bar)
 
-        # ── Grafik tren harga ─────────────────────────────────────────────
-        self.chart = PriceChartWidget()
-        self.chart.setFixedHeight(310)
-        layout.addWidget(self.chart)
-
         # ── Grid kartu komoditas ──────────────────────────────────────────
         self.loading = LoadingWidget("Memuat data harga...")
 
@@ -102,7 +96,6 @@ class HalamanBeranda(QWidget):
     def _tampilkan_data(self, data: list):
         self.loading.hide()
         self.scroll.show()
-        self.chart.refresh()
 
         # Bersihkan grid lama
         for i in reversed(range(self.grid.count())):
