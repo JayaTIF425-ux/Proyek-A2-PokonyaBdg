@@ -125,6 +125,7 @@ def main():
 
     db = DBManager()
     db.init_schema()
+    db.hapus_data_pihps()
 
     total_records = 0
     for idx, nama in enumerate(DAFTAR_KOMODITAS, start=1):

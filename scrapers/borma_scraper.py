@@ -185,6 +185,7 @@ def main():
 
     db = DBManager()
     db.init_schema()
+    db.hapus_data_toko(NAMA_TOKO)
 
     # Produk reguler + promo
     produk_reguler = scrape_semua_produk(BASE_API)
