@@ -46,7 +46,8 @@ class DBManager:
                     komoditas       TEXT    NOT NULL,
                     harga           REAL    NOT NULL DEFAULT 0,
                     tanggal         TEXT,
-                    waktu_scraping  TEXT
+                    waktu_scraping  TEXT,
+                    jenis_pasar     TEXT    DEFAULT 'tradisional'
                 );
 
                 -- Harga dari hasil scraping supermarket
@@ -119,6 +120,42 @@ class DBManager:
         """
         with self._connect() as conn:
             return conn.execute(sql).fetchall()
+        
+    def fetch_produk_pihps_by_pasar(self, jenis_pasar: str) -> list[sqlite3.Row]:
+        """
+        Ambil data PIHPS terbaru per komoditas berdasarkan jenis pasar.
+        jenis_pasar: 'tradisional', 'modern', atau 'semua'
+        """
+        if jenis_pasar == "semua":
+            sql = """
+                SELECT komoditas, harga, jenis_pasar,
+                       'PIHPS Bandung' AS toko, tanggal
+                FROM harga_pangan
+                WHERE (komoditas, tanggal) IN (
+                    SELECT komoditas, MAX(tanggal)
+                    FROM harga_pangan
+                    GROUP BY komoditas
+                )
+                ORDER BY komoditas
+            """
+            with self._connect() as conn:
+                return conn.execute(sql).fetchall()
+        else:
+            sql = """
+                SELECT komoditas, harga, jenis_pasar,
+                    'PIHPS Bandung' AS toko, tanggal
+                FROM harga_pangan
+                WHERE jenis_pasar = ?
+                AND (komoditas, tanggal) IN (
+                    SELECT komoditas, MAX(tanggal)
+                    FROM harga_pangan
+                    WHERE jenis_pasar = ?
+                    GROUP BY komoditas
+                )
+                ORDER BY komoditas
+            """
+            with self._connect() as conn:
+                return conn.execute(sql, (jenis_pasar, jenis_pasar)).fetchall()
 
     # ── Query: Pencarian ──────────────────────────────────────────────────
 
@@ -238,17 +275,25 @@ class DBManager:
 
     def insert_harga_pihps(self, records: list[dict]):
         """
-        Insert batch data PIHPS. Tiap record: {komoditas, harga, tanggal}
+        Insert batch data PIHPS.
+        Tiap record: {komoditas, harga, tanggal, jenis_pasar}
         """
         waktu = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         rows = [
-            (r["komoditas"], r["harga"], r.get("tanggal", ""), waktu)
+            (
+                r["komoditas"],
+                r["harga"],
+                r.get("tanggal", ""),
+                r.get("jenis_pasar", "tradisional"),  # ← TAMBAH INI
+                waktu
+            )
             for r in records
         ]
         with self._connect() as conn:
             conn.executemany(
-                "INSERT INTO harga_pangan (komoditas, harga, tanggal, waktu_scraping) "
-                "VALUES (?,?,?,?)",
+                "INSERT INTO harga_pangan "
+                "(komoditas, harga, tanggal, jenis_pasar, waktu_scraping) "
+                "VALUES (?,?,?,?,?)",
                 rows
             )
 
