@@ -19,6 +19,8 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from database.db_manager import DBManager
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 
 # ── Konfigurasi ────────────────────────────────────────────────────────────
 
@@ -139,7 +141,10 @@ def scrape_selenium(nama: str, slug: str) -> list[dict]:
         "prefs", {"profile.managed_default_content_settings.images": 2}
     )
 
-    driver = webdriver.Chrome(options=opts)
+    driver = webdriver.Chrome(
+        service=Service(ChromeDriverManager().install()),
+        options=opts
+    )
     elemen = []
     try:
         driver.get(url)
