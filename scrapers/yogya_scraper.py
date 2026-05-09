@@ -181,6 +181,7 @@ def main():
 
     db = DBManager()
     db.init_schema()
+    db.hapus_data_toko(NAMA_TOKO)
 
     session = requests.Session()
     semua   = []

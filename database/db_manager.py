@@ -228,6 +228,14 @@ class DBManager:
 
     # ── Insert: Dari Scraper ──────────────────────────────────────────────
 
+    def hapus_data_pihps(self):
+        with self._connect() as conn:
+            conn.execute("DELETE FROM harga_pangan")
+    
+    def hapus_data_toko(self, toko: str):
+        with self._connect() as conn:
+            conn.execute("DELETE FROM harga_supermarket WHERE toko = ?", (toko,))
+
     def insert_harga_pihps(self, records: list[dict]):
         """
         Insert batch data PIHPS. Tiap record: {komoditas, harga, tanggal}
@@ -261,7 +269,7 @@ class DBManager:
         ]
         with self._connect() as conn:
             # Hapus data lama dari toko ini dulu sebelum insert baru
-            conn.execute("DELETE FROM harga_supermarket WHERE toko = ?", (toko,))
+            # conn.execute("DELETE FROM harga_supermarket WHERE toko = ?", (toko,))
             conn.executemany(
                 "INSERT INTO harga_supermarket "
                 "(toko, kategori, nama_produk, harga, satuan, stok, thumbnail_url, tanggal_scraping) "
