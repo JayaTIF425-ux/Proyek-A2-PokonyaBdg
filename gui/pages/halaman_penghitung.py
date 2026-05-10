@@ -1,17 +1,11 @@
-"""
-gui/pages/halaman_penghitung.py — Kalkulator Belanja:
-  User memilih produk + qty → sistem hitung estimasi total per toko
-  dan merekomendasikan toko paling hemat.
-"""
-
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QScrollArea, QGridLayout, QFrame, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView,
-    QLineEdit, QSizePolicy
+    QLineEdit, QAbstractItemView
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QColor, QFont
+from PyQt6.QtGui import QColor
 
 from database.db_manager import DBManager
 from gui.components.calculator_card import CalculatorCard
@@ -28,11 +22,12 @@ class KalkulatorWorker(QThread):
 
 
 class HalamanPenghitung(QWidget):
-
     def __init__(self):
         super().__init__()
-        # keranjang: {nama_produk: {harga_per_toko: {toko: harga}, qty: int}}
         self.keranjang: dict[str, dict] = {}
+        self._semua_cards: list[CalculatorCard] = []
+        self.lbl_kosong: QLabel | None = None
+
         self._init_ui()
         self._muat_produk()
 
@@ -41,30 +36,116 @@ class HalamanPenghitung(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        # ── Panel Kiri: Anggaran ──────────────────────────────────────────
+        # ── Panel Kiri ─────────────────────────────────────────────────────
         panel_kiri = QFrame()
-        panel_kiri.setStyleSheet("background: #fafafa; border-right: 1px solid #e0e0e0;")
+        panel_kiri.setStyleSheet("background: #f0f2f5; border: none;")
         layout_kiri = QVBoxLayout(panel_kiri)
-        layout_kiri.setContentsMargins(16, 16, 16, 16)
-        layout_kiri.setSpacing(12)
+        layout_kiri.setContentsMargins(25, 25, 25, 25)
 
-        lbl_anggaran = QLabel("Estimasi Anggaran")
+        kotak_putih = QFrame()
+        kotak_putih.setStyleSheet("""
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e0e0e0;
+        """)
+        layout_isi = QVBoxLayout(kotak_putih)
+        layout_isi.setContentsMargins(20, 20, 20, 20)
+        layout_isi.setSpacing(12)
+        layout_kiri.addWidget(kotak_putih)
+
+        lbl_anggaran = QLabel("Estimasi Anggaran-mu")
         lbl_anggaran.setStyleSheet(
-            "font-size: 16px; font-weight: bold; background: #f1f1f1; "
-            "padding: 10px; border-radius: 6px;"
+            "font-size: 16px; font-weight: 600; color: #6B8E23; background: #f1f1f1; "
+            "padding: 6px 15px 10px 15px; border-radius: 8px; border: 1px solid #f1f1f1;"
         )
         lbl_anggaran.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout_kiri.addWidget(lbl_anggaran)
+        layout_isi.addWidget(lbl_anggaran, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        # Tabel keranjang
+        # Tabel keranjang (read-only)
         self.tabel_keranjang = QTableWidget(0, 3)
-        self.tabel_keranjang.setHorizontalHeaderLabels(["Bahan Pangan", "Qty", "Subtotal"])
+        self.tabel_keranjang.setHorizontalHeaderLabels(["Bahan Pangan", "Jumlah", "Subtotal"])
         self.tabel_keranjang.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.tabel_keranjang.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        self.tabel_keranjang.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        self.tabel_keranjang.setStyleSheet("background: white; border-radius: 6px;")
-        self.tabel_keranjang.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        layout_kiri.addWidget(self.tabel_keranjang)
+        self.tabel_keranjang.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        self.tabel_keranjang.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        self.tabel_keranjang.setColumnWidth(1, 90)
+        self.tabel_keranjang.setColumnWidth(2, 120)
+        self.tabel_keranjang.horizontalHeader().setDefaultAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
+        header_sub = self.tabel_keranjang.horizontalHeaderItem(2)
+        if header_sub:
+            header_sub.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+
+        self.tabel_keranjang.verticalHeader().setVisible(False)
+        self.tabel_keranjang.setFrameShape(QFrame.Shape.NoFrame)
+        self.tabel_keranjang.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.tabel_keranjang.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+        self.tabel_keranjang.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.tabel_keranjang.setStyleSheet("""
+            QTableWidget {
+                background-color: white;
+                gridline-color: transparent;
+                border: none;
+                font-size: 13px;
+                color: #555;
+            }
+            QHeaderView::section {
+                background-color: white;
+                border: none;
+                border-bottom: 1px solid #E0E0E0;
+                padding-left: 15px;
+                padding-right: 15px;
+                padding-top: 10px;
+                padding-bottom: 5px;
+                font-weight: bold;
+                color: #828282;
+                font-size: 13px;
+            }
+            QTableWidget::item {
+                padding: 10px;
+                color: #6B8E23;
+                border-bottom: 1px solid #E0E0E0;
+            }
+        """)
+        layout_isi.addWidget(self.tabel_keranjang)
+
+        # ── Tabel rekomendasi ─────────────────────────────────────────────
+        lbl_rekom = QLabel("Rekomendasi Toko Terhemat")
+        lbl_rekom.setStyleSheet("font-size: 14px; font-weight: 600; color: #6B8E23; border: none;")
+        layout_isi.addWidget(lbl_rekom)
+
+        self.tabel_rekom = QTableWidget(0, 3)
+        self.tabel_rekom.setHorizontalHeaderLabels(["Nama Toko", "Merk & Spesifikasi Barang", "Harga"])
+        self.tabel_rekom.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.tabel_rekom.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.tabel_rekom.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.tabel_rekom.verticalHeader().setVisible(False)
+        self.tabel_rekom.setFrameShape(QFrame.Shape.NoFrame)
+        self.tabel_rekom.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.tabel_rekom.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+        self.tabel_rekom.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.tabel_rekom.setMinimumHeight(170)
+        self.tabel_rekom.setStyleSheet("""
+            QTableWidget {
+                background: white;
+                border: none;
+                font-size: 12px;
+                color: #444;
+            }
+            QHeaderView::section {
+                background: #fafafa;
+                border: none;
+                border-bottom: 1px solid #E0E0E0;
+                padding: 8px;
+                font-weight: bold;
+                color: #777;
+            }
+            QTableWidget::item {
+                padding: 8px;
+                border-bottom: 1px solid #F0F0F0;
+            }
+        """)
+        layout_isi.addWidget(self.tabel_rekom)
 
         # Total
         self.lbl_total = QLabel("Total: Rp 0")
@@ -73,29 +154,16 @@ class HalamanPenghitung(QWidget):
             "font-weight: bold; padding: 14px; border-radius: 6px;"
         )
         self.lbl_total.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout_kiri.addWidget(self.lbl_total)
+        layout_isi.addWidget(self.lbl_total)
 
-        # ── Perbandingan Toko ─────────────────────────────────────────────
-        lbl_compare = QLabel("Rekomendasi Toko Terhemat")
-        lbl_compare.setStyleSheet("font-size: 14px; font-weight: bold; margin-top: 8px;")
-        layout_kiri.addWidget(lbl_compare)
-
-        self.tabel_toko = QTableWidget(0, 3)
-        self.tabel_toko.setHorizontalHeaderLabels(["Toko", "Est. Total", "Item Tersedia"])
-        self.tabel_toko.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.tabel_toko.setMaximumHeight(180)
-        self.tabel_toko.setStyleSheet("background: white; border-radius: 6px;")
-        self.tabel_toko.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        layout_kiri.addWidget(self.tabel_toko)
+        layout_isi.addSpacing(6)
 
         btn_reset = QPushButton("🗑  Reset Keranjang")
-        btn_reset.setStyleSheet(
-            "background: #e74c3c; color: white; padding: 8px; border-radius: 6px;"
-        )
+        btn_reset.setStyleSheet("background: #e74c3c; color: white; padding: 8px; border-radius: 6px;")
         btn_reset.clicked.connect(self._reset_keranjang)
-        layout_kiri.addWidget(btn_reset)
+        layout_isi.addWidget(btn_reset)
 
-        # ── Panel Kanan: Daftar Produk ────────────────────────────────────
+        # ── Panel Kanan ────────────────────────────────────────────────────
         panel_kanan = QWidget()
         layout_kanan = QVBoxLayout(panel_kanan)
         layout_kanan.setContentsMargins(16, 16, 16, 16)
@@ -103,10 +171,9 @@ class HalamanPenghitung(QWidget):
 
         header_kanan = QHBoxLayout()
         lbl_mau = QLabel("Mau Belanja Apa Hari Ini?")
-        lbl_mau.setStyleSheet("font-size: 16px; font-weight: bold;")
+        lbl_mau.setStyleSheet("font-size: 16px; font-weight: 550; color: #6B8E23")
         self.input_filter = QLineEdit()
         self.input_filter.setPlaceholderText("Filter produk...")
-        self.input_filter.setFixedWidth(200)
         self.input_filter.setStyleSheet("padding: 6px; border: 1px solid #ccc; border-radius: 4px;")
         self.input_filter.textChanged.connect(self._filter_produk)
         header_kanan.addWidget(lbl_mau)
@@ -117,7 +184,6 @@ class HalamanPenghitung(QWidget):
         self.loading_kanan = LoadingWidget("Memuat produk...")
         layout_kanan.addWidget(self.loading_kanan)
 
-        # ── Refresh / Update toolbar ──────────────────────────────────────
         self.refresh_bar = RefreshWidget()
         self.refresh_bar.refresh_diminta.connect(self._muat_produk)
         layout_kanan.addWidget(self.refresh_bar)
@@ -127,15 +193,13 @@ class HalamanPenghitung(QWidget):
         scroll.setStyleSheet("border: none;")
         self.grid_container = QWidget()
         self.grid = QGridLayout(self.grid_container)
-        self.grid.setSpacing(10)
+        self.grid.setSpacing(12)
+        self.grid.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         scroll.setWidget(self.grid_container)
         layout_kanan.addWidget(scroll)
 
-        # Rakit layout utama: kiri 40%, kanan 60%
-        root.addWidget(panel_kiri, 4)
-        root.addWidget(panel_kanan, 6)
-
-        self._semua_cards: list[CalculatorCard] = []
+        root.addWidget(panel_kiri, 5)
+        root.addWidget(panel_kanan, 5)
 
     # ── Load Data ─────────────────────────────────────────────────────────
 
@@ -147,36 +211,80 @@ class HalamanPenghitung(QWidget):
     def _tampilkan_produk(self, data: list):
         self.loading_kanan.hide()
 
-        # Kelompokkan produk: ambil harga rata-rata per nama produk
+        # Lepas card lama dari grid
+        for card in self._semua_cards:
+            self.grid.removeWidget(card)
+            card.deleteLater()
+        self._semua_cards = []
+
+        # Bersihkan item non-card
+        while self.grid.count():
+            item = self.grid.takeAt(0)
+            w = item.widget()
+            if w:
+                w.deleteLater()
+
         produk_dict: dict[str, dict] = {}
         for row in data:
-            nama    = row[0]
+            nama = row[0]
             kategori = row[1]
-            harga   = row[2]
-            toko    = row[3]
+            harga = row[2]
+            toko = row[3]
+            gambar_url = row[4] if len(row) > 4 else None
+
             if nama not in produk_dict:
-                produk_dict[nama] = {"kategori": kategori, "harga_toko": {}}
+                produk_dict[nama] = {
+                    "kategori": kategori,
+                    "harga_toko": {},
+                    "gambar_url": gambar_url,
+                }
             produk_dict[nama]["harga_toko"][toko] = harga
 
-        KOLOM = 2
-        self._semua_cards = []
-        for i, (nama, info) in enumerate(produk_dict.items()):
-            # Gunakan harga terendah sebagai tampilan utama
+        for nama, info in produk_dict.items():
             harga_min = min(info["harga_toko"].values()) if info["harga_toko"] else 0
             card = CalculatorCard(
                 nama=nama,
                 harga=harga_min,
                 harga_per_toko=info["harga_toko"],
                 callback_update=self._update_keranjang,
+                gambar_url=info.get("gambar_url"),
             )
             self._semua_cards.append(card)
-            self.grid.addWidget(card, i // KOLOM, i % KOLOM)
 
-        if not produk_dict:
-            lbl = QLabel("Belum ada data produk. Jalankan scraper.")
-            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl.setStyleSheet("color: #999; padding: 40px;")
-            self.grid.addWidget(lbl, 0, 0)
+        self._susun_grid_produk(self._semua_cards, kolom=2)
+
+    # ── Grid Produk ───────────────────────────────────────────────────────
+
+    def _susun_grid_produk(self, cards: list[CalculatorCard], kolom: int = 2):
+        # Lepas semua card dari grid dulu + sembunyikan
+        for card in self._semua_cards:
+            self.grid.removeWidget(card)
+            card.setVisible(False)
+
+        # Bersihkan item non-card
+        while self.grid.count():
+            item = self.grid.takeAt(0)
+            w = item.widget()
+            if w and w not in self._semua_cards:
+                w.deleteLater()
+
+        self.lbl_kosong = None
+
+        # Tambahkan lagi hasil filter dari index 0 -> selalu kiri-atas
+        for i, card in enumerate(cards):
+            row = i // kolom
+            col = i % kolom
+            self.grid.addWidget(card, row, col)
+            card.setVisible(True)
+
+        if not cards:
+            self.lbl_kosong = QLabel("Produk tidak ditemukan")
+            self.lbl_kosong.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.lbl_kosong.setStyleSheet("color: #999; padding: 30px; font-size: 13px;")
+            self.grid.addWidget(self.lbl_kosong, 0, 0, 1, kolom)
+
+        self.grid_container.updateGeometry()
+        self.grid_container.adjustSize()
 
     # ── Keranjang ─────────────────────────────────────────────────────────
 
@@ -186,82 +294,145 @@ class HalamanPenghitung(QWidget):
         else:
             self.keranjang[nama] = {"harga_per_toko": harga_per_toko, "qty": qty}
         self._refresh_tabel_keranjang()
-        self._refresh_rekomendasi_toko()
+
+    def _buat_item_readonly(self, text: str, align: Qt.AlignmentFlag | None = None):
+        item = QTableWidgetItem(text)
+        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+        if align is not None:
+            item.setTextAlignment(align)
+        return item
 
     def _refresh_tabel_keranjang(self):
         self.tabel_keranjang.setRowCount(0)
         grand_total = 0
 
         for baris, (nama, info) in enumerate(self.keranjang.items()):
-            qty    = info["qty"]
-            # Harga terendah dari semua toko
-            harga  = min(info["harga_per_toko"].values()) if info["harga_per_toko"] else 0
+            qty = info["qty"]
+            harga = min(info["harga_per_toko"].values()) if info["harga_per_toko"] else 0
             subtot = harga * qty
 
             self.tabel_keranjang.insertRow(baris)
-            self.tabel_keranjang.setItem(baris, 0, QTableWidgetItem(nama))
-            self.tabel_keranjang.setItem(baris, 1, QTableWidgetItem(f"{qty} kg"))
+            self.tabel_keranjang.setRowHeight(baris, 40)
 
-            item_sub = QTableWidgetItem(f"Rp {subtot:,.0f}".replace(",", "."))
-            item_sub.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-            self.tabel_keranjang.setItem(baris, 2, item_sub)
+            self.tabel_keranjang.setItem(baris, 0, self._buat_item_readonly(nama))
+            self.tabel_keranjang.setItem(baris, 1, self._buat_item_readonly(f"× {qty}"))
+            self.tabel_keranjang.setItem(
+                baris,
+                2,
+                self._buat_item_readonly(
+                    f"Rp {subtot:,.0f}".replace(",", "."),
+                    Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                ),
+            )
 
             grand_total += subtot
 
         self.lbl_total.setText(f"Total: Rp {grand_total:,.0f}".replace(",", "."))
+        self._refresh_tabel_rekomendasi()
 
-    def _refresh_rekomendasi_toko(self):
-        """Hitung estimasi total per toko untuk semua item di keranjang."""
+    def _refresh_tabel_rekomendasi(self):
+        self.tabel_rekom.setRowCount(0)
+
         if not self.keranjang:
-            self.tabel_toko.setRowCount(0)
             return
 
-        # Kumpulkan estimasi per toko
-        estimasi_toko: dict[str, float] = {}
-        item_count: dict[str, int] = {}
+        # 1 barang: list toko yang jual barang tsb, urut termurah
+        if len(self.keranjang) == 1:
+            nama_barang, info = next(iter(self.keranjang.items()))
+            data = sorted(info["harga_per_toko"].items(), key=lambda x: x[1])
+            if not data:
+                return
 
-        for nama, info in self.keranjang.items():
-            qty = info["qty"]
-            for toko, harga in info["harga_per_toko"].items():
-                estimasi_toko[toko] = estimasi_toko.get(toko, 0) + harga * qty
-                item_count[toko] = item_count.get(toko, 0) + 1
+            harga_terendah = data[0][1]
+            for row_idx, (toko, harga) in enumerate(data):
+                self.tabel_rekom.insertRow(row_idx)
+                self.tabel_rekom.setItem(row_idx, 0, self._buat_item_readonly(toko))
+                self.tabel_rekom.setItem(row_idx, 1, self._buat_item_readonly(nama_barang))
+                self.tabel_rekom.setItem(
+                    row_idx,
+                    2,
+                    self._buat_item_readonly(
+                        f"Rp {harga:,.0f}".replace(",", "."),
+                        Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                    ),
+                )
+                if harga == harga_terendah:
+                    self._highlight_row(row_idx)
+            return
 
-        # Urutkan dari terhemat
-        urut = sorted(estimasi_toko.items(), key=lambda x: x[1])
+        # banyak barang: bandingkan total antar toko yang menjual SEMUA barang di keranjang
+        semua_toko = set()
+        for info in self.keranjang.values():
+            semua_toko.update(info["harga_per_toko"].keys())
 
-        self.tabel_toko.setRowCount(0)
-        for baris, (toko, total) in enumerate(urut):
-            self.tabel_toko.insertRow(baris)
+        total_per_toko: list[tuple[str, int, str]] = []
+        for toko in semua_toko:
+            total = 0
+            daftar_barang = []
+            valid = True
 
-            # Tandai toko terhemat dengan warna hijau
-            warna = QColor("#d5f5e3") if baris == 0 else QColor("white")
+            for nama_barang, info in self.keranjang.items():
+                qty = info["qty"]
+                harga_toko = info["harga_per_toko"].get(toko)
+                if harga_toko is None:
+                    valid = False
+                    break
 
-            item_toko = QTableWidgetItem(f"{'🏆 ' if baris == 0 else ''}{toko}")
-            item_toko.setBackground(warna)
+                total += harga_toko * qty
+                daftar_barang.append(f"{nama_barang} ×{qty}")
 
-            item_total = QTableWidgetItem(f"Rp {total:,.0f}".replace(",", "."))
-            item_total.setBackground(warna)
-            item_total.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            if valid:
+                total_per_toko.append((toko, total, ", ".join(daftar_barang)))
 
-            item_count_cell = QTableWidgetItem(f"{item_count.get(toko, 0)} item")
-            item_count_cell.setBackground(warna)
-            item_count_cell.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        total_per_toko.sort(key=lambda x: x[1])
 
-            self.tabel_toko.setItem(baris, 0, item_toko)
-            self.tabel_toko.setItem(baris, 1, item_total)
-            self.tabel_toko.setItem(baris, 2, item_count_cell)
+        if not total_per_toko:
+            self.tabel_rekom.insertRow(0)
+            self.tabel_rekom.setItem(0, 0, self._buat_item_readonly("-"))
+            self.tabel_rekom.setItem(0, 1, self._buat_item_readonly("Tidak ada toko yang menjual semua barang"))
+            self.tabel_rekom.setItem(0, 2, self._buat_item_readonly("-"))
+            return
+
+        termurah = total_per_toko[0][1]
+        for row_idx, (toko, total, detail) in enumerate(total_per_toko):
+            self.tabel_rekom.insertRow(row_idx)
+            self.tabel_rekom.setItem(row_idx, 0, self._buat_item_readonly(toko))
+            self.tabel_rekom.setItem(row_idx, 1, self._buat_item_readonly(detail))
+            self.tabel_rekom.setItem(
+                row_idx,
+                2,
+                self._buat_item_readonly(
+                    f"Rp {total:,.0f}".replace(",", "."),
+                    Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                ),
+            )
+            if total == termurah:
+                self._highlight_row(row_idx)
+
+    def _highlight_row(self, row_idx: int):
+        for col in range(self.tabel_rekom.columnCount()):
+            item = self.tabel_rekom.item(row_idx, col)
+            if item:
+                item.setBackground(QColor("#E8F7E8"))
+                if col == 2:
+                    item.setForeground(QColor("#1B8A3A"))
+                    font = item.font()
+                    font.setBold(True)
+                    item.setFont(font)
 
     def _reset_keranjang(self):
         self.keranjang.clear()
         for card in self._semua_cards:
             card.reset_qty()
         self._refresh_tabel_keranjang()
-        self.tabel_toko.setRowCount(0)
 
     # ── Filter ────────────────────────────────────────────────────────────
 
     def _filter_produk(self, keyword: str):
-        kw = keyword.lower()
-        for card in self._semua_cards:
-            visible = kw in card.nama.lower() if kw else True
-            card.setVisible(visible)
+        kw = keyword.lower().strip()
+        if not kw:
+            hasil = self._semua_cards
+        else:
+            hasil = [card for card in self._semua_cards if kw in card.nama.lower()]
+
+        self._susun_grid_produk(hasil, kolom=2)
