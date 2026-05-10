@@ -160,15 +160,12 @@ class DBManager:
     # ── Query: Pencarian ──────────────────────────────────────────────────
 
     def cari_produk(self, keyword: str) -> list[sqlite3.Row]:
-        """
-        Cari produk di seluruh sumber (PIHPS + supermarket).
-        Return unified: (nama, harga, toko, tanggal)
-        """
         kw = f"%{keyword}%"
 
-        # Data dari PIHPS
+        # PIHPS tidak punya gambar → thumbnail_url dikosongkan
         sql_pihps = """
-            SELECT komoditas AS nama, harga, 'PIHPS Nasional' AS toko, tanggal
+            SELECT komoditas AS nama, harga, 'PIHPS Nasional' AS toko,
+                tanggal, '' AS thumbnail_url
             FROM harga_pangan
             WHERE komoditas LIKE ?
             AND (komoditas, tanggal) IN (
@@ -178,9 +175,10 @@ class DBManager:
             )
         """
 
-        # Data dari supermarket
+        # Supermarket (Borma, Yogya) → ikutkan thumbnail_url
         sql_toko = """
-            SELECT nama_produk AS nama, harga, toko, tanggal_scraping AS tanggal
+            SELECT nama_produk AS nama, harga, toko,
+                tanggal_scraping AS tanggal, thumbnail_url
             FROM harga_supermarket
             WHERE nama_produk LIKE ?
             ORDER BY harga ASC
