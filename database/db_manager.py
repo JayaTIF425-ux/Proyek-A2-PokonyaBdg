@@ -201,7 +201,7 @@ class DBManager:
         Return: [(nama_produk, kategori, harga, toko)]
         """
         sql = """
-            SELECT nama_produk, kategori, harga, toko
+            SELECT nama_produk, kategori, harga, toko, thumbnail_url
             FROM harga_supermarket
             ORDER BY kategori, nama_produk, harga
         """
