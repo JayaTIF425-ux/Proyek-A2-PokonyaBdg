@@ -245,7 +245,6 @@ class ProductCard(QFrame):
             }
             QFrame:hover {
                 background: #eaf2d7;
-                cursor: pointer;
             }
         """)
         self.footer.setFixedHeight(30)
