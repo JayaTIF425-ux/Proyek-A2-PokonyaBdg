@@ -58,9 +58,22 @@ class HalamanBeranda(QWidget):
             "Pasar Modern"
         ])
         self.combo_pasar.setFixedWidth(220)
-        self.combo_pasar.setStyleSheet(
-            "padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px;"
-        )
+        self.combo_pasar.setStyleSheet("""
+            QComboBox {
+                padding: 4px 8px;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                background-color: white;
+                color: #333;
+            }
+            QComboBox QAbstractItemView {
+                background-color: white;
+                color: #333;
+                selection-background-color: #6B8E23;
+                selection-color: white;
+                border: 1px solid #ccc;
+            }
+        """)
         # ← sambungkan dropdown ke filter
         self.combo_pasar.currentIndexChanged.connect(self._on_filter_pasar_berubah)
 
