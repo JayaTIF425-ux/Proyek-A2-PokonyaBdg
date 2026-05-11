@@ -1,10 +1,5 @@
 """
 database/db_manager.py — Manajer terpusat untuk seluruh operasi SQLite.
-
-Skema Database:
-  harga_pangan    : data dari API PIHPS (Bank Indonesia) — harga acuan nasional
-  harga_supermarket : data hasil scraping toko (Yogya, Borma, dll.)
-  ringkasan_harga : view agregasi untuk perbandingan cepat
 """
 
 import sqlite3
@@ -14,11 +9,6 @@ from datetime import datetime
 
 
 class DBManager:
-    """
-    Singleton-style manager: buat satu instance, pakai di mana saja.
-    Semua query dikumpulkan di sini agar tidak ada SQL tersebar di UI.
-    """
-
     DEFAULT_DB = "hargapangan.db"
 
     def __init__(self, db_name: Optional[str] = None):
@@ -27,20 +17,14 @@ class DBManager:
         self.db_path = os.path.join(base_dir, "data", db_file)
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
 
-    # ── Koneksi ──────────────────────────────────────────────────────────
-
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row  # akses kolom by name
+        conn.row_factory = sqlite3.Row
         return conn
 
-    # ── Inisialisasi Skema ────────────────────────────────────────────────
-
     def init_schema(self):
-        """Buat semua tabel jika belum ada. Aman dipanggil berkali-kali."""
         with self._connect() as conn:
             conn.executescript("""
-                -- Harga acuan dari PIHPS (Bank Indonesia)
                 CREATE TABLE IF NOT EXISTS harga_pangan (
                     id              INTEGER PRIMARY KEY AUTOINCREMENT,
                     komoditas       TEXT    NOT NULL,
@@ -49,8 +33,6 @@ class DBManager:
                     waktu_scraping  TEXT,
                     jenis_pasar     TEXT    DEFAULT 'tradisional'
                 );
-
-                -- Harga dari hasil scraping supermarket
                 CREATE TABLE IF NOT EXISTS harga_supermarket (
                     id              INTEGER PRIMARY KEY AUTOINCREMENT,
                     toko            TEXT    NOT NULL,
@@ -62,8 +44,6 @@ class DBManager:
                     thumbnail_url   TEXT,
                     tanggal_scraping TEXT
                 );
-
-                -- Komoditas master (untuk mapping nama antar sumber)
                 CREATE TABLE IF NOT EXISTS komoditas (
                     id          INTEGER PRIMARY KEY AUTOINCREMENT,
                     nama        TEXT    NOT NULL UNIQUE,
@@ -71,25 +51,15 @@ class DBManager:
                     satuan      TEXT    DEFAULT 'kg',
                     deskripsi   TEXT
                 );
-
-                -- Indeks untuk mempercepat pencarian
-                CREATE INDEX IF NOT EXISTS idx_hp_komoditas
-                    ON harga_pangan(komoditas);
-                CREATE INDEX IF NOT EXISTS idx_hs_nama
-                    ON harga_supermarket(nama_produk);
-                CREATE INDEX IF NOT EXISTS idx_hs_toko
-                    ON harga_supermarket(toko);
-                CREATE INDEX IF NOT EXISTS idx_hs_kategori
-                    ON harga_supermarket(kategori);
+                CREATE INDEX IF NOT EXISTS idx_hp_komoditas ON harga_pangan(komoditas);
+                CREATE INDEX IF NOT EXISTS idx_hs_nama ON harga_supermarket(nama_produk);
+                CREATE INDEX IF NOT EXISTS idx_hs_toko ON harga_supermarket(toko);
+                CREATE INDEX IF NOT EXISTS idx_hs_kategori ON harga_supermarket(kategori);
             """)
 
-    # ── Query: Beranda ────────────────────────────────────────────────────
+    # ── Query: Beranda ──────────────────────────────────────────────────
 
     def fetch_ringkasan_harga(self) -> list[sqlite3.Row]:
-        """
-        Ambil harga rata-rata terbaru per komoditas dari semua sumber.
-        Return: [(komoditas, harga_acuan, harga_min_toko, harga_max_toko, tanggal)]
-        """
         sql = """
             SELECT
                 hp.komoditas,
@@ -109,7 +79,6 @@ class DBManager:
             return conn.execute(sql).fetchall()
 
     def fetch_semua_produk_pihps(self) -> list[sqlite3.Row]:
-        """Ambil semua data PIHPS terbaru per komoditas."""
         sql = """
             SELECT komoditas, harga, 'PIHPS Bandung' AS toko, tanggal
             FROM harga_pangan
@@ -120,12 +89,8 @@ class DBManager:
         """
         with self._connect() as conn:
             return conn.execute(sql).fetchall()
-        
+
     def fetch_produk_pihps_by_pasar(self, jenis_pasar: str) -> list[sqlite3.Row]:
-        """
-        Ambil data PIHPS terbaru per komoditas berdasarkan jenis pasar.
-        jenis_pasar: 'tradisional', 'modern', atau 'semua'
-        """
         if jenis_pasar == "semua":
             sql = """
                 SELECT komoditas, harga, jenis_pasar,
@@ -157,12 +122,10 @@ class DBManager:
             with self._connect() as conn:
                 return conn.execute(sql, (jenis_pasar, jenis_pasar)).fetchall()
 
-    # ── Query: Pencarian ──────────────────────────────────────────────────
+    # ── Query: Pencarian ────────────────────────────────────────────────
 
     def cari_produk(self, keyword: str) -> list[sqlite3.Row]:
         kw = f"%{keyword}%"
-
-        # PIHPS tidak punya gambar → thumbnail_url dikosongkan
         sql_pihps = """
             SELECT komoditas AS nama, harga, 'PIHPS Nasional' AS toko,
                 tanggal, '' AS thumbnail_url
@@ -174,8 +137,6 @@ class DBManager:
                 GROUP BY komoditas
             )
         """
-
-        # Supermarket (Borma, Yogya) → ikutkan thumbnail_url
         sql_toko = """
             SELECT nama_produk AS nama, harga, toko,
                 tanggal_scraping AS tanggal, thumbnail_url
@@ -183,21 +144,14 @@ class DBManager:
             WHERE nama_produk LIKE ?
             ORDER BY harga ASC
         """
-
         with self._connect() as conn:
             hasil_pihps = conn.execute(sql_pihps, (kw, kw)).fetchall()
             hasil_toko  = conn.execute(sql_toko,  (kw,)).fetchall()
-
         return hasil_pihps + hasil_toko
 
-    # ── Query: Penghitung / Kalkulator ───────────────────────────────────
+    # ── Query: Kalkulator ───────────────────────────────────────────────
 
     def fetch_produk_untuk_kalkulator(self) -> list[sqlite3.Row]:
-        """
-        Ambil daftar produk beserta harga per toko.
-        Digunakan di halaman Penghitung Belanja.
-        Return: [(nama_produk, kategori, harga, toko)]
-        """
         sql = """
             SELECT nama_produk, kategori, harga, toko, thumbnail_url
             FROM harga_supermarket
@@ -207,10 +161,6 @@ class DBManager:
             return conn.execute(sql).fetchall()
 
     def fetch_harga_per_toko(self, nama_produk: str) -> list[sqlite3.Row]:
-        """
-        Ambil semua harga untuk satu produk dari berbagai toko.
-        Return: [(toko, harga, satuan)]
-        """
         sql = """
             SELECT toko, harga, satuan
             FROM harga_supermarket
@@ -221,14 +171,8 @@ class DBManager:
             return conn.execute(sql, (f"%{nama_produk}%",)).fetchall()
 
     def perbandingan_harga(self, daftar_produk: list[str]) -> list[sqlite3.Row]:
-        """
-        Hitung estimasi total belanja per toko untuk daftar produk.
-        Input: ['Beras', 'Telur Ayam', ...]
-        Return: [(toko, total_estimasi, jumlah_item_tersedia)]
-        """
         if not daftar_produk:
             return []
-
         placeholders = ",".join("?" * len(daftar_produk))
         sql = f"""
             SELECT
@@ -243,13 +187,9 @@ class DBManager:
         with self._connect() as conn:
             return conn.execute(sql, daftar_produk).fetchall()
 
-    # ── Query: Tren Harga ─────────────────────────────────────────────────
+    # ── Query: Tren Harga ───────────────────────────────────────────────
 
     def fetch_tren_harga(self, komoditas: str, hari: int = 30) -> list[sqlite3.Row]:
-        """
-        Ambil data harga historis untuk grafik tren.
-        Return: [(tanggal, harga)]
-        """
         sql = """
             SELECT tanggal, ROUND(AVG(harga), 0) AS harga
             FROM harga_pangan
@@ -261,28 +201,24 @@ class DBManager:
         with self._connect() as conn:
             return conn.execute(sql, (f"%{komoditas}%", f"-{hari}")).fetchall()
 
-    # ── Insert: Dari Scraper ──────────────────────────────────────────────
+    # ── Insert: Dari Scraper ────────────────────────────────────────────
 
     def hapus_data_pihps(self):
         with self._connect() as conn:
             conn.execute("DELETE FROM harga_pangan")
-    
+
     def hapus_data_toko(self, toko: str):
         with self._connect() as conn:
             conn.execute("DELETE FROM harga_supermarket WHERE toko = ?", (toko,))
 
     def insert_harga_pihps(self, records: list[dict]):
-        """
-        Insert batch data PIHPS.
-        Tiap record: {komoditas, harga, tanggal, jenis_pasar}
-        """
         waktu = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         rows = [
             (
                 r["komoditas"],
                 r["harga"],
                 r.get("tanggal", ""),
-                r.get("jenis_pasar", "tradisional"),  # ← TAMBAH INI
+                r.get("jenis_pasar", "tradisional"),
                 waktu
             )
             for r in records
@@ -298,10 +234,7 @@ class DBManager:
     def insert_harga_supermarket(self, records: list[dict]):
         if not records:
             return
-    
         waktu = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        toko = records[0]["toko"]  # ambil nama toko dari data pertama
-    
         rows = [
             (
                 r["toko"], r.get("kategori", ""), r["nama_produk"],
@@ -311,8 +244,6 @@ class DBManager:
             for r in records
         ]
         with self._connect() as conn:
-            # Hapus data lama dari toko ini dulu sebelum insert baru
-            # conn.execute("DELETE FROM harga_supermarket WHERE toko = ?", (toko,))
             conn.executemany(
                 "INSERT INTO harga_supermarket "
                 "(toko, kategori, nama_produk, harga, satuan, stok, thumbnail_url, tanggal_scraping) "
@@ -320,7 +251,114 @@ class DBManager:
                 rows
             )
 
-    # ── Utilitas ──────────────────────────────────────────────────────────
+    # ── CRUD Manual ─────────────────────────────────────────────────────
+
+    def tambah_produk(self, nama: str, harga: float, toko: str,
+                      tanggal: str, kategori: str = "", satuan: str = "kg") -> int:
+        """INSERT satu baris ke harga_supermarket. Return id baris baru."""
+        waktu = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        sql = """
+            INSERT INTO harga_supermarket
+                (toko, kategori, nama_produk, harga, satuan, stok, thumbnail_url, tanggal_scraping)
+            VALUES (?, ?, ?, ?, ?, 0, '', ?)
+        """
+        with self._connect() as conn:
+            cur = conn.execute(sql, (toko, kategori, nama, float(harga), satuan, tanggal or waktu[:10]))
+            return cur.lastrowid
+
+    def update_produk(self, id_produk: int, nama: str, harga: float,
+                      toko: str, tanggal: str, kategori: str = "", satuan: str = "kg"):
+        """UPDATE baris di harga_supermarket berdasarkan id."""
+        sql = """
+            UPDATE harga_supermarket
+            SET nama_produk = ?, harga = ?, toko = ?, tanggal_scraping = ?,
+                kategori = ?, satuan = ?
+            WHERE id = ?
+        """
+        with self._connect() as conn:
+            conn.execute(sql, (nama, float(harga), toko, tanggal, kategori, satuan, id_produk))
+
+    def hapus_produk(self, id_produk: int):
+        """DELETE satu baris dari harga_supermarket berdasarkan id."""
+        with self._connect() as conn:
+            conn.execute("DELETE FROM harga_supermarket WHERE id = ?", (id_produk,))
+
+    def cari_produk_dengan_id(self, keyword: str) -> list[sqlite3.Row]:
+        """Cari produk dan kembalikan id-nya (untuk keperluan Edit/Hapus)."""
+        kw = f"%{keyword}%"
+        sql_toko = """
+            SELECT id, nama_produk AS nama, harga, toko,
+                   tanggal_scraping AS tanggal, thumbnail_url,
+                   'supermarket' AS sumber
+            FROM harga_supermarket
+            WHERE nama_produk LIKE ?
+            ORDER BY harga ASC
+        """
+        sql_pihps = """
+            SELECT id, komoditas AS nama, harga,
+                   'PIHPS Nasional' AS toko,
+                   tanggal, '' AS thumbnail_url,
+                   'pihps' AS sumber
+            FROM harga_pangan
+            WHERE komoditas LIKE ?
+              AND (komoditas, tanggal) IN (
+                  SELECT komoditas, MAX(tanggal) FROM harga_pangan
+                  WHERE komoditas LIKE ?
+                  GROUP BY komoditas
+              )
+        """
+        with self._connect() as conn:
+            hasil_toko  = conn.execute(sql_toko, (kw,)).fetchall()
+            hasil_pihps = conn.execute(sql_pihps, (kw, kw)).fetchall()
+        return hasil_toko + hasil_pihps
+
+    def fetch_semua_produk_supermarket(self, limit: int = 200) -> list[sqlite3.Row]:
+        """Ambil semua produk supermarket."""
+        sql = """
+            SELECT id, nama_produk AS nama, harga, toko,
+                   tanggal_scraping AS tanggal, thumbnail_url, kategori, satuan
+            FROM harga_supermarket
+            ORDER BY toko, nama_produk
+            LIMIT ?
+        """
+        with self._connect() as conn:
+            return conn.execute(sql, (limit,)).fetchall()
+
+    def statistik_harga(self) -> dict:
+        """Statistik ringkas untuk dashboard."""
+        with self._connect() as conn:
+            total    = conn.execute("SELECT COUNT(*) FROM harga_supermarket").fetchone()[0]
+            avg      = conn.execute("SELECT ROUND(AVG(harga),0) FROM harga_supermarket").fetchone()[0]
+            termahal = conn.execute(
+                "SELECT nama_produk, harga, toko FROM harga_supermarket ORDER BY harga DESC LIMIT 1"
+            ).fetchone()
+            termurah = conn.execute(
+                "SELECT nama_produk, harga, toko FROM harga_supermarket WHERE harga > 0 ORDER BY harga ASC LIMIT 1"
+            ).fetchone()
+            jml_toko = conn.execute("SELECT COUNT(DISTINCT toko) FROM harga_supermarket").fetchone()[0]
+            return {
+                "total": total,
+                "avg": avg or 0,
+                "termahal": dict(termahal) if termahal else {},
+                "termurah": dict(termurah) if termurah else {},
+                "jml_toko": jml_toko,
+            }
+
+    def ekspor_csv(self, path: str):
+        """Ekspor seluruh data harga_supermarket ke file CSV."""
+        import csv
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT id, toko, kategori, nama_produk, harga, satuan, tanggal_scraping "
+                "FROM harga_supermarket ORDER BY toko, nama_produk"
+            ).fetchall()
+        with open(path, "w", newline="", encoding="utf-8-sig") as f:
+            writer = csv.writer(f)
+            writer.writerow(["ID", "Toko", "Kategori", "Nama Produk", "Harga", "Satuan", "Tanggal"])
+            for r in rows:
+                writer.writerow(list(r))
+
+    # ── Utilitas ────────────────────────────────────────────────────────
 
     def daftar_toko(self) -> list[str]:
         with self._connect() as conn:
@@ -337,7 +375,6 @@ class DBManager:
             return [r["komoditas"] for r in rows]
 
     def jumlah_data(self) -> dict:
-        """Statistik ringkas jumlah data di DB."""
         with self._connect() as conn:
             n_pihps = conn.execute("SELECT COUNT(*) FROM harga_pangan").fetchone()[0]
             n_toko  = conn.execute("SELECT COUNT(*) FROM harga_supermarket").fetchone()[0]
