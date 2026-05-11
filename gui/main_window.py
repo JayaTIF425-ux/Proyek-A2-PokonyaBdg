@@ -40,11 +40,11 @@ class MainWindow(QMainWindow):
 
         # ── Halaman ──────────────────────────────────────────────────────
         self.pages = QStackedWidget()
-        self.halaman_beranda   = HalamanBeranda()
-        self.halaman_pencarian = HalamanPencarian()
+        self.halaman_beranda    = HalamanBeranda()
+        self.halaman_pencarian  = HalamanPencarian()
         self.halaman_penghitung = HalamanPenghitung()
-        self.halaman_tutorial  = HalamanTutorial()
-        self.halaman_tentang   = HalamanTentang()
+        self.halaman_tutorial   = HalamanTutorial()
+        self.halaman_tentang    = HalamanTentang()
 
         self.pages.addWidget(self.halaman_beranda)    # 0
         self.pages.addWidget(self.halaman_pencarian)  # 1
@@ -56,10 +56,13 @@ class MainWindow(QMainWindow):
         root_layout.addWidget(self.pages, 1)
         self.setCentralWidget(central)
 
+        # ── Sambungkan signal navigasi dari beranda ke pencarian ──────────
+        self.halaman_beranda.navigasi_pencarian.connect(self.navigasi_ke_pencarian)
+
         # Tampilkan beranda saat mulai
         self._set_halaman(0)
 
-    # ── Builder Sidebar ──────────────────────────────────────────────────
+    # ── Builder Sidebar ───────────────────────────────────────────────────
 
     def _buat_sidebar(self) -> QFrame:
         sidebar = QFrame()
@@ -69,7 +72,6 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 20)
         layout.setSpacing(4)
 
-        # Brand / Logo
         brand = QLabel("PokokNya")
         brand.setStyleSheet(
             f"color: {self.WARNA_AKSEN}; font-size: 22px; font-weight: bold; "
@@ -82,18 +84,16 @@ class MainWindow(QMainWindow):
         layout.addWidget(brand)
         layout.addWidget(sub)
 
-        # Separator
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
         sep.setStyleSheet(f"color: {self.WARNA_AKTIF};")
         layout.addWidget(sep)
         layout.addSpacing(8)
 
-        # Menu Utama
         self.menu_buttons: list[QPushButton] = []
         menus = [
-            ("🏠  Beranda",           0),
-            ("🔍  Pencarian",         1),
+            ("🏠  Beranda",            0),
+            ("🔍  Pencarian",          1),
             ("🧮  Penghitung Belanja", 2),
         ]
         for teks, idx in menus:
@@ -103,9 +103,8 @@ class MainWindow(QMainWindow):
 
         layout.addStretch()
 
-        # Menu Bawah
         bawah = [
-            ("ℹ️  Tutorial",   3),
+            ("ℹ️  Tutorial",    3),
             ("👥  Tentang Kami", 4),
         ]
         for teks, idx in bawah:
@@ -145,6 +144,15 @@ class MainWindow(QMainWindow):
     def _set_halaman(self, index: int):
         self.pages.setCurrentIndex(index)
         for i, btn in enumerate(self.menu_buttons):
-            # Petakan urutan tombol (3 utama + 2 bawah = idx 0-4)
-            btn_index = i if i < 3 else i  # sama karena append berurutan
-            btn.setChecked(btn_index == index)
+            btn.setChecked(i == index)
+
+    # ── Navigasi dari beranda ke pencarian ── 
+    def navigasi_ke_pencarian(self, keyword: str):
+        """
+        Pindah ke halaman pencarian dan langsung jalankan
+        pencarian dengan keyword dari card beranda.
+        """
+        # Isi keyword di search box pencarian
+        self.halaman_pencarian.set_keyword_dan_cari(keyword)
+        # Pindah ke halaman pencarian (index 1)
+        self._set_halaman(1)

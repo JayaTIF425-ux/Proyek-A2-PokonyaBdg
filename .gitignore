@@ -1,0 +1,17 @@
+# Python cache — otomatis dibuat, tidak perlu di Git
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Database lokal — tiap komputer punya datanya sendiri
+data/*.db
+
+# Environment & dependency lokal
+.env
+venv/
+.venv/
+env/
+
+# VSCode settings (opsional, tergantung tim)
+.vscode/

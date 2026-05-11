@@ -13,6 +13,7 @@ from database.db_manager import DBManager
 from gui.components.product_card import ProductCard
 from gui.widgets.loading_widget import LoadingWidget
 from gui.widgets.refresh_widget import RefreshWidget
+from gui.components.search_card import SearchCard
 
 # ── Class Dialog Form untuk Create & Update ───────────────────────
 class DialogFormProduk(QDialog):
@@ -64,7 +65,6 @@ class DialogFormProduk(QDialog):
             "tanggal": self.input_tanggal.text()
         }
 
-
 # ── Thread Pencarian ──────────────────────────────────────────────
 class CariWorker(QThread):
     selesai = pyqtSignal(list)
@@ -77,6 +77,34 @@ class CariWorker(QThread):
         data = DBManager().cari_produk(self.keyword)
         self.selesai.emit(list(data))
 
+# ── Mapping: nama komoditas → keyword pencarian singkat ──────────────────
+KEYWORD_MAP = {
+    "bawang merah": "bawang merah",
+    "bawang putih": "bawang putih",
+    "cabai merah":  "cabai merah",
+    "cabai rawit":  "cabai rawit",
+    "daging ayam":  "ayam",
+    "ayam":         "ayam",
+    "daging sapi":  "sapi",
+    "sapi":         "sapi",
+    "telur":        "telur ayam",
+    "beras":        "beras",
+    "minyak":       "minyak",
+    "gula":         "gula",
+}
+
+def petakan_keyword(nama_komoditas: str) -> str:
+    """
+    Ubah nama komoditas panjang jadi keyword singkat.
+    Contoh: 'Beras Kualitas Bawah I' → 'beras'
+             'Daging Ayam Ras Segar' → 'ayam'
+    """
+    nama_lower = nama_komoditas.lower()
+    for kunci, keyword in KEYWORD_MAP.items():
+        if kunci in nama_lower:
+            return keyword
+    # Fallback: ambil kata pertama
+    return nama_komoditas.split()[0].lower()
 
 # ── Halaman Utama Pencarian & CRUD ────────────────────────────────
 class HalamanPencarian(QWidget):
@@ -211,8 +239,8 @@ class HalamanPencarian(QWidget):
             self._cari() # Refresh tampilan
 
     # ── Menampilkan Data ──────────────────────────────────────────────────
-
-    def _tampilkan_hasil(self, data: list):
+    """
+      def _tampilkan_hasil(self, data: list):
         self.loading.hide()
         self._bersihkan_grid()
 
@@ -228,7 +256,7 @@ class HalamanPencarian(QWidget):
         for i, row in enumerate(data):
             # Asumsi format query dari Jaya: (id, nama, harga, toko, tanggal)
             card = ProductCard(
-                nama=row[1], harga=row[2], toko=row[3], tanggal=row[4]
+                nama=row[0], harga=row[1], toko=row[2], tanggal=row[3]
             )
             
             # --- CATATAN UNTUK HANA ---
@@ -243,9 +271,56 @@ class HalamanPencarian(QWidget):
             self.grid.addWidget(card, i // KOLOM, i % KOLOM)
 
         self.lbl_info.setText(f"{len(data)} hasil ditemukan.")
+    """
+    def _tampilkan_hasil(self, data: list):
+        self.loading.hide()
+        self._bersihkan_grid()
+
+        if not data:
+            lbl = QLabel("Tidak ditemukan data untuk kata kunci tersebut.")
+            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            lbl.setStyleSheet("color: #999; font-size: 14px; padding: 40px;")
+            self.grid.addWidget(lbl, 0, 0)
+            self.lbl_info.setText("0 hasil ditemukan.")
+            return
+
+        KOLOM = 2  # ← 2 kolom lebih cocok untuk card horizontal
+        for i, row in enumerate(data):
+            # Ambil thumbnail_url kalau ada (index 4), kalau tidak ada pakai ""
+            try:
+                thumb = row[4] if len(row) > 4 else ""
+            except (IndexError, TypeError):
+                thumb = ""
+
+            card = SearchCard(
+                nama=row[0],
+                harga=row[1],
+                toko=row[2],
+                tanggal=row[3],
+                thumbnail_url=thumb
+            )
+
+            try:
+                card.btn_edit.clicked.connect(lambda checked, r=row: self._edit_data(r))
+                card.btn_hapus.clicked.connect(lambda checked, id_p=row[0]: self._hapus_data(id_p))
+            except AttributeError:
+                pass
+
+            self.grid.addWidget(card, i // KOLOM, i % KOLOM)
+
+        self.lbl_info.setText(f"{len(data)} hasil ditemukan.")
 
     def _bersihkan_grid(self):
         for i in reversed(range(self.grid.count())):
             w = self.grid.itemAt(i).widget()
             if w:
                 w.setParent(None)
+
+    def set_keyword_dan_cari(self, nama_komoditas: str):
+        """
+        Dipanggil dari MainWindow saat user klik card beranda.
+        Konversi nama panjang ke keyword singkat lalu cari.
+        """
+        keyword = petakan_keyword(nama_komoditas)  # ← konversi dulu
+        self.input_cari.setText(keyword)
+        self._cari()
