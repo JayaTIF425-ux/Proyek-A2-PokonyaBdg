@@ -233,9 +233,9 @@ class ProductCard(QFrame):
 
         layout.addStretch()
 
-        # ── Footer: tombol lihat harga berbagai merk ──
-        footer = QFrame()
-        footer.setStyleSheet("""
+        # ── Footer: seluruh area bisa diklik ──
+        self.footer = QFrame()
+        self.footer.setStyleSheet("""
             QFrame {
                 background: #f5f5f5;
                 border: none;
@@ -243,43 +243,43 @@ class ProductCard(QFrame):
                 border-bottom-left-radius: 7px;
                 border-bottom-right-radius: 7px;
             }
+            QFrame:hover {
+                background: #eaf2d7;
+            }
         """)
-        footer_layout = QHBoxLayout(footer)
-        footer_layout.setContentsMargins(10, 0, 6, 0)
+        self.footer.setFixedHeight(30)
+        self.footer.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        footer_layout = QHBoxLayout(self.footer)
+        footer_layout.setContentsMargins(10, 0, 8, 0)
         footer_layout.setSpacing(0)
 
-        self.btn_lihat = QPushButton("Lihat Harga Berbagai Merk")
-        self.btn_lihat.setFixedHeight(28)
-        self.btn_lihat.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_lihat.setStyleSheet("""
-            QPushButton {
-                background: transparent;
-                border: none;
-                color: #6B8E23;
-                font-size: 10px;
-                font-weight: 500;
-                text-align: left;
-                padding: 0;
-            }
-            QPushButton:hover {
-                color: #4a6018;
-                text-decoration: underline;
-            }
-        """)
-        self.btn_lihat.clicked.connect(self._on_lihat_diklik)
-
-        # Ikon panah kanan
-        lbl_arrow = QLabel("›")
-        lbl_arrow.setStyleSheet(
-            "color: #6B8E23; font-size: 16px; border: none; padding-right: 2px;"
+        lbl_teks = QLabel("Lihat Harga Berbagai Merk")
+        lbl_teks.setStyleSheet(
+            "color: #6B8E23; font-size: 10px; font-weight: 500; "
+            "border: none; background: transparent;"
         )
 
-        footer_layout.addWidget(self.btn_lihat)
+        lbl_arrow = QLabel("›")
+        lbl_arrow.setStyleSheet(
+            "color: #6B8E23; font-size: 16px; border: none; "
+            "background: transparent; padding-right: 2px;"
+        )
+
+        footer_layout.addWidget(lbl_teks)
         footer_layout.addStretch()
         footer_layout.addWidget(lbl_arrow)
 
-        footer.setFixedHeight(30)
-        layout.addWidget(footer)
+        layout.addWidget(self.footer)
+
+    # ── Override mousePressEvent di footer ── tambahkan method ini di class
+    def mousePressEvent(self, event):
+        """Klik di mana saja pada footer akan trigger navigasi."""
+        # Cek apakah klik di area footer
+        footer_rect = self.footer.geometry()
+        if footer_rect.contains(event.pos()):
+            self.lihat_pencarian.emit(self.nama)
+        super().mousePressEvent(event)
 
     # ── Load chart data ───────────────────────────────────────────────────
 
