@@ -188,10 +188,10 @@ class StatistikBar(QFrame):
             "background: #f0f7e6; border: 1px solid #c5e0a0; "
             "border-radius: 8px; padding: 4px;"
         )
-        self.setFixedHeight(60)
+        self.setFixedHeight(80)
 
         self._layout = QHBoxLayout(self)
-        self._layout.setContentsMargins(16, 8, 16, 8)
+        self._layout.setContentsMargins(16, 12, 16, 12)
         self._layout.setSpacing(24)
 
         self.lbl_total    = self._buat_stat("Total Produk", "–")
