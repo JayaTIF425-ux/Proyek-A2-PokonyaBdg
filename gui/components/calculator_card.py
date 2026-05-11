@@ -1,8 +1,8 @@
 from PyQt6.QtWidgets import (
-    QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QToolTip
+    QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QToolTip, QLineEdit
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QCursor, QPixmap, QImage
+from PyQt6.QtGui import QCursor, QPixmap, QImage, QIntValidator
 import os
 import requests
 
@@ -13,12 +13,11 @@ class ImageLoaderThread(QThread):
 
     def __init__(self, sumber: str):
         super().__init__()
-        self.sumber = sumber  # bisa path lokal atau URL
+        self.sumber = sumber
 
     def run(self):
         try:
             pixmap = QPixmap()
-
             if os.path.isfile(self.sumber):
                 pixmap.load(self.sumber)
             elif self.sumber.startswith("http"):
@@ -35,7 +34,6 @@ class ImageLoaderThread(QThread):
                 self.image_loaded.emit(pixmap)
             else:
                 self.image_failed.emit()
-
         except Exception:
             self.image_failed.emit()
 
@@ -43,8 +41,7 @@ class ImageLoaderThread(QThread):
 class CalculatorCard(QFrame):
     """
     Kartu produk di panel kanan Penghitung Belanja.
-    Menampilkan nama, harga minimum, dan kontrol qty (+/-).
-    Menekan ikon info menampilkan harga dari semua toko.
+    Qty bisa diubah via tombol +/− atau diketik langsung.
     """
 
     def __init__(
@@ -52,7 +49,7 @@ class CalculatorCard(QFrame):
         nama: str,
         harga: float,
         harga_per_toko: dict[str, float],
-        callback_update,  # callable(nama, harga_per_toko, qty)
+        callback_update,
         gambar_url: str = "",
     ):
         super().__init__()
@@ -63,7 +60,6 @@ class CalculatorCard(QFrame):
         self.qty = 0
         self.gambar_url = gambar_url if isinstance(gambar_url, str) and gambar_url.strip() else ""
 
-        # Diperbesar agar proporsional dengan gambar yang lebih besar
         self.setFixedSize(230, 300)
         self.setStyleSheet("""
             QFrame {
@@ -84,7 +80,6 @@ class CalculatorCard(QFrame):
         layout.setContentsMargins(0, 0, 0, 14)
         layout.setSpacing(2)
 
-        # Area gambar diperbesar
         self.lbl_gambar = QLabel()
         self.lbl_gambar.setFixedSize(130, 130)
         self.lbl_gambar.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -95,7 +90,6 @@ class CalculatorCard(QFrame):
         gambar_row.addWidget(self.lbl_gambar)
         gambar_row.addStretch()
 
-        # Tombol info
         info_row = QHBoxLayout()
         info_row.setContentsMargins(0, 6, 8, 0)
         btn_info = QPushButton("ℹ")
@@ -134,10 +128,32 @@ class CalculatorCard(QFrame):
         sub_lbl.setStyleSheet("font-size: 9px; color: #aaa; border: none;")
         sub_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
+        # ── Qty row: tombol − | input | tombol + ──────────────────────────
         qty_row = QHBoxLayout()
-        self.btn_min = QPushButton("−")
-        self.lbl_qty = QLabel("0")
+        self.btn_min  = QPushButton("−")
         self.btn_plus = QPushButton("+")
+
+        # ▼ PERUBAHAN: QLabel → QLineEdit agar bisa diketik langsung
+        self.input_qty = QLineEdit("0")
+        self.input_qty.setFixedWidth(44)
+        self.input_qty.setFixedHeight(30)
+        self.input_qty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.input_qty.setValidator(QIntValidator(0, 9999, self))
+        self.input_qty.setStyleSheet("""
+            QLineEdit {
+                border: 1px solid #ccc;
+                border-radius: 6px;
+                font-size: 13px;
+                font-weight: bold;
+                color: #333;
+                background: white;
+                padding: 0;
+            }
+            QLineEdit:focus {
+                border: 1.5px solid #67823A;
+            }
+        """)
+        self.input_qty.editingFinished.connect(self._set_qty_dari_input)
 
         for btn in (self.btn_min, self.btn_plus):
             btn.setFixedSize(30, 30)
@@ -146,16 +162,12 @@ class CalculatorCard(QFrame):
                 "font-weight: bold; font-size: 14px; border: none; color: white;"
             )
 
-        self.lbl_qty.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl_qty.setStyleSheet("border: none; font-size: 14px; font-weight: bold; color: #333;")
-        self.lbl_qty.setFixedWidth(36)
-
         self.btn_min.clicked.connect(self._kurangi)
         self.btn_plus.clicked.connect(self._tambah)
 
         qty_row.addStretch()
         qty_row.addWidget(self.btn_min)
-        qty_row.addWidget(self.lbl_qty)
+        qty_row.addWidget(self.input_qty)
         qty_row.addWidget(self.btn_plus)
         qty_row.addStretch()
 
@@ -178,11 +190,8 @@ class CalculatorCard(QFrame):
     def _tampilkan_placeholder(self):
         self.lbl_gambar.setPixmap(QPixmap())
         self.lbl_gambar.setStyleSheet(
-            "border: 2px dashed #ccc;"
-            "border-radius: 10px;"
-            "background-color: #f5f5f5;"
-            "color: #aaa;"
-            "font-size: 11px;"
+            "border: 2px dashed #ccc; border-radius: 10px;"
+            "background-color: #f5f5f5; color: #aaa; font-size: 11px;"
         )
         self.lbl_gambar.setText("No Image")
 
@@ -198,18 +207,31 @@ class CalculatorCard(QFrame):
 
     def _tambah(self):
         self.qty += 1
-        self.lbl_qty.setText(str(self.qty))
+        self.input_qty.setText(str(self.qty))
         self.callback(self.nama, self.harga_per_toko, self.qty)
 
     def _kurangi(self):
         if self.qty > 0:
             self.qty -= 1
-            self.lbl_qty.setText(str(self.qty))
+            self.input_qty.setText(str(self.qty))
             self.callback(self.nama, self.harga_per_toko, self.qty)
+
+    # ▼ BARU: sinkronisasi ketika user selesai mengetik di input_qty
+    def _set_qty_dari_input(self):
+        teks = self.input_qty.text().strip()
+        try:
+            nilai = int(teks)
+            if nilai < 0:
+                nilai = 0
+        except ValueError:
+            nilai = self.qty  # kembalikan ke nilai sebelumnya jika tidak valid
+        self.qty = nilai
+        self.input_qty.setText(str(self.qty))
+        self.callback(self.nama, self.harga_per_toko, self.qty)
 
     def reset_qty(self):
         self.qty = 0
-        self.lbl_qty.setText("0")
+        self.input_qty.setText("0")
 
     def _tampilkan_info_toko(self):
         if not self.harga_per_toko:
@@ -218,8 +240,4 @@ class CalculatorCard(QFrame):
             f"• {toko}: Rp {harga:,.0f}".replace(",", ".")
             for toko, harga in sorted(self.harga_per_toko.items(), key=lambda x: x[1])
         )
-        QToolTip.showText(
-            QCursor.pos(),
-            f"Harga {self.nama} per toko:\n{baris}",
-            self
-        )
+        QToolTip.showText(QCursor.pos(), f"Harga {self.nama} per toko:\n{baris}", self)
