@@ -61,7 +61,7 @@ class HalamanPenghitung(QWidget):
         lbl_anggaran.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout_isi.addWidget(lbl_anggaran, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        # Tabel keranjang (read-only)
+        # Tabel keranjang
         self.tabel_keranjang = QTableWidget(0, 3)
         self.tabel_keranjang.setHorizontalHeaderLabels(["Bahan Pangan", "Jumlah", "Subtotal"])
         self.tabel_keranjang.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
@@ -109,44 +109,6 @@ class HalamanPenghitung(QWidget):
         """)
         layout_isi.addWidget(self.tabel_keranjang)
 
-        # ── Tabel rekomendasi ─────────────────────────────────────────────
-        lbl_rekom = QLabel("Rekomendasi Toko Terhemat")
-        lbl_rekom.setStyleSheet("font-size: 14px; font-weight: 600; color: #6B8E23; border: none;")
-        layout_isi.addWidget(lbl_rekom)
-
-        self.tabel_rekom = QTableWidget(0, 3)
-        self.tabel_rekom.setHorizontalHeaderLabels(["Nama Toko", "Merk & Spesifikasi Barang", "Harga"])
-        self.tabel_rekom.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        self.tabel_rekom.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self.tabel_rekom.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        self.tabel_rekom.verticalHeader().setVisible(False)
-        self.tabel_rekom.setFrameShape(QFrame.Shape.NoFrame)
-        self.tabel_rekom.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.tabel_rekom.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
-        self.tabel_rekom.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.tabel_rekom.setMinimumHeight(170)
-        self.tabel_rekom.setStyleSheet("""
-            QTableWidget {
-                background: white;
-                border: none;
-                font-size: 12px;
-                color: #444;
-            }
-            QHeaderView::section {
-                background: #fafafa;
-                border: none;
-                border-bottom: 1px solid #E0E0E0;
-                padding: 8px;
-                font-weight: bold;
-                color: #777;
-            }
-            QTableWidget::item {
-                padding: 8px;
-                border-bottom: 1px solid #F0F0F0;
-            }
-        """)
-        layout_isi.addWidget(self.tabel_rekom)
-
         # Total
         self.lbl_total = QLabel("Total: Rp 0")
         self.lbl_total.setStyleSheet(
@@ -167,27 +129,54 @@ class HalamanPenghitung(QWidget):
         panel_kanan = QWidget()
         layout_kanan = QVBoxLayout(panel_kanan)
         layout_kanan.setContentsMargins(16, 16, 16, 16)
-        layout_kanan.setSpacing(12)
+        layout_kanan.setSpacing(8)
 
-        header_kanan = QHBoxLayout()
+        # ── Baris 1: Judul + input filter ────────────────────────────────
+        baris1 = QHBoxLayout()
         lbl_mau = QLabel("Mau Belanja Apa Hari Ini?")
         lbl_mau.setStyleSheet("font-size: 16px; font-weight: 550; color: #6B8E23")
+
+        self.refresh_bar = RefreshWidget()
+        self.refresh_bar.refresh_diminta.connect(self._muat_produk)
+
+        # Sembunyikan tombol refresh & update dari refresh_bar,
+        # ambil hanya label timestampnya
+        self.refresh_bar.btn_refresh.hide()
+        self.refresh_bar.btn_update.hide()
+        self.refresh_bar.progress.hide()
+
+        baris1.addWidget(lbl_mau)
+        baris1.addStretch()
+        baris1.addWidget(self.refresh_bar)
+        layout_kanan.addLayout(baris1)
+
+        # ── Baris 2: Filter + Refresh + Update ───────────────────────────
+        baris2 = QHBoxLayout()
+        baris2.setSpacing(8)
+
         self.input_filter = QLineEdit()
-        self.input_filter.setPlaceholderText("Filter produk...")
-        self.input_filter.setStyleSheet("padding: 6px; border: 1px solid #ccc; border-radius: 4px;")
+        self.input_filter.setPlaceholderText("Cari bahan pangan...")
+        self.input_filter.setStyleSheet(
+            "padding: 6px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px;"
+        )
         self.input_filter.textChanged.connect(self._filter_produk)
-        header_kanan.addWidget(lbl_mau)
-        header_kanan.addStretch()
-        header_kanan.addWidget(self.input_filter)
-        layout_kanan.addLayout(header_kanan)
+
+        # Buat tombol refresh & update baru yang terhubung ke refresh_bar
+        from PyQt6.QtCore import Qt as _Qt
+        btn_refresh2 = self.refresh_bar.btn_refresh
+        btn_update2  = self.refresh_bar.btn_update
+        btn_refresh2.show()
+        btn_update2.show()
+
+        baris2.addWidget(self.input_filter, 1)
+        baris2.addWidget(btn_refresh2)
+        baris2.addWidget(btn_update2)
+        layout_kanan.addLayout(baris2)
 
         self.loading_kanan = LoadingWidget("Memuat produk...")
         layout_kanan.addWidget(self.loading_kanan)
 
-        self.refresh_bar = RefreshWidget()
-        self.refresh_bar.refresh_diminta.connect(self._muat_produk)
-        layout_kanan.addWidget(self.refresh_bar)
-
+        # ── Grid produk ───────────────────────────────────────────────────
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet("border: none;")
@@ -198,6 +187,7 @@ class HalamanPenghitung(QWidget):
         scroll.setWidget(self.grid_container)
         layout_kanan.addWidget(scroll)
 
+        # Panel kiri sama kayak kanan 
         root.addWidget(panel_kiri, 5)
         root.addWidget(panel_kanan, 5)
 
@@ -211,13 +201,11 @@ class HalamanPenghitung(QWidget):
     def _tampilkan_produk(self, data: list):
         self.loading_kanan.hide()
 
-        # Lepas card lama dari grid
         for card in self._semua_cards:
             self.grid.removeWidget(card)
             card.deleteLater()
         self._semua_cards = []
 
-        # Bersihkan item non-card
         while self.grid.count():
             item = self.grid.takeAt(0)
             w = item.widget()
@@ -256,12 +244,10 @@ class HalamanPenghitung(QWidget):
     # ── Grid Produk ───────────────────────────────────────────────────────
 
     def _susun_grid_produk(self, cards: list[CalculatorCard], kolom: int = 2):
-        # Lepas semua card dari grid dulu + sembunyikan
         for card in self._semua_cards:
             self.grid.removeWidget(card)
             card.setVisible(False)
 
-        # Bersihkan item non-card
         while self.grid.count():
             item = self.grid.takeAt(0)
             w = item.widget()
@@ -270,7 +256,6 @@ class HalamanPenghitung(QWidget):
 
         self.lbl_kosong = None
 
-        # Tambahkan lagi hasil filter dari index 0 -> selalu kiri-atas
         for i, card in enumerate(cards):
             row = i // kolom
             col = i % kolom
@@ -317,108 +302,15 @@ class HalamanPenghitung(QWidget):
             self.tabel_keranjang.setItem(baris, 0, self._buat_item_readonly(nama))
             self.tabel_keranjang.setItem(baris, 1, self._buat_item_readonly(f"× {qty}"))
             self.tabel_keranjang.setItem(
-                baris,
-                2,
+                baris, 2,
                 self._buat_item_readonly(
                     f"Rp {subtot:,.0f}".replace(",", "."),
                     Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
                 ),
             )
-
             grand_total += subtot
 
         self.lbl_total.setText(f"Total: Rp {grand_total:,.0f}".replace(",", "."))
-        self._refresh_tabel_rekomendasi()
-
-    def _refresh_tabel_rekomendasi(self):
-        self.tabel_rekom.setRowCount(0)
-
-        if not self.keranjang:
-            return
-
-        # 1 barang: list toko yang jual barang tsb, urut termurah
-        if len(self.keranjang) == 1:
-            nama_barang, info = next(iter(self.keranjang.items()))
-            data = sorted(info["harga_per_toko"].items(), key=lambda x: x[1])
-            if not data:
-                return
-
-            harga_terendah = data[0][1]
-            for row_idx, (toko, harga) in enumerate(data):
-                self.tabel_rekom.insertRow(row_idx)
-                self.tabel_rekom.setItem(row_idx, 0, self._buat_item_readonly(toko))
-                self.tabel_rekom.setItem(row_idx, 1, self._buat_item_readonly(nama_barang))
-                self.tabel_rekom.setItem(
-                    row_idx,
-                    2,
-                    self._buat_item_readonly(
-                        f"Rp {harga:,.0f}".replace(",", "."),
-                        Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
-                    ),
-                )
-                if harga == harga_terendah:
-                    self._highlight_row(row_idx)
-            return
-
-        # banyak barang: bandingkan total antar toko yang menjual SEMUA barang di keranjang
-        semua_toko = set()
-        for info in self.keranjang.values():
-            semua_toko.update(info["harga_per_toko"].keys())
-
-        total_per_toko: list[tuple[str, int, str]] = []
-        for toko in semua_toko:
-            total = 0
-            daftar_barang = []
-            valid = True
-
-            for nama_barang, info in self.keranjang.items():
-                qty = info["qty"]
-                harga_toko = info["harga_per_toko"].get(toko)
-                if harga_toko is None:
-                    valid = False
-                    break
-
-                total += harga_toko * qty
-                daftar_barang.append(f"{nama_barang} ×{qty}")
-
-            if valid:
-                total_per_toko.append((toko, total, ", ".join(daftar_barang)))
-
-        total_per_toko.sort(key=lambda x: x[1])
-
-        if not total_per_toko:
-            self.tabel_rekom.insertRow(0)
-            self.tabel_rekom.setItem(0, 0, self._buat_item_readonly("-"))
-            self.tabel_rekom.setItem(0, 1, self._buat_item_readonly("Tidak ada toko yang menjual semua barang"))
-            self.tabel_rekom.setItem(0, 2, self._buat_item_readonly("-"))
-            return
-
-        termurah = total_per_toko[0][1]
-        for row_idx, (toko, total, detail) in enumerate(total_per_toko):
-            self.tabel_rekom.insertRow(row_idx)
-            self.tabel_rekom.setItem(row_idx, 0, self._buat_item_readonly(toko))
-            self.tabel_rekom.setItem(row_idx, 1, self._buat_item_readonly(detail))
-            self.tabel_rekom.setItem(
-                row_idx,
-                2,
-                self._buat_item_readonly(
-                    f"Rp {total:,.0f}".replace(",", "."),
-                    Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
-                ),
-            )
-            if total == termurah:
-                self._highlight_row(row_idx)
-
-    def _highlight_row(self, row_idx: int):
-        for col in range(self.tabel_rekom.columnCount()):
-            item = self.tabel_rekom.item(row_idx, col)
-            if item:
-                item.setBackground(QColor("#E8F7E8"))
-                if col == 2:
-                    item.setForeground(QColor("#1B8A3A"))
-                    font = item.font()
-                    font.setBold(True)
-                    item.setFont(font)
 
     def _reset_keranjang(self):
         self.keranjang.clear()

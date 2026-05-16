@@ -126,6 +126,20 @@ def fetch_satu_komoditas(nama: str, jenis_pasar: str) -> list[dict]:
 
     return hasil
 
+def konversi_ke_supermarket(records: list[dict]) -> list[dict]:
+    """Konversi data PIHPS tradisional ke format harga_supermarket."""
+    hasil = []
+    for r in records:
+        hasil.append({
+            "toko":         "Pasar Tradisional",
+            "kategori":     r.get("komoditas", ""),
+            "nama_produk":  r.get("komoditas", ""),
+            "harga":        r.get("harga", 0),
+            "satuan":       "kg",
+            "stok":         0,
+            "thumbnail_url": "",
+        })
+    return hasil
 
 def main():
     print(f"\n{'='*55}")
@@ -135,8 +149,10 @@ def main():
 
     db = DBManager()
     db.init_schema()
+    db.hapus_data_toko("Pasar Tradisional")
 
     total_records = 0
+    semua_tradisional = []
 
     # ── Scrape pasar tradisional ──
     print("[ Pasar Tradisional ]")
@@ -151,6 +167,18 @@ def main():
             print("0 data")
         if idx < len(KOMODITAS_TRADISIONAL):
             time.sleep(JEDA_ANTAR_REQUEST)
+
+    # ── Insert ke harga_supermarket sebagai "Pasar Tradisional" ──
+    if semua_tradisional:
+        # Ambil hanya data terbaru per komoditas
+        terbaru: dict[str, dict] = {}
+        for r in semua_tradisional:
+            nama = r["komoditas"]
+            if nama not in terbaru or r["tanggal"] > terbaru[nama]["tanggal"]:
+                terbaru[nama] = r
+        data_supermarket = konversi_ke_supermarket(list(terbaru.values()))
+        db.insert_harga_supermarket(data_supermarket)
+        print(f"\n  ✓ {len(data_supermarket)} komoditas pasar tradisional disimpan ke supermarket")
 
     # ── Scrape pasar modern ──
     print("\n[ Pasar Modern ]")
