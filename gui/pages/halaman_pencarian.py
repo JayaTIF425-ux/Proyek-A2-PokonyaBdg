@@ -233,8 +233,9 @@ class StatistikBar(QFrame):
         lbl_l = QLabel(label)
         lbl_l.setStyleSheet("font-size: 9px; color: #666; border: none; background: transparent;")
         lbl_v = QLabel(nilai)
-        lbl_v.setStyleSheet("font-size: 13px; font-weight: bold; color: #2c3e50; border: none; background: transparent;")
-
+        lbl_v.setStyleSheet("font-size: 12px; font-weight: bold; color: #2c3e50; border: none; background: transparent;")
+        lbl_v.setWordWrap(True)
+        
         v.addWidget(lbl_l)
         v.addWidget(lbl_v)
         self._layout.addWidget(container)
