@@ -135,7 +135,6 @@ def main():
 
     db = DBManager()
     db.init_schema()
-    db.hapus_data_pihps()
 
     total_records = 0
 
