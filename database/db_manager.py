@@ -189,7 +189,7 @@ class DBManager:
 
     # ── Query: Tren Harga ───────────────────────────────────────────────
 
-    def fetch_tren_harga(self, komoditas: str, hari: int = 30) -> list[sqlite3.Row]:
+    def fetch_tren_harga(self, komoditas: str, hari: int = 999) -> list[sqlite3.Row]:
         sql = """
             SELECT tanggal, ROUND(AVG(harga), 0) AS harga
             FROM harga_pangan

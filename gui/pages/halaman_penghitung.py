@@ -183,7 +183,7 @@ class HalamanPenghitung(QWidget):
         self.grid_container = QWidget()
         self.grid = QGridLayout(self.grid_container)
         self.grid.setSpacing(12)
-        self.grid.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        self.grid.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
         scroll.setWidget(self.grid_container)
         layout_kanan.addWidget(scroll)
 
@@ -244,6 +244,8 @@ class HalamanPenghitung(QWidget):
     # ── Grid Produk ───────────────────────────────────────────────────────
 
     def _susun_grid_produk(self, cards: list[CalculatorCard], kolom: int = 2):
+        self.grid.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+
         for card in self._semua_cards:
             self.grid.removeWidget(card)
             card.setVisible(False)

@@ -161,6 +161,7 @@ def main():
         records = fetch_satu_komoditas(nama, jenis_pasar="tradisional")
         if records:
             db.insert_harga_pihps(records)
+            semua_tradisional.extend(records)
             print(f"✓ {len(records)} titik data")
             total_records += len(records)
         else:
