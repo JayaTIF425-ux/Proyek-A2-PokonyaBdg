@@ -1,45 +1,20 @@
 """
 gui/pages/halaman_tentang.py — Tentang Kami.
 """
-import urllib.request
 
+import os
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QScrollArea, QGridLayout, QFrame, QSizePolicy
+    QScrollArea, QFrame
 )
 from PyQt6.QtCore import Qt
-
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtCore import QByteArray
 
-class BannerImage(QLabel):
-    def __init__(self, pixmap_original: QPixmap):
-        super().__init__()
-        self._original = pixmap_original  # simpan pixmap asli untuk rescaling
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.setFixedHeight(220)           # tinggi tetap, mencegah overlap ke bawah
-        # Expanding horizontal: gambar meregang mengisi lebar parent, bukan 700px
-        self.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Fixed
-        )
-        self.setStyleSheet("border-radius: 12px; background: #e8e8e8; border: none;")
- 
-    def resizeEvent(self, event):
-        """Dipanggil otomatis setiap kali lebar widget berubah."""
-        if self._original and not self._original.isNull():
-            # Scale gambar agar memenuhi lebar dan tinggi widget (cover)
-            scaled = self._original.scaled(
-                self.width(), self.height(),
-                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-                Qt.TransformationMode.SmoothTransformation
-            )
-            # Crop tengah supaya tidak ada sisa abu-abu di kiri/kanan
-            x = max(0, (scaled.width() - self.width()) // 2)
-            y = max(0, (scaled.height() - self.height()) // 2)
-            cropped = scaled.copy(x, y, self.width(), self.height())
-            self.setPixmap(cropped)
-        super().resizeEvent(event)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+def _path_aset(nama: str) -> str:
+    return os.path.join(BASE_DIR, "gui", "assets", "images", nama)
+
 
 class AnggotaCard(QFrame):
     def __init__(self, nama: str):
@@ -67,68 +42,54 @@ class AnggotaCard(QFrame):
 class HalamanTentang(QWidget):
     def __init__(self):
         super().__init__()
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(32, 32, 32, 16)
-        layout.setSpacing(20)
 
-        # Judul
+        # ── Scroll area ───────────────────────────────────────────────────
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("border: none;")
+        outer.addWidget(scroll)
+
+        container = QWidget()
+        scroll.setWidget(container)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(32, 32, 32, 32)
+        layout.setSpacing(16)
+
+        # ── Judul ─────────────────────────────────────────────────────────
         judul = QLabel("Tentang Kami")
-        judul.setStyleSheet("font-size: 25px; font-weight: bold; color: #67823A;")
+        judul.setStyleSheet("font-size: 22px; font-weight: bold; color: #2c3e50;")
         layout.addWidget(judul)
 
-        # Deskripsi
+        # ── Deskripsi ─────────────────────────────────────────────────────
         deskripsi = QLabel(
             "Kami membantu warga Kota Bandung membandingkan harga bahan pokok dari "
             "pasar tradisional dan modern.\n— Semua dalam satu aplikasi, gratis."
         )
         deskripsi.setWordWrap(True)
-        deskripsi.setStyleSheet("font-size: 14px; color: #555; line-height: 1.6;")
+        deskripsi.setStyleSheet("font-size: 14px; color: #555;")
         layout.addWidget(deskripsi)
 
-        IMAGE_URL = "https://msdconnolly.weebly.com/uploads/9/1/6/6/9166444/header_images/1502991705.jpg"
- 
-        gambar_label = QLabel()
-        gambar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        gambar_label.setFixedHeight(220)
-        gambar_label.setStyleSheet(
-            "border-radius: 12px; background: #e8e8e8; border: none;"
-        )
- 
-        try:
-            # Unduh data gambar dari URL menggunakan urllib
-            req = urllib.request.Request(IMAGE_URL, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, timeout=5) as response:
-                image_data = response.read()
- 
-            # Muat data ke QPixmap lalu skalakan agar pas dengan lebar konten
-            pixmap = QPixmap()
-            pixmap.loadFromData(QByteArray(image_data))
- 
-            # Skalakan gambar: lebar 700px, tinggi mengikuti rasio, tetapi dibatasi 220px
-            scaled = pixmap.scaled(
-                700, 220,
-                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-                Qt.TransformationMode.SmoothTransformation
-            )
-            # Crop tengah agar pas di label (mirip object-fit: cover)
-            x_offset = max(0, (scaled.width() - 700) // 2)
-            y_offset = max(0, (scaled.height() - 220) // 2)
-            cropped = scaled.copy(x_offset, y_offset, 700, 220)
-            gambar_label.setPixmap(cropped)
- 
-        except Exception as e:
-            # Jika gagal memuat (offline, URL salah, dsb.) tampilkan pesan pengganti
-            gambar_label.setText("📷  Gambar tidak dapat dimuat")
-            gambar_label.setStyleSheet(
-                "border-radius: 12px; background: #e8e8e8; border: none; "
-                "color: #aaa; font-size: 14px;"
-            )
- 
-        layout.addWidget(gambar_label)
+        # ── Gambar sayuran ────────────────────────────────────────────────
+        lbl_gambar = QLabel()
+        lbl_gambar.setFixedHeight(200)
+        lbl_gambar.setMinimumWidth(100)
+        lbl_gambar.setScaledContents(True)
+        pixmap = QPixmap(_path_aset("sayuran.png"))
+        if not pixmap.isNull():
+           lbl_gambar.setPixmap(pixmap)
+        else:
+            lbl_gambar.setText("[ Gambar tidak ditemukan ]")
+            lbl_gambar.setStyleSheet("color: #aaa; font-size: 12px;")
+        layout.addWidget(lbl_gambar)
 
-        # Latar Belakang
+        # ── Latar Belakang ────────────────────────────────────────────────
         lbl_lb = QLabel("Latar Belakang")
-        lbl_lb.setStyleSheet("font-size: 25px; font-weight: bold; color: #67823A;")
+        lbl_lb.setStyleSheet("font-size: 16px; font-weight: bold; color: #44101A;")
         layout.addWidget(lbl_lb)
 
         lb_text = QLabel(
@@ -141,45 +102,62 @@ class HalamanTentang(QWidget):
         lb_text.setStyleSheet("font-size: 13px; color: #555; padding-left: 8px;")
         layout.addWidget(lb_text)
 
-        # Fitur
+        # ── Fitur ─────────────────────────────────────────────────────────
         lbl_fitur = QLabel("Fitur")
-        lbl_fitur.setStyleSheet("font-size: 25px; font-weight: bold; color: #67823A;")
+        lbl_fitur.setStyleSheet("font-size: 16px; font-weight: bold; color: #44101A;")
         layout.addWidget(lbl_fitur)
 
         fitur_layout = QHBoxLayout()
+        fitur_layout.setSpacing(12)
         fitur_items = [
-            ("🔍", "Cari & bandingkan harga", "Filter berdasarkan komoditas, jenis pasar, dan tanggal."),
-            ("🧮", "Hitung anggaran belanja", "Input produk & qty, sistem kalkulasi total + rekomendasi toko terhemat."),
-            ("📈", "Pantau tren harga", "Lihat grafik perubahan harga dari waktu ke waktu."),
+            ("🔍", "Cari & bandingkan harga",
+             "Lihat harga komoditas dari berbagai pasar dan supermarket secara berdampingan. "
+             "Filter berdasarkan jenis pasar dan tanggal."),
+            ("🧮", "Hitung anggaran belanja",
+             "Masukkan daftar belanjaan, pilih toko, dan lihat total estimasi otomatis. "
+             "Rencanakan budget sebelum ke pasar."),
+            ("📈", "Pantau tren harga",
+             "Lihat pergerakan harga mingguan, termasuk komoditas mana yang sedang "
+             "naik atau turun di pasaran."),
         ]
         for ikon, judul_f, desc_f in fitur_items:
             card = QFrame()
-            card.setStyleSheet("background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 8px;")
+            card.setStyleSheet(
+                "background: white; border: 1px solid #e0e0e0; "
+                "border-radius: 8px; padding: 4px;"
+            )
             c_lay = QVBoxLayout(card)
-            QLabel(ikon, card).setStyleSheet("font-size: 28px; border: none;")
+            c_lay.setSpacing(6)
+
+            lbl_ikon = QLabel(ikon)
+            lbl_ikon.setStyleSheet("font-size: 24px; border: none; background: transparent;")
             lbl_j = QLabel(judul_f)
-            lbl_j.setStyleSheet("font-weight: bold; font-size: 13px; border: none;")
+            lbl_j.setStyleSheet("font-weight: bold; font-size: 13px; border: none; background: transparent;")
             lbl_d = QLabel(desc_f)
             lbl_d.setWordWrap(True)
-            lbl_d.setStyleSheet("font-size: 11px; color: #666; border: none;")
-            c_lay.addWidget(QLabel(ikon))
+            lbl_d.setStyleSheet("font-size: 11px; color: #666; border: none; background: transparent;")
+
+            c_lay.addWidget(lbl_ikon)
             c_lay.addWidget(lbl_j)
             c_lay.addWidget(lbl_d)
+            c_lay.addStretch()
             fitur_layout.addWidget(card)
+
         layout.addLayout(fitur_layout)
 
-        # Tim
+        # ── Tim ───────────────────────────────────────────────────────────
         lbl_tim = QLabel("Tim")
-        lbl_tim.setStyleSheet("font-size: 25px; font-weight: bold; color: #67823A;")
+        lbl_tim.setStyleSheet("font-size: 16px; font-weight: bold; color: #44101A;")
         layout.addWidget(lbl_tim)
 
         tim_layout = QHBoxLayout()
+        tim_layout.setSpacing(12)
         anggota = [
             ("Hana Mardhiyyah"),
             ("Imam Miftahul U."),
-            ("Iriyansyah Jaya A."),
-            ("Lutfhilah Nurazizah"),
-            ("Saiwa Zaida N."),
+            ("Iryansyah Jaya A."),
+            ("Lutfhiah Nurazizah"),
+            ("Salwa Zaida N."),
         ]
         for nama in anggota:
             tim_layout.addWidget(AnggotaCard(nama))
