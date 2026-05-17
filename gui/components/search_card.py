@@ -1,5 +1,6 @@
 """
 gui/components/search_card.py — Kartu hasil pencarian dengan tombol CRUD.
+Tombol Edit & Hapus hanya tampil jika is_admin=True.
 """
 
 from PyQt6.QtWidgets import (
@@ -17,7 +18,8 @@ class SearchCard(QFrame):
 
     def __init__(self, nama: str, harga: float, toko: str, tanggal: str,
                  thumbnail_url: str = "", id_produk: int = -1,
-                 sumber: str = "supermarket", kategori: str = "", satuan: str = "kg"):
+                 sumber: str = "supermarket", kategori: str = "", satuan: str = "kg",
+                 is_admin: bool = False):   # ← parameter baru
         super().__init__()
         self.nama          = nama
         self.harga         = harga
@@ -28,6 +30,7 @@ class SearchCard(QFrame):
         self.sumber        = sumber
         self.kategori      = kategori
         self.satuan        = satuan
+        self.is_admin      = is_admin      # ← simpan role
 
         self.setFixedHeight(110)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
@@ -104,56 +107,63 @@ class SearchCard(QFrame):
         info_layout.addStretch()
         layout.addLayout(info_layout, 1)
 
-        # Tombol kanan
-        btn_layout = QVBoxLayout()
-        btn_layout.setContentsMargins(8, 12, 4, 12)
-        btn_layout.setSpacing(6)
+        # ── Tombol Edit & Hapus — hanya tampil untuk admin ─────────────────
+        if self.is_admin:
+            btn_layout = QVBoxLayout()
+            btn_layout.setContentsMargins(8, 12, 4, 12)
+            btn_layout.setSpacing(6)
 
-        self.btn_edit = QPushButton("✏️ Edit")
-        self.btn_edit.setFixedSize(72, 32)
-        self.btn_edit.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_edit.setStyleSheet("""
-            QPushButton { background-color: #f39c12; color: white; border-radius: 5px;
-                          font-size: 11px; font-weight: bold; border: none; }
-            QPushButton:hover { background-color: #e67e22; }
-            QPushButton:pressed { background-color: #d35400; }
-        """)
+            self.btn_edit = QPushButton("✏️ Edit")
+            self.btn_edit.setFixedSize(72, 32)
+            self.btn_edit.setCursor(Qt.CursorShape.PointingHandCursor)
+            self.btn_edit.setStyleSheet("""
+                QPushButton { background-color: #f39c12; color: white; border-radius: 5px;
+                              font-size: 11px; font-weight: bold; border: none; }
+                QPushButton:hover { background-color: #e67e22; }
+                QPushButton:pressed { background-color: #d35400; }
+            """)
 
-        self.btn_hapus = QPushButton("🗑 Hapus")
-        self.btn_hapus.setFixedSize(72, 32)
-        self.btn_hapus.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_hapus.setStyleSheet("""
-            QPushButton { background-color: #e74c3c; color: white; border-radius: 5px;
-                          font-size: 11px; font-weight: bold; border: none; }
-            QPushButton:hover { background-color: #c0392b; }
-            QPushButton:pressed { background-color: #962d22; }
-        """)
+            self.btn_hapus = QPushButton("🗑 Hapus")
+            self.btn_hapus.setFixedSize(72, 32)
+            self.btn_hapus.setCursor(Qt.CursorShape.PointingHandCursor)
+            self.btn_hapus.setStyleSheet("""
+                QPushButton { background-color: #e74c3c; color: white; border-radius: 5px;
+                              font-size: 11px; font-weight: bold; border: none; }
+                QPushButton:hover { background-color: #c0392b; }
+                QPushButton:pressed { background-color: #962d22; }
+            """)
 
-        if self.sumber == "pihps":
-            self.btn_edit.setEnabled(False)
-            self.btn_hapus.setEnabled(False)
-            for btn in [self.btn_edit, self.btn_hapus]:
-                btn.setStyleSheet("QPushButton { background-color: #bdc3c7; color: #fff; border-radius: 5px; font-size: 11px; border: none; }")
-            self.btn_edit.setToolTip("Data PIHPS dikelola scraper otomatis")
-            self.btn_hapus.setToolTip("Data PIHPS dikelola scraper otomatis")
+            # Data PIHPS tidak bisa diedit manual
+            if self.sumber == "pihps":
+                self.btn_edit.setEnabled(False)
+                self.btn_hapus.setEnabled(False)
+                _style_nonaktif = (
+                    "QPushButton { background-color: #bdc3c7; color: #fff; "
+                    "border-radius: 5px; font-size: 11px; border: none; }"
+                )
+                self.btn_edit.setStyleSheet(_style_nonaktif)
+                self.btn_hapus.setStyleSheet(_style_nonaktif)
+                self.btn_edit.setToolTip("Data PIHPS dikelola scraper otomatis")
+                self.btn_hapus.setToolTip("Data PIHPS dikelola scraper otomatis")
 
-        btn_layout.addWidget(self.btn_edit)
-        btn_layout.addWidget(self.btn_hapus)
-        btn_layout.addStretch()
-        layout.addLayout(btn_layout)
+            self.btn_edit.clicked.connect(lambda: self.edit_diminta.emit(self._as_row()))
+            self.btn_hapus.clicked.connect(lambda: self.hapus_diminta.emit(self.id_produk))
 
-        self.btn_edit.clicked.connect(lambda: self.edit_diminta.emit(self._as_row()))
-        self.btn_hapus.clicked.connect(lambda: self.hapus_diminta.emit(self.id_produk))
+            btn_layout.addWidget(self.btn_edit)
+            btn_layout.addWidget(self.btn_hapus)
+            btn_layout.addStretch()
+            layout.addLayout(btn_layout)
+        # Jika bukan admin, tidak ada tombol apapun di kanan
 
     def _as_row(self):
         return {
-            "id": self.id_produk,
-            "nama": self.nama,
-            "harga": self.harga,
-            "toko": self.toko,
-            "tanggal": self.tanggal,
+            "id":       self.id_produk,
+            "nama":     self.nama,
+            "harga":    self.harga,
+            "toko":     self.toko,
+            "tanggal":  self.tanggal,
             "kategori": self.kategori,
-            "satuan": self.satuan,
+            "satuan":   self.satuan,
         }
 
     def _load_gambar(self, url: str):
@@ -164,15 +174,17 @@ class SearchCard(QFrame):
             )
             os.makedirs(cache_dir, exist_ok=True)
             import hashlib
-            nama_file = hashlib.md5(url.encode()).hexdigest() + ".jpg"
+            nama_file  = hashlib.md5(url.encode()).hexdigest() + ".jpg"
             path_lokal = os.path.join(cache_dir, nama_file)
             if not os.path.exists(path_lokal):
                 urllib.request.urlretrieve(url, path_lokal)
             pixmap = QPixmap(path_lokal)
             if not pixmap.isNull():
-                pixmap = pixmap.scaled(80, 80,
+                pixmap = pixmap.scaled(
+                    80, 80,
                     Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation)
+                    Qt.TransformationMode.SmoothTransformation
+                )
                 self.lbl_gambar.setPixmap(pixmap)
                 return
         except Exception:

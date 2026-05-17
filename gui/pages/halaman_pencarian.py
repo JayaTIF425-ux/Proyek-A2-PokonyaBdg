@@ -1,5 +1,6 @@
 """
 gui/pages/halaman_pencarian.py — Pencarian & Kelola (CRUD) harga komoditas.
+Tombol Tambah Data, Edit, dan Hapus hanya tampil untuk admin.
 """
 
 import os
@@ -235,7 +236,7 @@ class StatistikBar(QFrame):
         lbl_v = QLabel(nilai)
         lbl_v.setStyleSheet("font-size: 12px; font-weight: bold; color: #2c3e50; border: none; background: transparent;")
         lbl_v.setWordWrap(True)
-        
+
         v.addWidget(lbl_l)
         v.addWidget(lbl_v)
         self._layout.addWidget(container)
@@ -259,8 +260,9 @@ class StatistikBar(QFrame):
 
 class HalamanPencarian(QWidget):
 
-    def __init__(self):
+    def __init__(self, is_admin: bool = False):   # ← parameter baru
         super().__init__()
+        self.is_admin = is_admin
         self._data_terakhir: list = []
         self._init_ui()
 
@@ -307,19 +309,24 @@ class HalamanPencarian(QWidget):
             )
             return b
 
-        self.btn_cari   = tombol("Cari",        "#6B8E23", "Cari produk")
-        self.btn_semua  = tombol("Lihat Semua", "#8e44ad", "Tampilkan semua data supermarket")
-        self.btn_tambah = tombol("Tambah Data", "#2980b9", "Tambah data produk baru")
+        self.btn_cari  = tombol("Cari",        "#6B8E23", "Cari produk")
+        self.btn_semua = tombol("Lihat Semua", "#8e44ad", "Tampilkan semua data supermarket")
         self.btn_ekspor = tombol("Ekspor CSV",  "#16a085", "Ekspor semua data ke CSV")
 
         self.btn_cari.setIcon(_svg_to_icon(_IKON_PENCARIAN["cari"]))
         self.btn_semua.setIcon(_svg_to_icon(_IKON_PENCARIAN["lihat_semua"]))
-        self.btn_tambah.setIcon(_svg_to_icon(_IKON_PENCARIAN["tambah"]))
         self.btn_ekspor.setIcon(_svg_to_icon(_IKON_PENCARIAN["ekspor"]))
 
         bl.addWidget(self.btn_cari)
         bl.addWidget(self.btn_semua)
-        bl.addWidget(self.btn_tambah)
+
+        # ── Tombol Tambah Data — hanya untuk admin ──────────────────────────
+        if self.is_admin:
+            self.btn_tambah = tombol("Tambah Data", "#2980b9", "Tambah data produk baru")
+            self.btn_tambah.setIcon(_svg_to_icon(_IKON_PENCARIAN["tambah"]))
+            self.btn_tambah.clicked.connect(self._tambah_data)
+            bl.addWidget(self.btn_tambah)
+
         bl.addWidget(self.btn_ekspor)
         layout.addWidget(bar)
 
@@ -349,7 +356,6 @@ class HalamanPencarian(QWidget):
         self.btn_cari.clicked.connect(self._cari)
         self.input_cari.returnPressed.connect(self._cari)
         self.btn_semua.clicked.connect(self._tampilkan_semua)
-        self.btn_tambah.clicked.connect(self._tambah_data)
         self.btn_ekspor.clicked.connect(self._ekspor_csv)
 
     # ── Pencarian ──────────────────────────────────────────────────────
@@ -395,6 +401,7 @@ class HalamanPencarian(QWidget):
                 sumber        = "supermarket",
                 kategori      = row["kategori"] or "" if "kategori" in keys else "",
                 satuan        = row["satuan"] or "kg" if "satuan" in keys else "kg",
+                is_admin      = self.is_admin,   # ← teruskan role
             )
             card.edit_diminta.connect(self._edit_data)
             card.hapus_diminta.connect(self._hapus_data)
@@ -429,6 +436,7 @@ class HalamanPencarian(QWidget):
             card = SearchCard(
                 nama=nama, harga=harga, toko=toko, tanggal=tanggal or "",
                 thumbnail_url=thumb or "", id_produk=id_p, sumber=sumber,
+                is_admin=self.is_admin,   # ← teruskan role
             )
             card.edit_diminta.connect(self._edit_data)
             card.hapus_diminta.connect(self._hapus_data)
@@ -442,7 +450,7 @@ class HalamanPencarian(QWidget):
         lbl.setStyleSheet("color: #999; font-size: 14px; padding: 40px;")
         self.grid.addWidget(lbl, 0, 0, 1, 2)
 
-    # ── CRUD ──────────────────────────────────────────────────────────
+    # ── CRUD (hanya dipanggil jika is_admin = True) ────────────────────
 
     def _tambah_data(self):
         dialog = DialogFormProduk(self)
@@ -504,7 +512,6 @@ class HalamanPencarian(QWidget):
             self._tampilkan_semua()
 
     # ── Ekspor CSV ────────────────────────────────────────────────────
-
 
     def _ekspor_csv(self):
         path, _ = QFileDialog.getSaveFileName(
