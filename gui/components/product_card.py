@@ -287,7 +287,7 @@ class ProductCard(QFrame):
         """Ambil data tren 30 hari di background lalu render."""
         if self._worker and self._worker.isRunning():
             return
-        self._worker = MiniChartWorker(self.nama, hari=30)
+        self._worker = MiniChartWorker(self.nama, hari=999)
         self._worker.selesai.connect(self._on_chart_data_siap)
         self._worker.start()
 
