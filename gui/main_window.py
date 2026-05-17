@@ -117,7 +117,7 @@ class MainWindow(QMainWindow):
 
         self.pages = QStackedWidget()
         self.halaman_beranda    = HalamanBeranda()
-        self.halaman_pencarian  = HalamanPencarian()
+        self.halaman_pencarian  = HalamanPencarian(is_admin=self.is_admin)
         self.halaman_penghitung = HalamanPenghitung()
         self.halaman_tutorial   = HalamanTutorial()
         self.halaman_tentang    = HalamanTentang()
@@ -187,7 +187,7 @@ class MainWindow(QMainWindow):
         )
         layout.addWidget(self.lbl_sub)
 
-        #  Info user yang login 
+        # Info user yang login 
         username = self.current_user.get("username", "guest")
         role     = self.current_user.get("role", "user")
         badge    = "🔑 Admin" if role == "admin" else "👤 User"
@@ -232,7 +232,7 @@ class MainWindow(QMainWindow):
             self.menu_buttons.append(btn)
             layout.addWidget(btn)
 
-        #  Menu Admin (hanya untuk admin) 
+        # Menu Admin (hanya untuk admin) 
         if self.is_admin:
             sep2 = QFrame()
             sep2.setFrameShape(QFrame.Shape.HLine)
@@ -284,7 +284,7 @@ class MainWindow(QMainWindow):
         for i, btn in enumerate(self.menu_buttons):
             btn.setChecked(i == index)
 
-    # ── Collapsible sidebar ───────────────────────────────────────────────────
+    # Collapsible sidebar 
 
     def _toggle_sidebar(self):
         self._sidebar_expanded = not self._sidebar_expanded
@@ -313,7 +313,7 @@ class MainWindow(QMainWindow):
                 btn.setToolTip(tip)
                 btn.setText("")
 
-    # ── Navigasi dari beranda ke pencarian ───────────────────────────────────
+    # Navigasi dari beranda ke pencarian 
 
     def navigasi_ke_pencarian(self, keyword: str):
         self.halaman_pencarian.set_keyword_dan_cari(keyword)
