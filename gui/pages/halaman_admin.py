@@ -334,11 +334,12 @@ class HalamanAdmin(QWidget):
             self.tabel_produk.setItem(i, 1, QTableWidgetItem(r["nama"] or ""))
             self.tabel_produk.setItem(i, 2, QTableWidgetItem(
                 f"Rp {int(r['harga']):,}".replace(",", ".")
-            ))
-            self.tabel_produk.setItem(i, 3, QTableWidgetItem(r["toko"] or ""))
-            self.tabel_produk.setItem(i, 4, QTableWidgetItem(r.get("kategori", "") or ""))
-            self.tabel_produk.setItem(i, 5, QTableWidgetItem(r.get("satuan", "") or ""))
-            self.tabel_produk.setItem(i, 6, QTableWidgetItem(r["tanggal"] or ""))
+        ))
+            
+        self.tabel_produk.setItem(i, 3, QTableWidgetItem(r["toko"] or ""))
+        self.tabel_produk.setItem(i, 4, QTableWidgetItem(r.get("kategori", "") or ""))
+        self.tabel_produk.setItem(i, 5, QTableWidgetItem(r.get("satuan", "") or ""))
+        self.tabel_produk.setItem(i, 6, QTableWidgetItem(r["tanggal"] or ""))
 
     def _filter_produk(self, keyword: str):
         kw = keyword.lower()
