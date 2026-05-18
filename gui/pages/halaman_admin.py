@@ -329,17 +329,16 @@ class HalamanAdmin(QWidget):
     def _isi_tabel_produk(self, rows):
         self.tabel_produk.setRowCount(len(rows))
         for i, r in enumerate(rows):
-            r = dict(r)
+            r = dict(r)  # convert sqlite3.Row → dict
             self.tabel_produk.setItem(i, 0, QTableWidgetItem(str(r["id"])))
             self.tabel_produk.setItem(i, 1, QTableWidgetItem(r["nama"] or ""))
             self.tabel_produk.setItem(i, 2, QTableWidgetItem(
                 f"Rp {int(r['harga']):,}".replace(",", ".")
-        ))
-            
-        self.tabel_produk.setItem(i, 3, QTableWidgetItem(r["toko"] or ""))
-        self.tabel_produk.setItem(i, 4, QTableWidgetItem(r.get("kategori", "") or ""))
-        self.tabel_produk.setItem(i, 5, QTableWidgetItem(r.get("satuan", "") or ""))
-        self.tabel_produk.setItem(i, 6, QTableWidgetItem(r["tanggal"] or ""))
+            ))
+            self.tabel_produk.setItem(i, 3, QTableWidgetItem(r["toko"] or ""))
+            self.tabel_produk.setItem(i, 4, QTableWidgetItem(r.get("kategori", "") or ""))
+            self.tabel_produk.setItem(i, 5, QTableWidgetItem(r.get("satuan", "") or ""))
+            self.tabel_produk.setItem(i, 6, QTableWidgetItem(r["tanggal"] or ""))
 
     def _filter_produk(self, keyword: str):
         kw = keyword.lower()
@@ -461,7 +460,18 @@ class HalamanAdmin(QWidget):
             QPushButton:hover { background: #e74c3c; }
         """)
         btn_hapus_user.clicked.connect(self._hapus_user)
+
+        btn_ubah_role = QPushButton("\U0001f504  Ubah Role")
+        btn_ubah_role.setFixedHeight(36)
+        btn_ubah_role.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_ubah_role.setStyleSheet("""
+            QPushButton { background: #27ae60; color: white; border-radius: 8px;
+                          font-size: 13px; padding: 0 16px; border: none; }
+            QPushButton:hover { background: #2ecc71; }
+        """)
+        btn_ubah_role.clicked.connect(self._ubah_role_user)
         btn_row.addStretch()
+        btn_row.addWidget(btn_ubah_role)
         btn_row.addWidget(btn_hapus_user)
         layout.addLayout(btn_row)
  
@@ -513,3 +523,25 @@ class HalamanAdmin(QWidget):
             self.auth.hapus_user(user_id)
             self._muat_users()
             QMessageBox.information(self, "Berhasil", "Akun berhasil dihapus.")
+    def _ubah_role_user(self):
+        row = self.tabel_user.currentRow()
+        if row < 0:
+            QMessageBox.warning(self, "Peringatan", "Pilih akun yang ingin diubah rolenya.")
+            return
+        id_item    = self.tabel_user.item(row, 0)
+        nama_item  = self.tabel_user.item(row, 1)
+        role_item  = self.tabel_user.item(row, 2)
+        if not id_item:
+            return
+        user_id       = int(id_item.text())
+        role_sekarang = role_item.text()
+        role_baru     = "user" if role_sekarang == "admin" else "admin"
+        konfirmasi = QMessageBox.question(
+            self, "Ubah Role",
+            f"Ubah role '{nama_item.text()}' dari {role_sekarang} \u2192 {role_baru}?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if konfirmasi == QMessageBox.StandardButton.Yes:
+            self.auth.ubah_role(user_id, role_baru)
+            self._muat_users()
+            QMessageBox.information(self, "Berhasil", f"Role berhasil diubah menjadi {role_baru}.")
