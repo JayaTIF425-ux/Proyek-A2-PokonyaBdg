@@ -1,15 +1,15 @@
 """
-database/auth_manager.py — Manajer autentikasi: login, register, role user/admin.
+database/auth_manager.py — Autentikasi: login, register, Google OAuth, role user/admin.
 """
 
 import sqlite3
 import hashlib
 import os
+import secrets
 from typing import Optional
 
 
 class AuthManager:
-    """Mengelola tabel users dan sesi login."""
 
     def __init__(self, db_path: Optional[str] = None):
         if db_path is None:
@@ -24,71 +24,137 @@ class AuthManager:
 
     @staticmethod
     def _hash_password(password: str) -> str:
-        """Hash password menggunakan SHA-256."""
         return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
     # ── Inisialisasi Skema ───────────────────────────────────────────────────
 
     def init_schema(self):
-        """Buat tabel users jika belum ada, dan tambah akun default."""
         with self._connect() as conn:
             conn.executescript("""
                 CREATE TABLE IF NOT EXISTS users (
-                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username    TEXT    NOT NULL UNIQUE,
-                    password    TEXT    NOT NULL,
-                    role        TEXT    NOT NULL DEFAULT 'user',
-                    dibuat_pada TEXT    DEFAULT (datetime('now'))
+                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username     TEXT    UNIQUE,
+                    password     TEXT,
+                    role         TEXT    NOT NULL DEFAULT 'user',
+                    email        TEXT    UNIQUE,
+                    google_id    TEXT    UNIQUE,
+                    display_name TEXT,
+                    dibuat_pada  TEXT    DEFAULT (datetime('now'))
                 );
             """)
-        # Buat akun default jika tabel masih kosong
-        self._seed_default_accounts()
+        self._seed_admin()
 
-    def _seed_default_accounts(self):
-        """Tambahkan akun admin dan user default jika belum ada."""
-        akun_default = [
-            ("admin", "admin123", "admin"),
-            ("user",  "user123",  "user"),
-        ]
+    def _seed_admin(self):
+        """Hanya buat akun admin default — TIDAK ada akun user default."""
         with self._connect() as conn:
-            for username, password, role in akun_default:
-                existing = conn.execute(
-                    "SELECT id FROM users WHERE username = ?", (username,)
-                ).fetchone()
-                if not existing:
-                    conn.execute(
-                        "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
-                        (username, self._hash_password(password), role)
-                    )
+            existing = conn.execute(
+                "SELECT id FROM users WHERE username = 'admin'"
+            ).fetchone()
+            if not existing:
+                conn.execute(
+                    "INSERT INTO users (username, password, role, display_name) VALUES (?, ?, ?, ?)",
+                    ("admin", self._hash_password("admin123"), "admin", "Administrator")
+                )
 
     # ── Login ────────────────────────────────────────────────────────────────
 
     def login(self, username: str, password: str) -> Optional[dict]:
-        """
-        Coba login. Return dict user jika berhasil, None jika gagal.
-        Contoh return: {"id": 1, "username": "admin", "role": "admin"}
-        """
         hashed = self._hash_password(password)
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT id, username, role FROM users WHERE username = ? AND password = ?",
+                "SELECT id, username, role, display_name FROM users "
+                "WHERE username = ? AND password = ?",
                 (username, hashed)
             ).fetchone()
         if row:
-            return {"id": row["id"], "username": row["username"], "role": row["role"]}
+            return dict(row)
         return None
+
+    # ── Registrasi User Baru ─────────────────────────────────────────────────
+
+    def register(self, username: str, password: str,
+                 email: str = "", display_name: str = "") -> tuple[bool, str]:
+        """
+        Daftarkan user baru dengan role 'user'.
+        Return (True, "") jika berhasil, (False, pesan_error) jika gagal.
+        """
+        if len(password) < 6:
+            return False, "Password minimal 6 karakter."
+        if not username or len(username) < 3:
+            return False, "Username minimal 3 karakter."
+
+        try:
+            with self._connect() as conn:
+                conn.execute(
+                    "INSERT INTO users (username, password, role, email, display_name) "
+                    "VALUES (?, ?, 'user', ?, ?)",
+                    (username, self._hash_password(password),
+                     email or None, display_name or username)
+                )
+            return True, ""
+        except sqlite3.IntegrityError as e:
+            if "username" in str(e):
+                return False, "Username sudah digunakan."
+            if "email" in str(e):
+                return False, "Email sudah terdaftar."
+            return False, "Registrasi gagal."
+
+    # ── Login / Register via Google ──────────────────────────────────────────
+
+    def login_or_register_google(self, google_id: str, email: str,
+                                  display_name: str) -> dict:
+        """
+        Login dengan Google. Jika belum terdaftar, buat akun baru otomatis.
+        Return dict user.
+        """
+        with self._connect() as conn:
+            # Cek sudah ada belum
+            row = conn.execute(
+                "SELECT id, username, role, display_name FROM users WHERE google_id = ?",
+                (google_id,)
+            ).fetchone()
+            if row:
+                return dict(row)
+
+            # Belum ada — buat akun baru
+            # Buat username unik dari email
+            base_username = email.split("@")[0].replace(".", "_")
+            username = base_username
+            counter = 1
+            while conn.execute(
+                "SELECT id FROM users WHERE username = ?", (username,)
+            ).fetchone():
+                username = f"{base_username}{counter}"
+                counter += 1
+
+            conn.execute(
+                "INSERT INTO users (username, google_id, email, role, display_name) "
+                "VALUES (?, ?, ?, 'user', ?)",
+                (username, google_id, email, display_name)
+            )
+            row = conn.execute(
+                "SELECT id, username, role, display_name FROM users WHERE google_id = ?",
+                (google_id,)
+            ).fetchone()
+            return dict(row)
+
+    def cek_email_terdaftar(self, email: str) -> bool:
+        with self._connect() as conn:
+            return bool(conn.execute(
+                "SELECT id FROM users WHERE email = ?", (email,)
+            ).fetchone())
 
     # ── Manajemen User (untuk admin) ─────────────────────────────────────────
 
     def daftar_users(self) -> list:
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT id, username, role, dibuat_pada FROM users ORDER BY id"
+                "SELECT id, username, role, email, display_name, dibuat_pada "
+                "FROM users ORDER BY id"
             ).fetchall()
             return [dict(r) for r in rows]
 
     def tambah_user(self, username: str, password: str, role: str = "user") -> bool:
-        """Tambah user baru. Return True jika berhasil, False jika username sudah ada."""
         try:
             with self._connect() as conn:
                 conn.execute(
@@ -100,20 +166,8 @@ class AuthManager:
             return False
 
     def hapus_user(self, user_id: int) -> bool:
-        """Hapus user berdasarkan id. Tidak boleh menghapus diri sendiri."""
         with self._connect() as conn:
             conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
-        return True
-
-    def ubah_role(self, user_id: int, role_baru: str) -> bool:
-        """Ubah role user berdasarkan id. Role valid: 'user' atau 'admin'."""
-        if role_baru not in ("user", "admin"):
-            return False
-        with self._connect() as conn:
-            conn.execute(
-                "UPDATE users SET role = ? WHERE id = ?",
-                (role_baru, user_id)
-            )
         return True
 
     def ubah_password(self, user_id: int, password_baru: str):
