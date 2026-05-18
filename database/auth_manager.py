@@ -35,15 +35,20 @@ class AuthManager:
                 CREATE TABLE IF NOT EXISTS users (
                     id           INTEGER PRIMARY KEY AUTOINCREMENT,
                     username     TEXT    NOT NULL UNIQUE,
-                    password     TEXT    NOT NULL,
+                    password     TEXT,
                     role         TEXT    NOT NULL DEFAULT 'user',
                     display_name TEXT,
                     google_id    TEXT    UNIQUE,
+                    email        TEXT,
                     dibuat_pada  TEXT    DEFAULT (datetime('now'))
                 );
             """)
             # Migrasi: tambah kolom baru jika belum ada (untuk db lama)
-            for kolom, tipe in [("display_name", "TEXT"), ("google_id", "TEXT")]:
+            for kolom, tipe in [
+                ("display_name", "TEXT"),
+                ("google_id",    "TEXT"),
+                ("email",        "TEXT"),
+            ]:
                 try:
                     conn.execute(f"ALTER TABLE users ADD COLUMN {kolom} {tipe}")
                 except Exception:
