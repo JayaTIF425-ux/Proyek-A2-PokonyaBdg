@@ -329,15 +329,17 @@ class HalamanAdmin(QWidget):
     def _isi_tabel_produk(self, rows):
         self.tabel_produk.setRowCount(len(rows))
         for i, r in enumerate(rows):
+            r = dict(r)  # convert sqlite3.Row → dict
             self.tabel_produk.setItem(i, 0, QTableWidgetItem(str(r["id"])))
             self.tabel_produk.setItem(i, 1, QTableWidgetItem(r["nama"] or ""))
             self.tabel_produk.setItem(i, 2, QTableWidgetItem(
                 f"Rp {int(r['harga']):,}".replace(",", ".")
-            ))
-            self.tabel_produk.setItem(i, 3, QTableWidgetItem(r["toko"] or ""))
-            self.tabel_produk.setItem(i, 4, QTableWidgetItem(r.get("kategori", "") or ""))
-            self.tabel_produk.setItem(i, 5, QTableWidgetItem(r.get("satuan", "") or ""))
-            self.tabel_produk.setItem(i, 6, QTableWidgetItem(r["tanggal"] or ""))
+        ))
+            
+        self.tabel_produk.setItem(i, 3, QTableWidgetItem(r["toko"] or ""))
+        self.tabel_produk.setItem(i, 4, QTableWidgetItem(r.get("kategori", "") or ""))
+        self.tabel_produk.setItem(i, 5, QTableWidgetItem(r.get("satuan", "") or ""))
+        self.tabel_produk.setItem(i, 6, QTableWidgetItem(r["tanggal"] or ""))
 
     def _filter_produk(self, keyword: str):
         kw = keyword.lower()
