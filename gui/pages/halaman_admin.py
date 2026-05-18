@@ -405,3 +405,109 @@ class HalamanAdmin(QWidget):
             self.db.hapus_produk(int(id_item.text()))
             self._muat_produk()
             QMessageBox.information(self, "Berhasil", "Produk berhasil dihapus.")
+
+     # ── Tab: User ────────────────────────────────────────────────────────────
+ 
+    def _buat_tab_user(self) -> QWidget:
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
+ 
+        # Toolbar
+        toolbar = QHBoxLayout()
+        lbl = QLabel("Daftar Akun Terdaftar")
+        lbl.setStyleSheet("font-size: 14px; font-weight: bold; color: #44101A;")
+        btn_tambah_user = QPushButton("＋ Tambah Akun")
+        btn_tambah_user.setFixedHeight(36)
+        btn_tambah_user.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_tambah_user.setStyleSheet("""
+            QPushButton { background: #44101A; color: white; border-radius: 8px;
+                          font-size: 13px; font-weight: bold; padding: 0 16px; border: none; }
+            QPushButton:hover { background: #6B1525; }
+        """)
+        btn_tambah_user.clicked.connect(self._tambah_user)
+        toolbar.addWidget(lbl)
+        toolbar.addStretch()
+        toolbar.addWidget(btn_tambah_user)
+        layout.addLayout(toolbar)
+ 
+        # Tabel user
+        self.tabel_user = QTableWidget()
+        self.tabel_user.setColumnCount(4)
+        self.tabel_user.setHorizontalHeaderLabels(["ID", "Username", "Role", "Dibuat Pada"])
+        self.tabel_user.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.ResizeMode.Stretch
+        )
+        self.tabel_user.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.tabel_user.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.tabel_user.setAlternatingRowColors(True)
+        self.tabel_user.setStyleSheet("""
+            QTableWidget { border: 1px solid #ddd; border-radius: 6px; font-size: 13px; }
+            QHeaderView::section { background: #44101A; color: white; padding: 8px; }
+            QTableWidget::item:selected { background: #F1C40F; color: black; }
+        """)
+        layout.addWidget(self.tabel_user)
+ 
+        btn_row = QHBoxLayout()
+        btn_hapus_user = QPushButton("🗑️  Hapus Akun Terpilih")
+        btn_hapus_user.setFixedHeight(36)
+        btn_hapus_user.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_hapus_user.setStyleSheet("""
+            QPushButton { background: #c0392b; color: white; border-radius: 8px;
+                          font-size: 13px; padding: 0 16px; border: none; }
+            QPushButton:hover { background: #e74c3c; }
+        """)
+        btn_hapus_user.clicked.connect(self._hapus_user)
+        btn_row.addStretch()
+        btn_row.addWidget(btn_hapus_user)
+        layout.addLayout(btn_row)
+ 
+        return widget
+ 
+    def _muat_users(self):
+        users = self.auth.daftar_users()
+        self.tabel_user.setRowCount(len(users))
+        for i, u in enumerate(users):
+            self.tabel_user.setItem(i, 0, QTableWidgetItem(str(u["id"])))
+            self.tabel_user.setItem(i, 1, QTableWidgetItem(u["username"]))
+            item_role = QTableWidgetItem(u["role"])
+            item_role.setForeground(
+                QColor("#c0392b") if u["role"] == "admin" else QColor("#2980b9")
+            )
+            self.tabel_user.setItem(i, 2, item_role)
+            self.tabel_user.setItem(i, 3, QTableWidgetItem(u.get("dibuat_pada", "")))
+ 
+    def _tambah_user(self):
+        dialog = DialogTambahUser(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            d = dialog.get_data()
+            berhasil = self.auth.tambah_user(d["username"], d["password"], d["role"])
+            if berhasil:
+                self._muat_users()
+                QMessageBox.information(self, "Berhasil", "Akun berhasil ditambahkan.")
+            else:
+                QMessageBox.warning(self, "Gagal", "Username sudah digunakan.")
+ 
+    def _hapus_user(self):
+        row = self.tabel_user.currentRow()
+        if row < 0:
+            QMessageBox.warning(self, "Peringatan", "Pilih akun yang ingin dihapus.")
+            return
+        id_item   = self.tabel_user.item(row, 0)
+        nama_item = self.tabel_user.item(row, 1)
+        if not id_item:
+            return
+        user_id = int(id_item.text())
+        if user_id == self.current_user["id"]:
+            QMessageBox.warning(self, "Tidak Bisa", "Tidak dapat menghapus akun sendiri.")
+            return
+        konfirmasi = QMessageBox.question(
+            self, "Konfirmasi Hapus",
+            f"Yakin ingin menghapus akun: {nama_item.text() if nama_item else ''}?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if konfirmasi == QMessageBox.StandardButton.Yes:
+            self.auth.hapus_user(user_id)
+            self._muat_users()
+            QMessageBox.information(self, "Berhasil", "Akun berhasil dihapus.")
