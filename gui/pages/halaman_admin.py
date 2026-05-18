@@ -329,7 +329,7 @@ class HalamanAdmin(QWidget):
     def _isi_tabel_produk(self, rows):
         self.tabel_produk.setRowCount(len(rows))
         for i, r in enumerate(rows):
-            r = dict(r)  # convert sqlite3.Row → dict
+            r = dict(r)
             self.tabel_produk.setItem(i, 0, QTableWidgetItem(str(r["id"])))
             self.tabel_produk.setItem(i, 1, QTableWidgetItem(r["nama"] or ""))
             self.tabel_produk.setItem(i, 2, QTableWidgetItem(

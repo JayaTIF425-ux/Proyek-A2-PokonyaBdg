@@ -254,7 +254,7 @@ class DBManager:
     # ── CRUD Manual ─────────────────────────────────────────────────────
 
     def tambah_produk(self, nama: str, harga: float, toko: str,
-                      tanggal: str, kategori: str = "", satuan: str = "kg") -> int:
+                    tanggal: str, kategori: str = "", satuan: str = "kg") -> int:
         """INSERT satu baris ke harga_supermarket. Return id baris baru."""
         waktu = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         sql = """
@@ -267,7 +267,7 @@ class DBManager:
             return cur.lastrowid
 
     def update_produk(self, id_produk: int, nama: str, harga: float,
-                      toko: str, tanggal: str, kategori: str = "", satuan: str = "kg"):
+                    toko: str, tanggal: str, kategori: str = "", satuan: str = "kg"):
         """UPDATE baris di harga_supermarket berdasarkan id."""
         sql = """
             UPDATE harga_supermarket
@@ -288,24 +288,24 @@ class DBManager:
         kw = f"%{keyword}%"
         sql_toko = """
             SELECT id, nama_produk AS nama, harga, toko,
-                   tanggal_scraping AS tanggal, thumbnail_url,
-                   'supermarket' AS sumber
+                tanggal_scraping AS tanggal, thumbnail_url,
+                'supermarket' AS sumber
             FROM harga_supermarket
             WHERE nama_produk LIKE ?
             ORDER BY harga ASC
         """
         sql_pihps = """
             SELECT id, komoditas AS nama, harga,
-                   'PIHPS Nasional' AS toko,
-                   tanggal, '' AS thumbnail_url,
-                   'pihps' AS sumber
+                'PIHPS Nasional' AS toko,
+                tanggal, '' AS thumbnail_url,
+                'pihps' AS sumber
             FROM harga_pangan
             WHERE komoditas LIKE ?
-              AND (komoditas, tanggal) IN (
-                  SELECT komoditas, MAX(tanggal) FROM harga_pangan
-                  WHERE komoditas LIKE ?
-                  GROUP BY komoditas
-              )
+            AND (komoditas, tanggal) IN (
+                SELECT komoditas, MAX(tanggal) FROM harga_pangan
+                WHERE komoditas LIKE ?
+                GROUP BY komoditas
+            )
         """
         with self._connect() as conn:
             hasil_toko  = conn.execute(sql_toko, (kw,)).fetchall()
@@ -316,7 +316,7 @@ class DBManager:
         """Ambil semua produk supermarket."""
         sql = """
             SELECT id, nama_produk AS nama, harga, toko,
-                   tanggal_scraping AS tanggal, thumbnail_url, kategori, satuan
+                tanggal_scraping AS tanggal, thumbnail_url, kategori, satuan
             FROM harga_supermarket
             ORDER BY toko, nama_produk
             LIMIT ?
