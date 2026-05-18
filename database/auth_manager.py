@@ -29,20 +29,26 @@ class AuthManager:
     # ── Inisialisasi Skema ───────────────────────────────────────────────────
 
     def init_schema(self):
+        """Buat tabel users jika belum ada, dan tambah akun default."""
         with self._connect() as conn:
             conn.executescript("""
                 CREATE TABLE IF NOT EXISTS users (
                     id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username     TEXT    UNIQUE,
-                    password     TEXT,
+                    username     TEXT    NOT NULL UNIQUE,
+                    password     TEXT    NOT NULL,
                     role         TEXT    NOT NULL DEFAULT 'user',
-                    email        TEXT    UNIQUE,
-                    google_id    TEXT    UNIQUE,
                     display_name TEXT,
+                    google_id    TEXT    UNIQUE,
                     dibuat_pada  TEXT    DEFAULT (datetime('now'))
                 );
             """)
-        self._seed_admin()
+            # Migrasi: tambah kolom baru jika belum ada (untuk db lama)
+            for kolom, tipe in [("display_name", "TEXT"), ("google_id", "TEXT")]:
+                try:
+                    conn.execute(f"ALTER TABLE users ADD COLUMN {kolom} {tipe}")
+                except Exception:
+                    pass  # Kolom sudah ada, lewati
+        self._seed_default_accounts()
 
     def _seed_admin(self):
         """Hanya buat akun admin default — TIDAK ada akun user default."""
@@ -73,7 +79,7 @@ class AuthManager:
     # ── Registrasi User Baru ─────────────────────────────────────────────────
 
     def register(self, username: str, password: str,
-                 email: str = "", display_name: str = "") -> tuple[bool, str]:
+                email: str = "", display_name: str = "") -> tuple[bool, str]:
         """
         Daftarkan user baru dengan role 'user'.
         Return (True, "") jika berhasil, (False, pesan_error) jika gagal.
@@ -89,7 +95,7 @@ class AuthManager:
                     "INSERT INTO users (username, password, role, email, display_name) "
                     "VALUES (?, ?, 'user', ?, ?)",
                     (username, self._hash_password(password),
-                     email or None, display_name or username)
+                    email or None, display_name or username)
                 )
             return True, ""
         except sqlite3.IntegrityError as e:
@@ -102,7 +108,7 @@ class AuthManager:
     # ── Login / Register via Google ──────────────────────────────────────────
 
     def login_or_register_google(self, google_id: str, email: str,
-                                  display_name: str) -> dict:
+                                display_name: str) -> dict:
         """
         Login dengan Google. Jika belum terdaftar, buat akun baru otomatis.
         Return dict user.
@@ -176,3 +182,20 @@ class AuthManager:
                 "UPDATE users SET password = ? WHERE id = ?",
                 (self._hash_password(password_baru), user_id)
             )
+
+    def _seed_default_accounts(self):
+        """Tambahkan akun admin dan user default jika belum ada."""
+        akun_default = [
+            ("admin", "admin123", "admin"),
+            ("user",  "user123",  "user"),
+        ]
+        with self._connect() as conn:
+            for username, password, role in akun_default:
+                existing = conn.execute(
+                    "SELECT id FROM users WHERE username = ?", (username,)
+                ).fetchone()
+                if not existing:
+                    conn.execute(
+                        "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+                        (username, self._hash_password(password), role)
+                    )
