@@ -187,7 +187,7 @@ KEYWORD_MAP = {
     "ayam":         "ayam",
     "daging sapi":  "sapi",
     "sapi":         "sapi",
-    "telur":        "telur ayam",
+    "telur":        "telur",
     "beras":        "beras",
     "minyak":       "minyak",
     "gula":         "gula",
