@@ -1,219 +1,481 @@
 """
 gui/halaman_login.py — Dialog login + registrasi untuk PokokNya.Bdg.
-Fitur: logo, fullscreen, register, login Google (simulasi), tanpa info akun default.
+Desain ulang mengikuti screenshot: panel kiri maroon + panel kanan putih
+dengan kartu form, pemilih peran Admin/User, dan animasi transisi halus.
 """
 
 import os
 import sys
+import hashlib
 from typing import Optional
 
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QFrame, QMessageBox,
-    QStackedWidget, QWidget, QCheckBox, QApplication
+    QStackedWidget, QWidget, QApplication, QGraphicsOpacityEffect,
+    QScrollArea, QSizePolicy
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QSize
-from PyQt6.QtGui import QPixmap, QIcon, QFont
+from PyQt6.QtCore import (
+    Qt, pyqtSignal, QSize, QPropertyAnimation,
+    QEasingCurve, QTimer, QRect, QPoint
+)
+from PyQt6.QtGui import (
+    QPixmap, QIcon, QFont, QColor, QPainter,
+    QPainterPath, QLinearGradient, QBrush, QPen,
+    QFontDatabase
+)
 
 from database.auth_manager import AuthManager
+
 
 # ── Path helper ───────────────────────────────────────────────────────────────
 
 def _asset(nama: str) -> str:
-    """Cari file asset (logo dll) di folder assets/ relatif ke root project."""
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base, "assets", nama)
+
+
+# ── Konstanta warna ───────────────────────────────────────────────────────────
+
+C = {
+    "maroon":       "#5C1A28",
+    "maroon_deep":  "#3D0F1A",
+    "maroon_light": "#7A2236",
+    "gold":         "#8B9B3A",
+    "gold_hover":   "#6B7A2A",
+    "gold_press":   "#5A6822",
+    "white":        "#FFFFFF",
+    "bg":           "#F8F6F2",
+    "card":         "#FFFFFF",
+    "border":       "#E2D9CC",
+    "border_focus": "#5C1A28",
+    "text_dark":    "#1A0A0E",
+    "text_mid":     "#6B5B61",
+    "text_light":   "#A89BA0",
+    "error":        "#C0392B",
+    "success":      "#27AE60",
+    "role_bg":      "#F4F0EA",
+    "role_sel":     "#5C1A28",
+    "role_sel_txt": "#FFFFFF",
+    "role_txt":     "#5C1A28",
+    "input_bg":     "#FAFAF8",
+    "google_bg":    "#FFFFFF",
+}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+class RoleButton(QPushButton):
+    """Tombol pemilih peran Admin / User dengan ikon SVG sederhana."""
+
+    def __init__(self, label: str, icon_type: str, parent=None):
+        super().__init__(parent)
+        self._label = label
+        self._icon_type = icon_type  # "admin" atau "user"
+        self.setCheckable(True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFixedHeight(80)
+        self._apply_style(False)
+
+    def _apply_style(self, checked: bool):
+        if checked:
+            bg   = C["role_sel"]
+            fg   = C["role_sel_txt"]
+            bord = C["role_sel"]
+        else:
+            bg   = C["role_bg"]
+            fg   = C["role_txt"]
+            bord = C["border"]
+
+        self.setStyleSheet(f"""
+            QPushButton {{
+                background: {bg};
+                color: {fg};
+                border: 2px solid {bord};
+                border-radius: 10px;
+                font-size: 13px;
+                font-weight: 600;
+                padding-top: 6px;
+            }}
+            QPushButton:hover {{
+                border-color: {C["maroon"]};
+            }}
+        """)
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        checked = self.isChecked()
+        icon_color = QColor(C["white"] if checked else C["maroon"])
+
+        cx = self.width() // 2
+        # Gambar ikon manusia sederhana
+        # Kepala
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QBrush(icon_color))
+        p.drawEllipse(cx - 10, 8, 20, 20)
+        # Badan
+        p.drawRoundedRect(cx - 14, 30, 28, 18, 6, 6)
+
+        if self._icon_type == "admin":
+            # Roda gigi kecil di pojok kanan atas kepala
+            gear_color = QColor(C["gold"] if checked else C["gold"])
+            p.setBrush(QBrush(gear_color))
+            p.drawEllipse(cx + 2, 10, 12, 12)
+            p.setBrush(QBrush(QColor(C["white"] if checked else C["role_bg"])))
+            p.drawEllipse(cx + 5, 13, 6, 6)
+
+        # Label
+        p.setPen(QPen(icon_color))
+        font = QFont()
+        font.setPointSize(10)
+        font.setWeight(QFont.Weight.DemiBold)
+        p.setFont(font)
+        p.drawText(QRect(0, 52, self.width(), 22),
+                   Qt.AlignmentFlag.AlignCenter, self._label)
+        p.end()
+
+    def setChecked(self, checked: bool):
+        super().setChecked(checked)
+        self._apply_style(checked)
+        self.update()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+class GoogleButton(QPushButton):
+    """Tombol login Google dengan logo G dari file gambar."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedHeight(48)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setText("Lanjut dengan Google")
+        self.setStyleSheet(f"""
+            QPushButton {{
+                background: {C["google_bg"]};
+                border: 1.5px solid {C["border"]};
+                border-radius: 10px;
+                font-size: 13px;
+                color: {C["text_mid"]};
+                text-align: center;
+                padding-left: 8px;
+            }}
+            QPushButton:hover {{
+                background: #F8F4EE;
+                border-color: #C0A88A;
+            }}
+            QPushButton:pressed {{
+                background: #F0EAE0;
+            }}
+        """)
+
+        # Set ikon Google dari file gambar
+        google_logo_path = _asset("google_logo.png")
+        if os.path.exists(google_logo_path):
+            icon = QIcon(google_logo_path)
+            self.setIcon(icon)
+            self.setIconSize(QSize(22, 22))
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+class AnimatedStack(QStackedWidget):
+    """QStackedWidget dengan animasi fade saat ganti halaman."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._animating = False
+        self._anim_out = None
+        self._anim_in  = None
+        self._effect   = None
+        self._effect2  = None
+
+    def slide_to(self, index: int):
+        if self._animating or index == self.currentIndex():
+            return
+        self._animating = True
+
+        current_widget = self.currentWidget()
+
+        self._effect = QGraphicsOpacityEffect(current_widget)
+        current_widget.setGraphicsEffect(self._effect)
+
+        self._anim_out = QPropertyAnimation(self._effect, b"opacity")
+        self._anim_out.setDuration(160)
+        self._anim_out.setStartValue(1.0)
+        self._anim_out.setEndValue(0.0)
+        self._anim_out.setEasingCurve(QEasingCurve.Type.OutCubic)
+
+        def on_out_done():
+            current_widget.setGraphicsEffect(None)
+
+            self.setCurrentIndex(index)
+            new_widget = self.currentWidget()
+
+            self._effect2 = QGraphicsOpacityEffect(new_widget)
+            new_widget.setGraphicsEffect(self._effect2)
+            self._effect2.setOpacity(0.0)
+
+            self._anim_in = QPropertyAnimation(self._effect2, b"opacity")
+            self._anim_in.setDuration(200)
+            self._anim_in.setStartValue(0.0)
+            self._anim_in.setEndValue(1.0)
+            self._anim_in.setEasingCurve(QEasingCurve.Type.InCubic)
+
+            def on_in_done():
+                new_widget.setGraphicsEffect(None)
+                self._animating = False
+
+            self._anim_in.finished.connect(on_in_done)
+            self._anim_in.start()
+
+        self._anim_out.finished.connect(on_out_done)
+        self._anim_out.start()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 class HalamanLogin(QDialog):
     """
-    Dialog login fullscreen dengan tab Login & Daftar.
-    Emit sinyal login_berhasil(dict_user) jika sukses.
+    Dialog login fullscreen — desain mengikuti screenshot Figma:
+    • Panel kiri: maroon gelap + logo + nama app
+    • Panel kanan: latar PUTIH + kartu form melayang
+    • Pemilih peran Admin / User
+    • Animasi fade antar form Login ↔ Daftar
     """
 
     login_berhasil = pyqtSignal(dict)
-
-    BG          = "#FDFAF6"
-    PRIMARY     = "#44101A"
-    PRIMARY_HVR = "#6B1525"
-    AKSEN       = "#F1C40F"
-    BORDER      = "#D4C5A9"
-    CARD_BG     = "#FFFFFF"
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.auth = AuthManager()
         self.auth.init_schema()
         self._current_user: Optional[dict] = None
+        self._peran_dipilih = "user"
 
-        self.setWindowTitle("PokokNya.Bdg")
+        self.setWindowTitle("PokokNya.Bdg — Masuk")
         self.setWindowFlags(
             Qt.WindowType.Dialog |
             Qt.WindowType.WindowCloseButtonHint |
             Qt.WindowType.WindowMaximizeButtonHint
         )
 
-        # ── Icon window & taskbar ─────────────────────────────────────────
         icon_path = _asset("app_icon.ico")
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
 
-        # ── Fullscreen ────────────────────────────────────────────────────
         screen = QApplication.primaryScreen().availableGeometry()
         self.resize(screen.width(), screen.height())
         self.showMaximized()
 
-        self.setStyleSheet(f"background-color: {self.BG};")
+        self.setStyleSheet(f"background: {C['bg']};")
         self._build_ui()
 
-    # ── UI ────────────────────────────────────────────────────────────────────
+    # ── UI Utama ─────────────────────────────────────────────────────────────
 
     def _build_ui(self):
         root = QHBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        # ── Panel kiri: ilustrasi / branding ─────────────────────────────
-        panel_kiri = QFrame()
-        panel_kiri.setStyleSheet(f"background-color: {self.PRIMARY};")
-        panel_kiri.setFixedWidth(480)
-        kiri_layout = QVBoxLayout(panel_kiri)
-        kiri_layout.setContentsMargins(48, 60, 48, 60)
-        kiri_layout.setSpacing(24)
-        kiri_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        root.addWidget(self._panel_kiri(), 42)
+        root.addWidget(self._panel_kanan(), 58)
 
-        # Logo
+    # ── Panel Kiri ────────────────────────────────────────────────────────────
+
+    def _panel_kiri(self) -> QFrame:
+        panel = QFrame()
+        panel.setStyleSheet(f"background: {C['maroon']};")
+
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(60, 0, 60, 60)
+        layout.setSpacing(0)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        layout.addStretch(2)
+
+        # Logo — gunakan logo_app.png yang dikirim user
         logo_path = _asset("logo_app.png")
         lbl_logo = QLabel()
         lbl_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_logo.setStyleSheet("background: transparent;")
         if os.path.exists(logo_path):
             pix = QPixmap(logo_path).scaled(
-                220, 220,
+                180, 180,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation
             )
             lbl_logo.setPixmap(pix)
         else:
-            lbl_logo.setText("🛒")
-            lbl_logo.setStyleSheet("font-size: 80px;")
-        kiri_layout.addWidget(lbl_logo)
+            lbl_logo.setText("🥬")
+            lbl_logo.setStyleSheet("font-size: 90px; background: transparent;")
 
-        lbl_nama = QLabel("PokokNya.Bdg")
+        logo_wrap = QWidget()
+        logo_wrap.setStyleSheet("background: transparent;")
+        logo_wrap.setFixedSize(200, 200)
+        logo_inner = QVBoxLayout(logo_wrap)
+        logo_inner.setContentsMargins(10, 10, 10, 10)
+        logo_inner.addWidget(lbl_logo)
+        layout.addWidget(logo_wrap, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        layout.addSpacing(28)
+
+        lbl_nama = QLabel("Pokoknya.Bdg")
         lbl_nama.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_nama.setStyleSheet(
-            f"color: {self.AKSEN}; font-size: 32px; font-weight: bold;"
-        )
-        kiri_layout.addWidget(lbl_nama)
+        lbl_nama.setStyleSheet(f"""
+            color: {C["gold"]};
+            font-size: 28px;
+            font-weight: 800;
+            background: transparent;
+            letter-spacing: 1px;
+        """)
+        layout.addWidget(lbl_nama)
+
+        layout.addSpacing(12)
 
         lbl_tagline = QLabel("Perbandingan Harga\nBahan Pokok Kota Bandung")
         lbl_tagline.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_tagline.setStyleSheet("color: rgba(255,255,255,0.75); font-size: 15px; line-height: 1.6;")
-        kiri_layout.addWidget(lbl_tagline)
+        lbl_tagline.setStyleSheet(f"""
+            color: rgba(255, 255, 255, 0.65);
+            font-size: 14px;
+            line-height: 1.7;
+            background: transparent;
+        """)
+        layout.addWidget(lbl_tagline)
 
-        kiri_layout.addStretch()
+        layout.addStretch(3)
 
         lbl_credit = QLabel("© 2025 POLBAN Informatika")
         lbl_credit.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_credit.setStyleSheet("color: rgba(255,255,255,0.35); font-size: 11px;")
-        kiri_layout.addWidget(lbl_credit)
+        lbl_credit.setStyleSheet(f"""
+            color: rgba(255, 255, 255, 0.30);
+            font-size: 11px;
+            background: transparent;
+        """)
+        layout.addWidget(lbl_credit)
 
-        root.addWidget(panel_kiri)
+        return panel
 
-        # ── Panel kanan: form login/daftar ────────────────────────────────
-        panel_kanan = QWidget()
-        panel_kanan.setStyleSheet(f"background-color: {self.BG};")
-        kanan_layout = QVBoxLayout(panel_kanan)
-        kanan_layout.setContentsMargins(80, 60, 80, 60)
-        kanan_layout.setSpacing(0)
-        kanan_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    # ── Panel Kanan ───────────────────────────────────────────────────────────
 
-        # Tab selector
-        tab_row = QHBoxLayout()
-        tab_row.setSpacing(0)
+    def _panel_kanan(self) -> QWidget:
+        panel = QWidget()
+        # ✅ PERUBAHAN: background putih polos (bukan krem/tekstur)
+        panel.setStyleSheet("background: #FFFFFF;")
 
-        self.btn_tab_login = QPushButton("Masuk")
-        self.btn_tab_daftar = QPushButton("Daftar")
-        for btn in [self.btn_tab_login, self.btn_tab_daftar]:
-            btn.setFixedHeight(44)
-            btn.setCheckable(True)
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        outer = QVBoxLayout(panel)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.btn_tab_login.setChecked(True)
-        self._update_tab_style()
+        # Kartu tengah
+        card = QFrame()
+        card.setObjectName("LoginCard")
+        card.setStyleSheet(f"""
+            #LoginCard {{
+                background: {C["card"]};
+                border-radius: 20px;
+                border: 1px solid {C["border"]};
+            }}
+        """)
+        card.setMinimumWidth(460)
+        card.setMaximumWidth(520)
+        card.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
 
-        self.btn_tab_login.clicked.connect(lambda: self._ganti_tab(0))
-        self.btn_tab_daftar.clicked.connect(lambda: self._ganti_tab(1))
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(44, 40, 44, 44)
+        card_layout.setSpacing(0)
 
-        tab_row.addWidget(self.btn_tab_login)
-        tab_row.addWidget(self.btn_tab_daftar)
-        kanan_layout.addLayout(tab_row)
-        kanan_layout.addSpacing(32)
+        # Stack: login + daftar
+        self.stack = AnimatedStack()
+        self.stack.addWidget(self._form_login())
+        self.stack.addWidget(self._form_daftar())
+        card_layout.addWidget(self.stack)
 
-        # Stacked: halaman login & daftar
-        self.stack = QStackedWidget()
-        self.stack.addWidget(self._buat_form_login())
-        self.stack.addWidget(self._buat_form_daftar())
-        kanan_layout.addWidget(self.stack)
-
-        root.addWidget(panel_kanan, 1)
+        outer.addWidget(card, alignment=Qt.AlignmentFlag.AlignCenter)
+        return panel
 
     # ── Form Login ────────────────────────────────────────────────────────────
 
-    def _buat_form_login(self) -> QWidget:
+    def _form_login(self) -> QWidget:
         w = QWidget()
         w.setStyleSheet("background: transparent;")
         layout = QVBoxLayout(w)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(16)
+        layout.setSpacing(0)
 
-        lbl = QLabel("Selamat Datang Kembali 👋")
-        lbl.setStyleSheet(f"color: {self.PRIMARY}; font-size: 22px; font-weight: bold;")
-        layout.addWidget(lbl)
+        # Judul
+        lbl_judul = QLabel("Selamat Datang")
+        lbl_judul.setStyleSheet(f"""
+            color: {C["text_dark"]};
+            font-size: 24px;
+            font-weight: 700;
+            background: transparent;
+        """)
+        layout.addWidget(lbl_judul)
 
-        lbl_sub = QLabel("Masuk untuk melanjutkan ke PokokNya.Bdg")
-        lbl_sub.setStyleSheet("color: #888; font-size: 13px;")
+        lbl_sub = QLabel("Masuk untuk melanjutkan ke akun Anda")
+        lbl_sub.setStyleSheet(f"""
+            color: {C["text_light"]};
+            font-size: 13px;
+            background: transparent;
+        """)
         layout.addWidget(lbl_sub)
-        layout.addSpacing(8)
+        layout.addSpacing(24)
 
-        # Username
-        layout.addWidget(self._lbl_field("Username"))
-        self.inp_login_user = self._input("Masukkan username")
-        layout.addWidget(self.inp_login_user)
+        # Email
+        layout.addWidget(self._label_field("Alamat Email"))
+        layout.addSpacing(6)
+        self.inp_email_login = self._input_field("you.example.com", icon="✉")
+        layout.addWidget(self.inp_email_login)
+        layout.addSpacing(14)
 
         # Password
-        layout.addWidget(self._lbl_field("Password"))
-        pass_row = QHBoxLayout()
-        pass_row.setSpacing(8)
-        self.inp_login_pass = self._input("Masukkan password", password=True)
-        self.inp_login_pass.returnPressed.connect(self._coba_login)
-        self.btn_show_pass = self._btn_mata()
-        self.btn_show_pass.clicked.connect(
-            lambda: self._toggle_password(self.inp_login_pass, self.btn_show_pass)
-        )
-        pass_row.addWidget(self.inp_login_pass, 1)
-        pass_row.addWidget(self.btn_show_pass)
-        layout.addLayout(pass_row)
+        layout.addWidget(self._label_field("Kata Sandi"))
+        layout.addSpacing(6)
+        self.inp_pass_login = self._input_field("Masukkan kata sandi", icon="🔒", password=True)
+        layout.addWidget(self.inp_pass_login)
+        self.inp_pass_login.returnPressed.connect(self._aksi_login)
+        layout.addSpacing(20)
 
-        # Error label
+        # Pilih kategori
+        layout.addWidget(self._label_field("Pilih kategori akun anda"))
+        layout.addSpacing(8)
+        role_row = QHBoxLayout()
+        role_row.setSpacing(12)
+        self.btn_admin_login = RoleButton("Admin", "admin")
+        self.btn_user_login  = RoleButton("User",  "user")
+        self.btn_user_login.setChecked(True)
+        self.btn_admin_login.clicked.connect(lambda: self._pilih_peran("admin", "login"))
+        self.btn_user_login.clicked.connect(lambda: self._pilih_peran("user",  "login"))
+        role_row.addWidget(self.btn_admin_login)
+        role_row.addWidget(self.btn_user_login)
+        layout.addLayout(role_row)
+        layout.addSpacing(6)
+
+        # Error
         self.lbl_login_error = QLabel("")
-        self.lbl_login_error.setStyleSheet("color: #c0392b; font-size: 12px;")
+        self.lbl_login_error.setStyleSheet(f"color: {C['error']}; font-size: 12px; background: transparent;")
+        self.lbl_login_error.setWordWrap(True)
         layout.addWidget(self.lbl_login_error)
+        layout.addSpacing(16)
 
         # Tombol Masuk
-        btn_masuk = QPushButton("Masuk")
-        btn_masuk.setFixedHeight(46)
-        btn_masuk.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_masuk.setStyleSheet(self._style_btn_primary())
-        btn_masuk.clicked.connect(self._coba_login)
+        btn_masuk = self._btn_utama("Masuk")
+        btn_masuk.clicked.connect(self._aksi_login)
         layout.addWidget(btn_masuk)
+        layout.addSpacing(12)
 
-        # Divider
-        layout.addWidget(self._divider("atau"))
+        # Tombol Buat Akun Baru
+        btn_daftar = self._btn_sekunder("Buat Akun Baru")
+        btn_daftar.clicked.connect(lambda: self.stack.slide_to(1))
+        layout.addWidget(btn_daftar)
+        layout.addSpacing(16)
 
-        # Tombol Google
-        btn_google = self._btn_google("Masuk dengan Google")
-        btn_google.clicked.connect(self._login_google)
+        layout.addWidget(self._divider())
+        layout.addSpacing(12)
+
+        # ✅ PERUBAHAN: GoogleButton sekarang pakai gambar logo asli
+        btn_google = GoogleButton()
+        btn_google.clicked.connect(self._aksi_google)
         layout.addWidget(btn_google)
 
         layout.addStretch()
@@ -221,142 +483,169 @@ class HalamanLogin(QDialog):
 
     # ── Form Daftar ───────────────────────────────────────────────────────────
 
-    def _buat_form_daftar(self) -> QWidget:
+    def _form_daftar(self) -> QWidget:
         w = QWidget()
         w.setStyleSheet("background: transparent;")
         layout = QVBoxLayout(w)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(14)
+        layout.setSpacing(0)
 
-        lbl = QLabel("Buat Akun Baru")
-        lbl.setStyleSheet(f"color: {self.PRIMARY}; font-size: 22px; font-weight: bold;")
-        layout.addWidget(lbl)
+        # Judul
+        lbl_judul = QLabel("Buat akun kamu")
+        lbl_judul.setStyleSheet(f"""
+            color: {C["gold"]};
+            font-size: 24px;
+            font-weight: 700;
+            background: transparent;
+        """)
+        layout.addWidget(lbl_judul)
 
-        lbl_sub = QLabel("Daftar untuk mulai menggunakan PokokNya.Bdg")
-        lbl_sub.setStyleSheet("color: #888; font-size: 13px;")
+        lbl_sub = QLabel("Mulai jelajahi harga pangan bersama kami")
+        lbl_sub.setStyleSheet(f"""
+            color: {C["text_light"]};
+            font-size: 13px;
+            background: transparent;
+        """)
         layout.addWidget(lbl_sub)
-        layout.addSpacing(4)
+        layout.addSpacing(22)
 
-        # Display name
-        layout.addWidget(self._lbl_field("Nama Lengkap"))
-        self.inp_reg_nama = self._input("Masukkan nama lengkap")
-        layout.addWidget(self.inp_reg_nama)
-
-        # Username
-        layout.addWidget(self._lbl_field("Username"))
-        self.inp_reg_user = self._input("Minimal 3 karakter")
-        layout.addWidget(self.inp_reg_user)
-
-        # Email (opsional)
-        layout.addWidget(self._lbl_field("Email (opsional)"))
-        self.inp_reg_email = self._input("contoh@email.com")
-        layout.addWidget(self.inp_reg_email)
+        # Email
+        layout.addWidget(self._label_field("Alamat Email"))
+        layout.addSpacing(6)
+        self.inp_email_daftar = self._input_field("you.example.com", icon="✉")
+        layout.addWidget(self.inp_email_daftar)
+        layout.addSpacing(14)
 
         # Password
-        layout.addWidget(self._lbl_field("Password"))
-        pass_row = QHBoxLayout()
-        pass_row.setSpacing(8)
-        self.inp_reg_pass = self._input("Minimal 6 karakter", password=True)
-        self.btn_show_reg = self._btn_mata()
-        self.btn_show_reg.clicked.connect(
-            lambda: self._toggle_password(self.inp_reg_pass, self.btn_show_reg)
-        )
-        pass_row.addWidget(self.inp_reg_pass, 1)
-        pass_row.addWidget(self.btn_show_reg)
-        layout.addLayout(pass_row)
+        layout.addWidget(self._label_field("Kata Sandi"))
+        layout.addSpacing(6)
+        self.inp_pass_daftar = self._input_field("Masukkan kata sandi", icon="🔒", password=True)
+        layout.addWidget(self.inp_pass_daftar)
+        layout.addSpacing(20)
 
-        # Error label
-        self.lbl_reg_error = QLabel("")
-        self.lbl_reg_error.setStyleSheet("color: #c0392b; font-size: 12px;")
-        self.lbl_reg_sukses = QLabel("")
-        self.lbl_reg_sukses.setStyleSheet("color: #27ae60; font-size: 12px;")
-        layout.addWidget(self.lbl_reg_error)
-        layout.addWidget(self.lbl_reg_sukses)
+        # Pilih kategori
+        layout.addWidget(self._label_field("Pilih kategori akun anda"))
+        layout.addSpacing(8)
+        role_row2 = QHBoxLayout()
+        role_row2.setSpacing(12)
+        self.btn_admin_daftar = RoleButton("Admin", "admin")
+        self.btn_user_daftar  = RoleButton("User",  "user")
+        self.btn_user_daftar.setChecked(True)
+        self.btn_admin_daftar.clicked.connect(lambda: self._pilih_peran("admin", "daftar"))
+        self.btn_user_daftar.clicked.connect(lambda: self._pilih_peran("user",  "daftar"))
+        role_row2.addWidget(self.btn_admin_daftar)
+        role_row2.addWidget(self.btn_user_daftar)
+        layout.addLayout(role_row2)
+        layout.addSpacing(6)
 
-        # Tombol Daftar
-        btn_daftar = QPushButton("Buat Akun")
-        btn_daftar.setFixedHeight(46)
-        btn_daftar.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_daftar.setStyleSheet(self._style_btn_primary())
-        btn_daftar.clicked.connect(self._coba_register)
-        layout.addWidget(btn_daftar)
+        # Error / Sukses
+        self.lbl_daftar_error  = QLabel("")
+        self.lbl_daftar_sukses = QLabel("")
+        self.lbl_daftar_error.setStyleSheet(f"color: {C['error']}; font-size: 12px; background: transparent;")
+        self.lbl_daftar_sukses.setStyleSheet(f"color: {C['success']}; font-size: 12px; background: transparent;")
+        self.lbl_daftar_error.setWordWrap(True)
+        self.lbl_daftar_sukses.setWordWrap(True)
+        layout.addWidget(self.lbl_daftar_error)
+        layout.addWidget(self.lbl_daftar_sukses)
+        layout.addSpacing(16)
 
-        # Divider
-        layout.addWidget(self._divider("atau"))
+        # Tombol submit daftar
+        btn_masuk = self._btn_utama("Buat Akun")
+        btn_masuk.clicked.connect(self._aksi_daftar)
+        layout.addWidget(btn_masuk)
+        layout.addSpacing(12)
 
-        # Tombol Google
-        btn_google = self._btn_google("Daftar dengan Google")
-        btn_google.clicked.connect(self._login_google)
+        # Tombol kembali ke login
+        btn_kembali = self._btn_sekunder("Sudah punya akun? Masuk")
+        btn_kembali.clicked.connect(lambda: self.stack.slide_to(0))
+        layout.addWidget(btn_kembali)
+        layout.addSpacing(16)
+
+        layout.addWidget(self._divider())
+        layout.addSpacing(12)
+
+        # ✅ PERUBAHAN: GoogleButton sekarang pakai gambar logo asli
+        btn_google = GoogleButton()
+        btn_google.clicked.connect(self._aksi_google)
         layout.addWidget(btn_google)
 
         layout.addStretch()
         return w
 
-    # ── Aksi Login ────────────────────────────────────────────────────────────
+    # ── Aksi ─────────────────────────────────────────────────────────────────
 
-    def _coba_login(self):
-        username = self.inp_login_user.text().strip()
-        password = self.inp_login_pass.text()
+    def _pilih_peran(self, peran: str, form: str):
+        self._peran_dipilih = peran
+        if form == "login":
+            self.btn_admin_login.setChecked(peran == "admin")
+            self.btn_user_login.setChecked(peran == "user")
+        else:
+            self.btn_admin_daftar.setChecked(peran == "admin")
+            self.btn_user_daftar.setChecked(peran == "user")
 
+    def _aksi_login(self):
+        email    = self.inp_email_login.text().strip()
+        password = self.inp_pass_login.text()
         self.lbl_login_error.setText("")
 
-        if not username or not password:
-            self.lbl_login_error.setText("⚠ Username dan password tidak boleh kosong.")
+        if not email or not password:
+            self.lbl_login_error.setText("⚠ Email dan kata sandi tidak boleh kosong.")
             return
 
-        user = self.auth.login(username, password)
+        user = self.auth.login(email, password)
         if user:
+            if self._peran_dipilih == "admin" and user.get("role") != "admin":
+                self.lbl_login_error.setText("❌ Akun ini bukan akun Admin.")
+                return
             self._masuk(user)
         else:
-            self.lbl_login_error.setText("❌ Username atau password salah.")
-            self.inp_login_pass.clear()
-            self.inp_login_pass.setFocus()
+            self.lbl_login_error.setText("❌ Email atau kata sandi salah.")
+            self.inp_pass_login.clear()
+            self.inp_pass_login.setFocus()
 
-    def _coba_register(self):
-        nama     = self.inp_reg_nama.text().strip()
-        username = self.inp_reg_user.text().strip()
-        email    = self.inp_reg_email.text().strip()
-        password = self.inp_reg_pass.text()
+    def _aksi_daftar(self):
+        email    = self.inp_email_daftar.text().strip()
+        password = self.inp_pass_daftar.text()
+        self.lbl_daftar_error.setText("")
+        self.lbl_daftar_sukses.setText("")
 
-        self.lbl_reg_error.setText("")
-        self.lbl_reg_sukses.setText("")
+        if not email or not password:
+            self.lbl_daftar_error.setText("⚠ Email dan kata sandi tidak boleh kosong.")
+            return
+        if "@" not in email:
+            self.lbl_daftar_error.setText("⚠ Format email tidak valid.")
+            return
 
+        username = email.split("@")[0].replace(".", "_")
         berhasil, pesan = self.auth.register(
-            username=username, password=password,
-            email=email, display_name=nama
+            username=username,
+            password=password,
+            email=email,
+            display_name=username
         )
         if berhasil:
-            self.lbl_reg_sukses.setText("✅ Akun berhasil dibuat! Silakan masuk.")
-            # Auto-login
+            self.lbl_daftar_sukses.setText("✅ Akun berhasil dibuat!")
             user = self.auth.login(username, password)
             if user:
-                self._masuk(user)
+                QTimer.singleShot(800, lambda: self._masuk(user))
         else:
-            self.lbl_reg_error.setText(f"❌ {pesan}")
+            self.lbl_daftar_error.setText(f"❌ {pesan}")
 
-    def _login_google(self):
-        """
-        Simulasi login Google — di production, ganti dengan OAuth2 flow sungguhan.
-        Di sini tampilkan dialog input email Google untuk demo.
-        """
+    def _aksi_google(self):
         from PyQt6.QtWidgets import QInputDialog
         email, ok = QInputDialog.getText(
-            self, "Login dengan Google",
+            self, "Masuk dengan Google",
             "Masukkan email Google Anda:",
         )
         if not ok or not email.strip():
             return
-
         email = email.strip().lower()
         if "@" not in email:
             QMessageBox.warning(self, "Format Salah", "Email tidak valid.")
             return
 
-        # Buat google_id simulasi dari email
-        import hashlib
         fake_google_id = "google_" + hashlib.md5(email.encode()).hexdigest()[:12]
         display_name   = email.split("@")[0].replace(".", " ").title()
-
         user = self.auth.login_or_register_google(
             google_id=fake_google_id,
             email=email,
@@ -369,140 +658,119 @@ class HalamanLogin(QDialog):
         self.login_berhasil.emit(user)
         self.accept()
 
-    # ── Helpers UI ────────────────────────────────────────────────────────────
+    # ── Widget Helpers ────────────────────────────────────────────────────────
 
-    def _ganti_tab(self, index: int):
-        self.stack.setCurrentIndex(index)
-        self.btn_tab_login.setChecked(index == 0)
-        self.btn_tab_daftar.setChecked(index == 1)
-        self._update_tab_style()
-
-    def _update_tab_style(self):
-        for btn, aktif in [
-            (self.btn_tab_login,  self.btn_tab_login.isChecked()),
-            (self.btn_tab_daftar, self.btn_tab_daftar.isChecked()),
-        ]:
-            if aktif:
-                btn.setStyleSheet(f"""
-                    QPushButton {{
-                        background: {self.PRIMARY};
-                        color: white;
-                        border: none;
-                        font-size: 14px;
-                        font-weight: bold;
-                        border-radius: 0;
-                        border-bottom: 3px solid {self.AKSEN};
-                    }}
-                """)
-            else:
-                btn.setStyleSheet(f"""
-                    QPushButton {{
-                        background: #EEE8DF;
-                        color: #888;
-                        border: none;
-                        font-size: 14px;
-                        border-radius: 0;
-                    }}
-                    QPushButton:hover {{ background: #E0D9CF; color: {self.PRIMARY}; }}
-                """)
-
-    def _lbl_field(self, teks: str) -> QLabel:
+    def _label_field(self, teks: str) -> QLabel:
         lbl = QLabel(teks)
-        lbl.setStyleSheet("color: #444; font-size: 13px; font-weight: 500;")
+        lbl.setStyleSheet(f"""
+            color: {C["text_dark"]};
+            font-size: 13px;
+            font-weight: 500;
+            background: transparent;
+        """)
         return lbl
 
-    def _input(self, placeholder: str, password: bool = False) -> QLineEdit:
+    def _input_field(self, placeholder: str, icon: str = "", password: bool = False) -> QLineEdit:
         inp = QLineEdit()
         inp.setPlaceholderText(placeholder)
-        inp.setFixedHeight(44)
+        inp.setFixedHeight(48)
         if password:
             inp.setEchoMode(QLineEdit.EchoMode.Password)
+
+        padding_left = "38px" if icon else "14px"
+
         inp.setStyleSheet(f"""
             QLineEdit {{
-                border: 1.5px solid {self.BORDER};
-                border-radius: 8px;
-                padding: 8px 14px;
+                background: {C["input_bg"]};
+                border: 1.5px solid {C["border"]};
+                border-radius: 10px;
+                padding: 10px 14px 10px {padding_left};
                 font-size: 13px;
-                background: #FAFAFA;
+                color: {C["text_dark"]};
             }}
             QLineEdit:focus {{
-                border: 2px solid {self.PRIMARY};
-                background: white;
+                border: 2px solid {C["border_focus"]};
+                background: {C["white"]};
+            }}
+            QLineEdit::placeholder {{
+                color: {C["text_light"]};
             }}
         """)
+
+        if icon:
+            icon_lbl = QLabel(icon, inp)
+            icon_lbl.setStyleSheet("background: transparent; font-size: 14px;")
+            icon_lbl.setGeometry(10, 14, 20, 20)
+            icon_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+
         return inp
 
-    def _btn_mata(self) -> QPushButton:
-        btn = QPushButton("👁")
-        btn.setFixedSize(44, 44)
+    def _btn_utama(self, teks: str) -> QPushButton:
+        btn = QPushButton(teks)
+        btn.setFixedHeight(50)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setCheckable(True)
         btn.setStyleSheet(f"""
             QPushButton {{
-                border: 1.5px solid {self.BORDER};
-                border-radius: 8px;
-                background: #FAFAFA;
-                font-size: 16px;
-            }}
-            QPushButton:checked {{ background: #EEE; }}
-        """)
-        return btn
-
-    def _toggle_password(self, inp: QLineEdit, btn: QPushButton):
-        if btn.isChecked():
-            inp.setEchoMode(QLineEdit.EchoMode.Normal)
-        else:
-            inp.setEchoMode(QLineEdit.EchoMode.Password)
-
-    def _style_btn_primary(self) -> str:
-        return f"""
-            QPushButton {{
-                background-color: {self.PRIMARY};
-                color: white;
-                border-radius: 8px;
-                font-size: 14px;
-                font-weight: bold;
+                background: {C["gold"]};
+                color: {C["white"]};
                 border: none;
+                border-radius: 10px;
+                font-size: 15px;
+                font-weight: 700;
+                letter-spacing: 0.5px;
             }}
-            QPushButton:hover {{ background-color: {self.PRIMARY_HVR}; }}
-            QPushButton:pressed {{ background-color: #2D0A10; }}
-        """
+            QPushButton:hover {{
+                background: {C["gold_hover"]};
+            }}
+            QPushButton:pressed {{
+                background: {C["gold_press"]};
+            }}
+        """)
+        return btn
 
-    def _btn_google(self, teks: str) -> QPushButton:
-        btn = QPushButton(f"  {teks}")
-        btn.setFixedHeight(46)
+    def _btn_sekunder(self, teks: str) -> QPushButton:
+        btn = QPushButton(teks)
+        btn.setFixedHeight(48)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.setStyleSheet(f"""
             QPushButton {{
-                background: white;
-                color: #333;
-                border: 1.5px solid {self.BORDER};
-                border-radius: 8px;
-                font-size: 13px;
+                background: transparent;
+                color: {C["text_dark"]};
+                border: 1.5px solid {C["border"]};
+                border-radius: 10px;
+                font-size: 14px;
                 font-weight: 500;
-                text-align: center;
             }}
-            QPushButton:hover {{ background: #F5F5F5; border-color: #AAA; }}
+            QPushButton:hover {{
+                background: {C["role_bg"]};
+                border-color: {C["maroon"]};
+                color: {C["maroon"]};
+            }}
+            QPushButton:pressed {{
+                background: #E8E0D4;
+            }}
         """)
-        # Pasang ikon Google (teks G berwarna jika tidak ada gambar)
-        btn.setText("  🌐  " + teks)
         return btn
 
-    def _divider(self, teks: str = "atau") -> QWidget:
+    def _divider(self) -> QWidget:
         w = QWidget()
         w.setStyleSheet("background: transparent;")
         row = QHBoxLayout(w)
-        row.setContentsMargins(0, 8, 0, 8)
+        row.setContentsMargins(0, 4, 0, 4)
         row.setSpacing(12)
 
         def garis():
             f = QFrame()
             f.setFrameShape(QFrame.Shape.HLine)
-            f.setStyleSheet(f"color: {self.BORDER};")
+            f.setStyleSheet(f"color: {C['border']};")
             return f
 
-        lbl = QLabel(teks)
-        lbl.setStyleSheet("color: #AAA; font-size: 12px;")
+        lbl = QLabel("Atau lanjut dengan")
+        lbl.setStyleSheet(f"""
+            color: {C["text_light"]};
+            font-size: 12px;
+            background: transparent;
+        """)
         row.addWidget(garis(), 1)
         row.addWidget(lbl)
         row.addWidget(garis(), 1)
