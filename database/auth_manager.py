@@ -55,18 +55,6 @@ class AuthManager:
                     pass  # Kolom sudah ada, lewati
         self._seed_default_accounts()
 
-    def _seed_admin(self):
-        """Hanya buat akun admin default — TIDAK ada akun user default."""
-        with self._connect() as conn:
-            existing = conn.execute(
-                "SELECT id FROM users WHERE username = 'admin'"
-            ).fetchone()
-            if not existing:
-                conn.execute(
-                    "INSERT INTO users (username, password, role, display_name) VALUES (?, ?, ?, ?)",
-                    ("admin", self._hash_password("admin123"), "admin", "Administrator")
-                )
-
     # ── Login ────────────────────────────────────────────────────────────────
 
     def login(self, username: str, password: str) -> Optional[dict]:
@@ -84,9 +72,9 @@ class AuthManager:
     # ── Registrasi User Baru ─────────────────────────────────────────────────
 
     def register(self, username: str, password: str,
-                email: str = "", display_name: str = "") -> tuple[bool, str]:
+                 email: str = "", display_name: str = "", role: str = "user") -> tuple[bool, str]:
         """
-        Daftarkan user baru dengan role 'user'.
+        Daftarkan user baru dengan role dinamis (default 'user').
         Return (True, "") jika berhasil, (False, pesan_error) jika gagal.
         """
         if len(password) < 6:
@@ -94,13 +82,17 @@ class AuthManager:
         if not username or len(username) < 3:
             return False, "Username minimal 3 karakter."
 
+        # Validasi role hanya boleh 'user' atau 'admin'
+        if role not in ("user", "admin"):
+            role = "user"
+
         try:
             with self._connect() as conn:
                 conn.execute(
                     "INSERT INTO users (username, password, role, email, display_name) "
-                    "VALUES (?, ?, 'user', ?, ?)",
-                    (username, self._hash_password(password),
-                    email or None, display_name or username)
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (username, self._hash_password(password), role,
+                     email or None, display_name or username)
                 )
             return True, ""
         except sqlite3.IntegrityError as e:
