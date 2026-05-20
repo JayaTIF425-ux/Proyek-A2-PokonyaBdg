@@ -254,9 +254,9 @@ class HalamanLogin(QDialog):
 
         self.setWindowTitle("PokokNya.Bdg — Masuk")
         self.setWindowFlags(
-            Qt.WindowType.Window |                   
+            Qt.WindowType.Window |
             Qt.WindowType.WindowCloseButtonHint |
-            Qt.WindowType.WindowMinimizeButtonHint |  
+            Qt.WindowType.WindowMinimizeButtonHint |
             Qt.WindowType.WindowMaximizeButtonHint
         )
 
@@ -264,8 +264,8 @@ class HalamanLogin(QDialog):
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
 
-        screen = QApplication.primaryScreen().availableGeometry()
-        self.resize(screen.width(), screen.height())
+        self.setMinimumSize(900, 600)
+        self.resize(1280, 720)
         self.showMaximized()
 
         self.setStyleSheet(f"background: {C['bg']};")
