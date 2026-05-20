@@ -359,7 +359,6 @@ class HalamanLogin(QDialog):
 
     def _panel_kanan(self) -> QWidget:
         panel = QWidget()
-        # ✅ PERUBAHAN: background putih polos (bukan krem/tekstur)
         panel.setStyleSheet("background: #FFFFFF;")
 
         outer = QVBoxLayout(panel)
@@ -384,10 +383,15 @@ class HalamanLogin(QDialog):
         card_layout.setContentsMargins(44, 40, 44, 44)
         card_layout.setSpacing(0)
 
-        # Stack: login + daftar
+        # ── PENTING: Buat _form_daftar() DULU agar self.btn_admin_daftar
+        #    dan self.btn_user_daftar sudah ada sebelum _form_login() dipakai.
+        form_daftar = self._form_daftar()
+        form_login  = self._form_login()
+
+        # Stack: login (index 0) + daftar (index 1)
         self.stack = AnimatedStack()
-        self.stack.addWidget(self._form_login())
-        self.stack.addWidget(self._form_daftar())
+        self.stack.addWidget(form_login)
+        self.stack.addWidget(form_daftar)
         card_layout.addWidget(self.stack)
 
         outer.addWidget(card, alignment=Qt.AlignmentFlag.AlignCenter)
@@ -424,7 +428,7 @@ class HalamanLogin(QDialog):
         # Email
         layout.addWidget(self._label_field("Alamat Email"))
         layout.addSpacing(6)
-        self.inp_email_login = self._input_field("you.example.com", icon="✉")
+        self.inp_email_login = self._input_field("you@example.com", icon="✉")
         layout.addWidget(self.inp_email_login)
         layout.addSpacing(14)
 
@@ -444,6 +448,8 @@ class HalamanLogin(QDialog):
         self.btn_admin_login = RoleButton("Admin", "admin")
         self.btn_user_login  = RoleButton("User",  "user")
         self.btn_user_login.setChecked(True)
+
+        # FIX: connect hanya untuk form "login" — tidak ada referensi ke btn_daftar di sini
         self.btn_admin_login.clicked.connect(lambda: self._pilih_peran("admin", "login"))
         self.btn_user_login.clicked.connect(lambda: self._pilih_peran("user",  "login"))
         role_row.addWidget(self.btn_admin_login)
@@ -467,16 +473,9 @@ class HalamanLogin(QDialog):
         # Tombol Buat Akun Baru
         btn_daftar = self._btn_sekunder("Buat Akun Baru")
         btn_daftar.clicked.connect(lambda: self.stack.slide_to(1))
+        btn_daftar.clicked.connect(lambda: self._pilih_peran("user", "daftar"))
         layout.addWidget(btn_daftar)
         layout.addSpacing(16)
-
-        layout.addWidget(self._divider())
-        layout.addSpacing(12)
-
-        # ✅ PERUBAHAN: GoogleButton sekarang pakai gambar logo asli
-        btn_google = GoogleButton()
-        btn_google.clicked.connect(self._aksi_google)
-        layout.addWidget(btn_google)
 
         layout.addStretch()
         return w
@@ -512,7 +511,7 @@ class HalamanLogin(QDialog):
         # Email
         layout.addWidget(self._label_field("Alamat Email"))
         layout.addSpacing(6)
-        self.inp_email_daftar = self._input_field("you.example.com", icon="✉")
+        self.inp_email_daftar = self._input_field("you@example.com", icon="✉")
         layout.addWidget(self.inp_email_daftar)
         layout.addSpacing(14)
 
@@ -550,24 +549,17 @@ class HalamanLogin(QDialog):
         layout.addSpacing(16)
 
         # Tombol submit daftar
-        btn_masuk = self._btn_utama("Buat Akun")
-        btn_masuk.clicked.connect(self._aksi_daftar)
-        layout.addWidget(btn_masuk)
+        btn_buat = self._btn_utama("Buat Akun")
+        btn_buat.clicked.connect(self._aksi_daftar)
+        layout.addWidget(btn_buat)
         layout.addSpacing(12)
 
         # Tombol kembali ke login
         btn_kembali = self._btn_sekunder("Sudah punya akun? Masuk")
         btn_kembali.clicked.connect(lambda: self.stack.slide_to(0))
+        btn_kembali.clicked.connect(lambda: self._pilih_peran("user", "login"))
         layout.addWidget(btn_kembali)
         layout.addSpacing(16)
-
-        layout.addWidget(self._divider())
-        layout.addSpacing(12)
-
-        # ✅ PERUBAHAN: GoogleButton sekarang pakai gambar logo asli
-        btn_google = GoogleButton()
-        btn_google.clicked.connect(self._aksi_google)
-        layout.addWidget(btn_google)
 
         layout.addStretch()
         return w
@@ -575,6 +567,10 @@ class HalamanLogin(QDialog):
     # ── Aksi ─────────────────────────────────────────────────────────────────
 
     def _pilih_peran(self, peran: str, form: str):
+        # Pastikan 'peran' yang masuk berupa string murni, bukan boolean dari PyQt
+        if isinstance(peran, bool):
+            return
+
         self._peran_dipilih = peran
         if form == "login":
             self.btn_admin_login.setChecked(peran == "admin")
@@ -584,6 +580,7 @@ class HalamanLogin(QDialog):
             self.btn_user_daftar.setChecked(peran == "user")
 
     def _aksi_login(self):
+        """Login menggunakan email sebagai username (ambil bagian sebelum @)."""
         email    = self.inp_email_login.text().strip()
         password = self.inp_pass_login.text()
         self.lbl_login_error.setText("")
@@ -592,16 +589,21 @@ class HalamanLogin(QDialog):
             self.lbl_login_error.setText("⚠ Email dan kata sandi tidak boleh kosong.")
             return
 
-        user = self.auth.login(email, password)
+        # Derive username dari email (sama seperti saat registrasi)
+        username = email.split("@")[0].replace(".", "_") if "@" in email else email
+
+        user = self.auth.login(username, password)
         if user:
-            if self._peran_dipilih == "admin" and user.get("role") != "admin":
-                self.lbl_login_error.setText("❌ Akun ini bukan akun Admin.")
+            if user["role"] != self._peran_dipilih:
+                role_seharusnya = "Admin" if user["role"] == "admin" else "User"
+                self.lbl_login_error.setText(
+                    f"❌ Akun ini terdaftar sebagai {role_seharusnya}. "
+                    f"Pilih kategori '{role_seharusnya}' untuk masuk."
+                )
                 return
             self._masuk(user)
         else:
             self.lbl_login_error.setText("❌ Email atau kata sandi salah.")
-            self.inp_pass_login.clear()
-            self.inp_pass_login.setFocus()
 
     def _aksi_daftar(self):
         email    = self.inp_email_daftar.text().strip()
@@ -617,14 +619,17 @@ class HalamanLogin(QDialog):
             return
 
         username = email.split("@")[0].replace(".", "_")
+
+        # FIX: teruskan self._peran_dipilih sebagai role
         berhasil, pesan = self.auth.register(
             username=username,
             password=password,
             email=email,
-            display_name=username
+            display_name=username,
+            role=self._peran_dipilih   # ← role yang dipilih user (admin/user)
         )
         if berhasil:
-            self.lbl_daftar_sukses.setText("✅ Akun berhasil dibuat!")
+            self.lbl_daftar_sukses.setText(f"✅ Akun berhasil dibuat sebagai {self._peran_dipilih}!")
             user = self.auth.login(username, password)
             if user:
                 QTimer.singleShot(800, lambda: self._masuk(user))
