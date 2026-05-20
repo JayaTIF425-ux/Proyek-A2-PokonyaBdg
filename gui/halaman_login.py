@@ -254,8 +254,9 @@ class HalamanLogin(QDialog):
 
         self.setWindowTitle("PokokNya.Bdg — Masuk")
         self.setWindowFlags(
-            Qt.WindowType.Dialog |
+            Qt.WindowType.Window |                   
             Qt.WindowType.WindowCloseButtonHint |
+            Qt.WindowType.WindowMinimizeButtonHint |  
             Qt.WindowType.WindowMaximizeButtonHint
         )
 
