@@ -18,7 +18,8 @@ from PyQt6.QtWidgets import (
     QProgressBar, QFrame
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
-
+from PyQt6.QtGui import QPixmap   
+from gui import svg_to_icon as _svg_to_icon  
 
 # ── Worker: jalankan scraper di background ────────────────────────────────
 

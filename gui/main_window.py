@@ -16,7 +16,7 @@ from gui.pages.halaman_pencarian import HalamanPencarian
 from gui.pages.halaman_penghitung import HalamanPenghitung
 from gui.pages.halaman_tutorial import HalamanTutorial
 from gui.pages.halaman_tentang import HalamanTentang
-
+from gui import svg_to_icon as _svg_to_icon
 
 # ── SVG icon helper ──────────────────────────────────────────────────────────
 
