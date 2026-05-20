@@ -1,5 +1,6 @@
 """
 gui/main_window.py — Jendela utama aplikasi dengan sidebar navigasi + collapsible.
+Versi ini mendukung role user/admin: menu Admin hanya muncul untuk admin.
 """
 
 from PyQt6.QtWidgets import (
@@ -16,9 +17,10 @@ from gui.pages.halaman_pencarian import HalamanPencarian
 from gui.pages.halaman_penghitung import HalamanPenghitung
 from gui.pages.halaman_tutorial import HalamanTutorial
 from gui.pages.halaman_tentang import HalamanTentang
-from gui import svg_to_icon as _svg_to_icon
+from gui.pages.halaman_admin import HalamanAdmin
 
-# ── SVG icon helper ──────────────────────────────────────────────────────────
+
+# SVG icon helper 
 
 def _svg_to_icon(svg_str: str, size: int = 20) -> QIcon:
     """Render SVG string menjadi QIcon berukuran size×size px."""
@@ -31,7 +33,7 @@ def _svg_to_icon(svg_str: str, size: int = 20) -> QIcon:
     return QIcon(pixmap)
 
 
-# ── Definisi SVG ikon sidebar ────────────────────────────────────────────────
+# Definisi SVG ikon sidebar 
 
 _IKON = {
     "beranda": """
@@ -74,6 +76,14 @@ _IKON = {
   <line x1="12" y1="8" x2="12" y2="8.5" stroke-width="2.5"/>
   <line x1="12" y1="11" x2="12" y2="17"/>
 </svg>""",
+
+    "admin": """
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+     stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="8" r="4"/>
+  <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+  <path d="M17 13l1.5 1.5L21 12" stroke="#F1C40F" stroke-width="2.5"/>
+</svg>""",
 }
 
 
@@ -87,8 +97,12 @@ class MainWindow(QMainWindow):
     LEBAR_EXPANDED  = 230
     LEBAR_COLLAPSED = 56
 
-    def __init__(self):
+    def __init__(self, current_user: dict = None):
         super().__init__()
+        # current_user: {"id": int, "username": str, "role": "admin"|"user"}
+        self.current_user = current_user or {"id": 0, "username": "guest", "role": "user"}
+        self.is_admin = self.current_user.get("role") == "admin"
+
         self.setWindowTitle("PokokNya.Bdg — Harga Bahan Pokok Bandung")
         self.resize(1200, 800)
         self.setMinimumSize(900, 600)
@@ -103,7 +117,7 @@ class MainWindow(QMainWindow):
 
         self.pages = QStackedWidget()
         self.halaman_beranda    = HalamanBeranda()
-        self.halaman_pencarian  = HalamanPencarian()
+        self.halaman_pencarian  = HalamanPencarian(is_admin=self.is_admin)
         self.halaman_penghitung = HalamanPenghitung()
         self.halaman_tutorial   = HalamanTutorial()
         self.halaman_tentang    = HalamanTentang()
@@ -114,6 +128,11 @@ class MainWindow(QMainWindow):
         self.pages.addWidget(self.halaman_tutorial)   # 3
         self.pages.addWidget(self.halaman_tentang)    # 4
 
+        # Halaman admin hanya dibuat jika role = admin
+        if self.is_admin:
+            self.halaman_admin = HalamanAdmin(current_user=self.current_user)
+            self.pages.addWidget(self.halaman_admin)  # 5
+
         root_layout.addWidget(self.sidebar)
         root_layout.addWidget(self.pages, 1)
         self.setCentralWidget(central)
@@ -121,7 +140,7 @@ class MainWindow(QMainWindow):
         self.halaman_beranda.navigasi_pencarian.connect(self.navigasi_ke_pencarian)
         self._set_halaman(0)
 
-    # ── Builder Sidebar ───────────────────────────────────────────────────────
+    # Builder Sidebar 
 
     def _buat_sidebar(self) -> QFrame:
         sidebar = QFrame()
@@ -131,7 +150,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 20)
         layout.setSpacing(4)
 
-        # ── Baris brand + tombol collapse ──────────────────────────────────
+        # Baris brand + tombol collapse 
         brand_row = QHBoxLayout()
         brand_row.setContentsMargins(20, 24, 8, 0)
 
@@ -164,9 +183,26 @@ class MainWindow(QMainWindow):
 
         self.lbl_sub = QLabel(".Bdg")
         self.lbl_sub.setStyleSheet(
-            f"color: {self.WARNA_TEKS}; font-size: 13px; padding: 0 20px 20px 20px;"
+            f"color: {self.WARNA_TEKS}; font-size: 13px; padding: 0 20px 10px 20px;"
         )
         layout.addWidget(self.lbl_sub)
+
+        # Info user yang login 
+        username = self.current_user.get("username", "guest")
+        role     = self.current_user.get("role", "user")
+        badge    = "🔑 Admin" if role == "admin" else "👤 User"
+
+        self.lbl_user_info = QLabel(f"{badge}\n{username}")
+        self.lbl_user_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_user_info.setStyleSheet(f"""
+            color: {self.WARNA_AKSEN};
+            font-size: 11px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 6px;
+            padding: 6px 10px;
+            margin: 0 12px 8px 12px;
+        """)
+        layout.addWidget(self.lbl_user_info)
 
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
@@ -196,22 +232,34 @@ class MainWindow(QMainWindow):
             self.menu_buttons.append(btn)
             layout.addWidget(btn)
 
+        # Menu Admin (hanya untuk admin) 
+        if self.is_admin:
+            sep2 = QFrame()
+            sep2.setFrameShape(QFrame.Shape.HLine)
+            sep2.setStyleSheet(f"color: {self.WARNA_AKTIF}; margin: 4px 0;")
+            layout.addWidget(sep2)
+
+            btn_admin = self._tombol_menu("Panel Admin", 5, "admin", aksen=True)
+            self.menu_buttons.append(btn_admin)
+            layout.addWidget(btn_admin)
+
         return sidebar
 
-    def _tombol_menu(self, teks: str, index: int, ikon_key: str) -> QPushButton:
+    def _tombol_menu(self, teks: str, index: int, ikon_key: str,
+                     aksen: bool = False) -> QPushButton:
         btn = QPushButton(teks)
         btn.setCheckable(True)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        # Set ikon SVG
         if ikon_key in _IKON:
             btn.setIcon(_svg_to_icon(_IKON[ikon_key], size=20))
             btn.setIconSize(QPixmap(20, 20).size())
 
+        warna_teks = self.WARNA_AKSEN if aksen else self.WARNA_TEKS
         btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: transparent;
-                color: {self.WARNA_TEKS};
+                color: {warna_teks};
                 text-align: left;
                 padding: 12px 20px;
                 border: none;
@@ -236,45 +284,36 @@ class MainWindow(QMainWindow):
         for i, btn in enumerate(self.menu_buttons):
             btn.setChecked(i == index)
 
-    # ── Collapsible sidebar ───────────────────────────────────────────────────
+    # Collapsible sidebar 
 
     def _toggle_sidebar(self):
         self._sidebar_expanded = not self._sidebar_expanded
+        _teks_menu = ["Beranda", "Pencarian", "Penghitung Belanja",
+                      "Tutorial", "Tentang Kami"]
+        if self.is_admin:
+            _teks_menu.append("Panel Admin")
 
         if self._sidebar_expanded:
-            # Expand
             self.sidebar.setFixedWidth(self.LEBAR_EXPANDED)
             self.lbl_brand.setVisible(True)
             self.lbl_sub.setVisible(True)
+            self.lbl_user_info.setVisible(True)
             self.btn_collapse.setText("◀")
             self.btn_collapse.setToolTip("Sembunyikan sidebar")
-            for btn in self.menu_buttons:
-                btn.setToolTip("")
-                btn.setText(btn.toolTip() if btn.toolTip() else btn.text())
-            # Kembalikan teks menu
-            _teks = [
-                "Beranda", "Pencarian", "Penghitung Belanja",
-                "Tutorial", "Tentang Kami"
-            ]
-            for btn, teks in zip(self.menu_buttons, _teks):
+            for btn, teks in zip(self.menu_buttons, _teks_menu):
                 btn.setText(teks)
-                btn.setStyleSheet(btn.styleSheet())  # refresh layout
         else:
-            # Collapse — hanya tampilkan ikon
             self.sidebar.setFixedWidth(self.LEBAR_COLLAPSED)
             self.lbl_brand.setVisible(False)
             self.lbl_sub.setVisible(False)
+            self.lbl_user_info.setVisible(False)
             self.btn_collapse.setText("▶")
             self.btn_collapse.setToolTip("Tampilkan sidebar")
-            _tooltip = [
-                "Beranda", "Pencarian", "Penghitung Belanja",
-                "Tutorial", "Tentang Kami"
-            ]
-            for btn, tip in zip(self.menu_buttons, _tooltip):
+            for btn, tip in zip(self.menu_buttons, _teks_menu):
                 btn.setToolTip(tip)
-                btn.setText("")  # sembunyikan teks, ikon tetap tampil
+                btn.setText("")
 
-    # ── Navigasi dari beranda ke pencarian ───────────────────────────────────
+    # Navigasi dari beranda ke pencarian 
 
     def navigasi_ke_pencarian(self, keyword: str):
         self.halaman_pencarian.set_keyword_dan_cari(keyword)

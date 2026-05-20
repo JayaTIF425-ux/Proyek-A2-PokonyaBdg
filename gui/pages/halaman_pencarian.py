@@ -1,5 +1,6 @@
 """
 gui/pages/halaman_pencarian.py — Pencarian & Kelola (CRUD) harga komoditas.
+Tombol Tambah Data, Edit, dan Hapus hanya tampil untuk admin.
 """
 
 import os
@@ -11,13 +12,34 @@ from PyQt6.QtWidgets import (
     QFrame, QDialog, QFormLayout, QMessageBox,
     QFileDialog, QSizePolicy
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QByteArray
+from PyQt6.QtGui import QIcon, QPixmap
+from PyQt6.QtSvg import QSvgRenderer
+from PyQt6.QtGui import QPainter
 
 from database.db_manager import DBManager
 from gui.components.search_card import SearchCard
 from gui.widgets.loading_widget import LoadingWidget
 from gui.widgets.refresh_widget import RefreshWidget
 
+def _svg_to_icon(svg_str: str, size: int = 20) -> QIcon:
+    renderer = QSvgRenderer(QByteArray(svg_str.encode()))
+    pixmap = QPixmap(size, size)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    renderer.render(painter)
+    painter.end()
+    return QIcon(pixmap)
+
+_IKON_PENCARIAN = {
+    "cari": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>""",
+
+    "lihat_semua": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>""",
+
+    "tambah": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>""",
+
+    "ekspor": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><path d="M12 10v6"/><path d="m15 13-3 3-3-3"/></svg>""",
+}
 
 # ── Dialog Form (Create & Update) ──────────────────────────────────────────
 
@@ -165,7 +187,7 @@ KEYWORD_MAP = {
     "ayam":         "ayam",
     "daging sapi":  "sapi",
     "sapi":         "sapi",
-    "telur":        "telur ayam",
+    "telur":        "telur",
     "beras":        "beras",
     "minyak":       "minyak",
     "gula":         "gula",
@@ -188,7 +210,8 @@ class StatistikBar(QFrame):
             "background: #f0f7e6; border: 1px solid #c5e0a0; "
             "border-radius: 8px; padding: 4px;"
         )
-        self.setFixedHeight(80)
+        self.setMinimumHeight(80)
+        self.setMaximumHeight(100)
 
         self._layout = QHBoxLayout(self)
         self._layout.setContentsMargins(16, 12, 16, 12)
@@ -211,7 +234,8 @@ class StatistikBar(QFrame):
         lbl_l = QLabel(label)
         lbl_l.setStyleSheet("font-size: 9px; color: #666; border: none; background: transparent;")
         lbl_v = QLabel(nilai)
-        lbl_v.setStyleSheet("font-size: 13px; font-weight: bold; color: #2c3e50; border: none; background: transparent;")
+        lbl_v.setStyleSheet("font-size: 12px; font-weight: bold; color: #2c3e50; border: none; background: transparent;")
+        lbl_v.setWordWrap(True)
 
         v.addWidget(lbl_l)
         v.addWidget(lbl_v)
@@ -236,8 +260,9 @@ class StatistikBar(QFrame):
 
 class HalamanPencarian(QWidget):
 
-    def __init__(self):
+    def __init__(self, is_admin: bool = False):   # ← parameter baru
         super().__init__()
+        self.is_admin = is_admin
         self._data_terakhir: list = []
         self._init_ui()
 
@@ -246,7 +271,7 @@ class HalamanPencarian(QWidget):
         layout.setContentsMargins(24, 24, 24, 12)
         layout.setSpacing(12)
 
-        judul = QLabel("🔍 Kelola & Informasi Harga Bahan Pokok")
+        judul = QLabel("Kelola & Informasi Harga Bahan Pokok")
         judul.setStyleSheet("font-size: 22px; font-weight: bold; color: #2c3e50;")
         layout.addWidget(judul)
 
@@ -284,14 +309,24 @@ class HalamanPencarian(QWidget):
             )
             return b
 
-        self.btn_cari   = tombol("🔍 Cari",        "#6B8E23", "Cari produk")
-        self.btn_semua  = tombol("📋 Lihat Semua", "#8e44ad", "Tampilkan semua data supermarket")
-        self.btn_tambah = tombol("➕ Tambah Data", "#2980b9", "Tambah data produk baru")
-        self.btn_ekspor = tombol("📥 Ekspor CSV",  "#16a085", "Ekspor semua data ke CSV")
+        self.btn_cari  = tombol("Cari",        "#6B8E23", "Cari produk")
+        self.btn_semua = tombol("Lihat Semua", "#8e44ad", "Tampilkan semua data supermarket")
+        self.btn_ekspor = tombol("Ekspor CSV",  "#16a085", "Ekspor semua data ke CSV")
+
+        self.btn_cari.setIcon(_svg_to_icon(_IKON_PENCARIAN["cari"]))
+        self.btn_semua.setIcon(_svg_to_icon(_IKON_PENCARIAN["lihat_semua"]))
+        self.btn_ekspor.setIcon(_svg_to_icon(_IKON_PENCARIAN["ekspor"]))
 
         bl.addWidget(self.btn_cari)
         bl.addWidget(self.btn_semua)
-        bl.addWidget(self.btn_tambah)
+
+        # ── Tombol Tambah Data — hanya untuk admin ──────────────────────────
+        if self.is_admin:
+            self.btn_tambah = tombol("Tambah Data", "#2980b9", "Tambah data produk baru")
+            self.btn_tambah.setIcon(_svg_to_icon(_IKON_PENCARIAN["tambah"]))
+            self.btn_tambah.clicked.connect(self._tambah_data)
+            bl.addWidget(self.btn_tambah)
+
         bl.addWidget(self.btn_ekspor)
         layout.addWidget(bar)
 
@@ -321,7 +356,6 @@ class HalamanPencarian(QWidget):
         self.btn_cari.clicked.connect(self._cari)
         self.input_cari.returnPressed.connect(self._cari)
         self.btn_semua.clicked.connect(self._tampilkan_semua)
-        self.btn_tambah.clicked.connect(self._tambah_data)
         self.btn_ekspor.clicked.connect(self._ekspor_csv)
 
     # ── Pencarian ──────────────────────────────────────────────────────
@@ -367,6 +401,7 @@ class HalamanPencarian(QWidget):
                 sumber        = "supermarket",
                 kategori      = row["kategori"] or "" if "kategori" in keys else "",
                 satuan        = row["satuan"] or "kg" if "satuan" in keys else "kg",
+                is_admin      = self.is_admin,   # ← teruskan role
             )
             card.edit_diminta.connect(self._edit_data)
             card.hapus_diminta.connect(self._hapus_data)
@@ -401,6 +436,7 @@ class HalamanPencarian(QWidget):
             card = SearchCard(
                 nama=nama, harga=harga, toko=toko, tanggal=tanggal or "",
                 thumbnail_url=thumb or "", id_produk=id_p, sumber=sumber,
+                is_admin=self.is_admin,   # ← teruskan role
             )
             card.edit_diminta.connect(self._edit_data)
             card.hapus_diminta.connect(self._hapus_data)
@@ -414,7 +450,7 @@ class HalamanPencarian(QWidget):
         lbl.setStyleSheet("color: #999; font-size: 14px; padding: 40px;")
         self.grid.addWidget(lbl, 0, 0, 1, 2)
 
-    # ── CRUD ──────────────────────────────────────────────────────────
+    # ── CRUD (hanya dipanggil jika is_admin = True) ────────────────────
 
     def _tambah_data(self):
         dialog = DialogFormProduk(self)

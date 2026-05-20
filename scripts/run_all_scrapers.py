@@ -76,6 +76,8 @@ def main():
     print(f"  Selesai! Sukses: {sukses}  |  Gagal: {gagal}")
     print(f"{'═'*55}\n")
 
+    # Sukses kalau minimal 1 scraper berhasil
+    sys.exit(0 if sukses else 1)
 
 if __name__ == "__main__":
     main()

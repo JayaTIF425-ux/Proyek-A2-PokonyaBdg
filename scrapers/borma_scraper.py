@@ -68,10 +68,10 @@ NEGATIF = {
     "nissin", "kara", "oma", "gabus", "whiskas", "jahe", "indocafe", "jagung", "tomat",
     "arirang", "baby", "tolak", "singkong", "koffe", "soes", "sukses", "cocktail",
     "rapika", "strepsil", "japota", "cerelac", "grill", "ciptadent", "insto", "milo",
-    "mangkok", "veritop", "seblak", "sozzis", "cedea", "kencur", "tini", "wini",
+    "mangkok", "veritop", "seblak", "sozzis", "cedea", "kencur", "tini", "wini", "iyes",
     "herbadrink", "camilan", "paskali", "daiko", "kombinasi", "porstex", "garuda",
     "alamii", "pan", "colgate", "yogurt", "pronas", "asin", "puyuh", "teri", "desaku", 
-    "legging", "regulator", "caffe", "italian", "enzim", "setrika", "rak", "kanzler"
+    "legging", "regulator", "caffe", "italian", "enzim", "setrika", "rak", "kanzler", "roasted"
 }
 
 
