@@ -33,6 +33,8 @@ from database.auth_manager import AuthManager
 def _asset(nama: str) -> str:
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base, "assets", nama)
+    base = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base, "assets", "images", nama)
 
 
 # ── Konstanta warna ───────────────────────────────────────────────────────────
@@ -299,6 +301,7 @@ class HalamanLogin(QDialog):
         lbl_logo = QLabel()
         lbl_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_logo.setStyleSheet("background: transparent;")
+        lbl_logo.setContentsMargins(0, 0, 0, 0)
         if os.path.exists(logo_path):
             pix = QPixmap(logo_path).scaled(
                 180, 180,
@@ -317,6 +320,7 @@ class HalamanLogin(QDialog):
         logo_inner.setContentsMargins(10, 10, 10, 10)
         logo_inner.addWidget(lbl_logo)
         layout.addWidget(logo_wrap, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(lbl_logo, alignment=Qt.AlignmentFlag.AlignCenter)
 
         layout.addSpacing(28)
 
@@ -332,6 +336,7 @@ class HalamanLogin(QDialog):
         layout.addWidget(lbl_nama)
 
         layout.addSpacing(12)
+        layout.addSpacing(5)
 
         lbl_tagline = QLabel("Perbandingan Harga\nBahan Pokok Kota Bandung")
         lbl_tagline.setAlignment(Qt.AlignmentFlag.AlignCenter)
