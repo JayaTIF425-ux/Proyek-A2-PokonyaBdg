@@ -65,83 +65,90 @@ C = {
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-class RoleButton(QPushButton):
-    """Tombol pemilih peran Admin / User dengan ikon SVG sederhana."""
+# Hapus class RoleButton, ganti dengan ini:
 
+class RoleButton(QFrame):
+    clicked = pyqtSignal()
+    
     def __init__(self, label: str, icon_type: str, parent=None):
         super().__init__(parent)
         self._label = label
-        self._icon_type = icon_type  # "admin" atau "user"
-        self.setCheckable(True)
+        self._icon_type = icon_type
+        self._checked = False
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setFixedHeight(80)
+        self.setFixedHeight(100)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(8, 10, 8, 10)
+        layout.setSpacing(6)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Label ikon
+        self.lbl_icon = QLabel()
+        self.lbl_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_icon.setFixedSize(56, 56)
+        self.lbl_icon.setStyleSheet("background: transparent;")
+        layout.addWidget(self.lbl_icon)
+
+        # Label teks
+        self.lbl_text = QLabel(label)
+        self.lbl_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_text.setStyleSheet("background: transparent; font-size: 13px; font-weight: 600;")
+        layout.addWidget(self.lbl_text)
+
         self._apply_style(False)
 
     def _apply_style(self, checked: bool):
         if checked:
-            bg   = C["role_sel"]
-            fg   = C["role_sel_txt"]
-            bord = C["role_sel"]
+            bg     = C["role_sel"]
+            fg     = C["role_sel_txt"]
+            bord   = C["role_sel"]
+            suffix = "aktif"
         else:
-            bg   = C["role_bg"]
-            fg   = C["role_txt"]
-            bord = C["border"]
+            bg     = C["role_bg"]
+            fg     = C["role_txt"]
+            bord   = C["border"]
+            suffix = "normal"
 
+        icon_path = _asset(f"{self._icon_type}_{suffix}.png")
+        if os.path.exists(icon_path):
+            pix = QPixmap(icon_path)
+            pix = QPixmap(icon_path).scaled (
+                56, 56,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            )
+            canvas = QPixmap(56, 56)
+            canvas.fill(Qt.GlobalColor.transparent)
+            painter = QPainter(canvas)
+            x = (56 - pix.width()) // 2
+            y = (56 - pix.height()) // 2
+            painter.drawPixmap(x, y, pix)
+            painter.end()
+            self.lbl_icon.setPixmap(canvas)
+        
+        self.lbl_text.setStyleSheet(f"background: transparent; color: {fg}; font-size: 13px; font-weight: 600;")
         self.setStyleSheet(f"""
-            QPushButton {{
+            RoleButton {{
                 background: {bg};
-                color: {fg};
                 border: 2px solid {bord};
                 border-radius: 10px;
-                font-size: 13px;
-                font-weight: 600;
-                padding-top: 6px;
             }}
-            QPushButton:hover {{
+            RoleButton:hover {{
                 border-color: {C["maroon"]};
             }}
         """)
 
-    def paintEvent(self, event):
-        super().paintEvent(event)
-        p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        checked = self.isChecked()
-        icon_color = QColor(C["white"] if checked else C["maroon"])
-
-        cx = self.width() // 2
-        # Gambar ikon manusia sederhana
-        # Kepala
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QBrush(icon_color))
-        p.drawEllipse(cx - 10, 8, 20, 20)
-        # Badan
-        p.drawRoundedRect(cx - 14, 30, 28, 18, 6, 6)
-
-        if self._icon_type == "admin":
-            # Roda gigi kecil di pojok kanan atas kepala
-            gear_color = QColor(C["gold"] if checked else C["gold"])
-            p.setBrush(QBrush(gear_color))
-            p.drawEllipse(cx + 2, 10, 12, 12)
-            p.setBrush(QBrush(QColor(C["white"] if checked else C["role_bg"])))
-            p.drawEllipse(cx + 5, 13, 6, 6)
-
-        # Label
-        p.setPen(QPen(icon_color))
-        font = QFont()
-        font.setPointSize(10)
-        font.setWeight(QFont.Weight.DemiBold)
-        p.setFont(font)
-        p.drawText(QRect(0, 52, self.width(), 22),
-                   Qt.AlignmentFlag.AlignCenter, self._label)
-        p.end()
-
     def setChecked(self, checked: bool):
-        super().setChecked(checked)
+        self._checked = checked
         self._apply_style(checked)
-        self.update()
 
+    def isChecked(self) -> bool:
+        return self._checked
+
+    def mousePressEvent(self, event):
+        self.clicked.emit()
+        super().mousePressEvent(event)
 
 # ══════════════════════════════════════════════════════════════════════════════
 class GoogleButton(QPushButton):
