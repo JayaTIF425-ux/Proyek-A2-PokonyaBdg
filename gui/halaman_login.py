@@ -7,6 +7,7 @@ dengan kartu form, pemilih peran Admin/User, dan animasi transisi halus.
 import os
 import sys
 import hashlib
+import re
 from typing import Optional
 
 from PyQt6.QtWidgets import (
@@ -31,8 +32,8 @@ from database.auth_manager import AuthManager
 # ── Path helper ───────────────────────────────────────────────────────────────
 
 def _asset(nama: str) -> str:
-    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(base, "assets", nama)
+    base = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base, "assets", "images", nama)
 
 
 # ── Konstanta warna ───────────────────────────────────────────────────────────
@@ -64,83 +65,90 @@ C = {
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-class RoleButton(QPushButton):
-    """Tombol pemilih peran Admin / User dengan ikon SVG sederhana."""
+# Hapus class RoleButton, ganti dengan ini:
 
+class RoleButton(QFrame):
+    clicked = pyqtSignal()
+    
     def __init__(self, label: str, icon_type: str, parent=None):
         super().__init__(parent)
         self._label = label
-        self._icon_type = icon_type  # "admin" atau "user"
-        self.setCheckable(True)
+        self._icon_type = icon_type
+        self._checked = False
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setFixedHeight(80)
+        self.setFixedHeight(100)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(8, 10, 8, 10)
+        layout.setSpacing(6)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Label ikon
+        self.lbl_icon = QLabel()
+        self.lbl_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_icon.setFixedSize(56, 56)
+        self.lbl_icon.setStyleSheet("background: transparent;")
+        layout.addWidget(self.lbl_icon)
+
+        # Label teks
+        self.lbl_text = QLabel(label)
+        self.lbl_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_text.setStyleSheet("background: transparent; font-size: 13px; font-weight: 600;")
+        layout.addWidget(self.lbl_text)
+
         self._apply_style(False)
 
     def _apply_style(self, checked: bool):
         if checked:
-            bg   = C["role_sel"]
-            fg   = C["role_sel_txt"]
-            bord = C["role_sel"]
+            bg     = C["role_sel"]
+            fg     = C["role_sel_txt"]
+            bord   = C["role_sel"]
+            suffix = "aktif"
         else:
-            bg   = C["role_bg"]
-            fg   = C["role_txt"]
-            bord = C["border"]
+            bg     = C["role_bg"]
+            fg     = C["role_txt"]
+            bord   = C["border"]
+            suffix = "normal"
 
+        icon_path = _asset(f"{self._icon_type}_{suffix}.png")
+        if os.path.exists(icon_path):
+            pix = QPixmap(icon_path)
+            pix = QPixmap(icon_path).scaled (
+                56, 56,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            )
+            canvas = QPixmap(56, 56)
+            canvas.fill(Qt.GlobalColor.transparent)
+            painter = QPainter(canvas)
+            x = (56 - pix.width()) // 2
+            y = (56 - pix.height()) // 2
+            painter.drawPixmap(x, y, pix)
+            painter.end()
+            self.lbl_icon.setPixmap(canvas)
+        
+        self.lbl_text.setStyleSheet(f"background: transparent; color: {fg}; font-size: 13px; font-weight: 600;")
         self.setStyleSheet(f"""
-            QPushButton {{
+            RoleButton {{
                 background: {bg};
-                color: {fg};
                 border: 2px solid {bord};
                 border-radius: 10px;
-                font-size: 13px;
-                font-weight: 600;
-                padding-top: 6px;
             }}
-            QPushButton:hover {{
+            RoleButton:hover {{
                 border-color: {C["maroon"]};
             }}
         """)
 
-    def paintEvent(self, event):
-        super().paintEvent(event)
-        p = QPainter(self)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        checked = self.isChecked()
-        icon_color = QColor(C["white"] if checked else C["maroon"])
-
-        cx = self.width() // 2
-        # Gambar ikon manusia sederhana
-        # Kepala
-        p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QBrush(icon_color))
-        p.drawEllipse(cx - 10, 8, 20, 20)
-        # Badan
-        p.drawRoundedRect(cx - 14, 30, 28, 18, 6, 6)
-
-        if self._icon_type == "admin":
-            # Roda gigi kecil di pojok kanan atas kepala
-            gear_color = QColor(C["gold"] if checked else C["gold"])
-            p.setBrush(QBrush(gear_color))
-            p.drawEllipse(cx + 2, 10, 12, 12)
-            p.setBrush(QBrush(QColor(C["white"] if checked else C["role_bg"])))
-            p.drawEllipse(cx + 5, 13, 6, 6)
-
-        # Label
-        p.setPen(QPen(icon_color))
-        font = QFont()
-        font.setPointSize(10)
-        font.setWeight(QFont.Weight.DemiBold)
-        p.setFont(font)
-        p.drawText(QRect(0, 52, self.width(), 22),
-                   Qt.AlignmentFlag.AlignCenter, self._label)
-        p.end()
-
     def setChecked(self, checked: bool):
-        super().setChecked(checked)
+        self._checked = checked
         self._apply_style(checked)
-        self.update()
 
+    def isChecked(self) -> bool:
+        return self._checked
+
+    def mousePressEvent(self, event):
+        self.clicked.emit()
+        super().mousePressEvent(event)
 
 # ══════════════════════════════════════════════════════════════════════════════
 class GoogleButton(QPushButton):
@@ -299,6 +307,7 @@ class HalamanLogin(QDialog):
         lbl_logo = QLabel()
         lbl_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_logo.setStyleSheet("background: transparent;")
+        lbl_logo.setContentsMargins(0, 0, 0, 0)
         if os.path.exists(logo_path):
             pix = QPixmap(logo_path).scaled(
                 180, 180,
@@ -310,15 +319,9 @@ class HalamanLogin(QDialog):
             lbl_logo.setText("🥬")
             lbl_logo.setStyleSheet("font-size: 90px; background: transparent;")
 
-        logo_wrap = QWidget()
-        logo_wrap.setStyleSheet("background: transparent;")
-        logo_wrap.setFixedSize(200, 200)
-        logo_inner = QVBoxLayout(logo_wrap)
-        logo_inner.setContentsMargins(10, 10, 10, 10)
-        logo_inner.addWidget(lbl_logo)
-        layout.addWidget(logo_wrap, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(lbl_logo, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        layout.addSpacing(28)
+        layout.addSpacing(4)
 
         lbl_nama = QLabel("Pokoknya.Bdg")
         lbl_nama.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -331,7 +334,7 @@ class HalamanLogin(QDialog):
         """)
         layout.addWidget(lbl_nama)
 
-        layout.addSpacing(12)
+        layout.addSpacing(5)
 
         lbl_tagline = QLabel("Perbandingan Harga\nBahan Pokok Kota Bandung")
         lbl_tagline.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -589,6 +592,11 @@ class HalamanLogin(QDialog):
         if not email or not password:
             self.lbl_login_error.setText("⚠ Email dan kata sandi tidak boleh kosong.")
             return
+        
+        pola_email = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(pola_email, email):
+            self.lbl_login_error.setText("❌ Format email tidak valid (harus menyertakan domain, cth: .com).")
+            return
 
         # Derive username dari email (sama seperti saat registrasi)
         username = email.split("@")[0].replace(".", "_") if "@" in email else email
@@ -615,8 +623,11 @@ class HalamanLogin(QDialog):
         if not email or not password:
             self.lbl_daftar_error.setText("⚠ Email dan kata sandi tidak boleh kosong.")
             return
-        if "@" not in email:
-            self.lbl_daftar_error.setText("⚠ Format email tidak valid.")
+        
+
+        pola_email = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(pola_email, email):
+            self.lbl_daftar_error.setText("⚠ Format email tidak valid (harus menyertakan domain, cth: .com).")
             return
 
         username = email.split("@")[0].replace(".", "_")
@@ -627,7 +638,7 @@ class HalamanLogin(QDialog):
             password=password,
             email=email,
             display_name=username,
-            role=self._peran_dipilih   # ← role yang dipilih user (admin/user)
+            role=self._peran_dipilih   
         )
         if berhasil:
             self.lbl_daftar_sukses.setText(f"✅ Akun berhasil dibuat sebagai {self._peran_dipilih}!")
