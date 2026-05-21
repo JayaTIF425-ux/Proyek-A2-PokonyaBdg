@@ -7,6 +7,7 @@ dengan kartu form, pemilih peran Admin/User, dan animasi transisi halus.
 import os
 import sys
 import hashlib
+import re
 from typing import Optional
 
 from PyQt6.QtWidgets import (
@@ -31,8 +32,6 @@ from database.auth_manager import AuthManager
 # ── Path helper ───────────────────────────────────────────────────────────────
 
 def _asset(nama: str) -> str:
-    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(base, "assets", nama)
     base = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base, "assets", "images", nama)
 
@@ -313,16 +312,9 @@ class HalamanLogin(QDialog):
             lbl_logo.setText("🥬")
             lbl_logo.setStyleSheet("font-size: 90px; background: transparent;")
 
-        logo_wrap = QWidget()
-        logo_wrap.setStyleSheet("background: transparent;")
-        logo_wrap.setFixedSize(200, 200)
-        logo_inner = QVBoxLayout(logo_wrap)
-        logo_inner.setContentsMargins(10, 10, 10, 10)
-        logo_inner.addWidget(lbl_logo)
-        layout.addWidget(logo_wrap, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(lbl_logo, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        layout.addSpacing(28)
+        layout.addSpacing(4)
 
         lbl_nama = QLabel("Pokoknya.Bdg")
         lbl_nama.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -335,7 +327,6 @@ class HalamanLogin(QDialog):
         """)
         layout.addWidget(lbl_nama)
 
-        layout.addSpacing(12)
         layout.addSpacing(5)
 
         lbl_tagline = QLabel("Perbandingan Harga\nBahan Pokok Kota Bandung")
@@ -594,6 +585,11 @@ class HalamanLogin(QDialog):
         if not email or not password:
             self.lbl_login_error.setText("⚠ Email dan kata sandi tidak boleh kosong.")
             return
+        
+        pola_email = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(pola_email, email):
+            self.lbl_login_error.setText("❌ Format email tidak valid (harus menyertakan domain, cth: .com).")
+            return
 
         # Derive username dari email (sama seperti saat registrasi)
         username = email.split("@")[0].replace(".", "_") if "@" in email else email
@@ -620,8 +616,11 @@ class HalamanLogin(QDialog):
         if not email or not password:
             self.lbl_daftar_error.setText("⚠ Email dan kata sandi tidak boleh kosong.")
             return
-        if "@" not in email:
-            self.lbl_daftar_error.setText("⚠ Format email tidak valid.")
+        
+
+        pola_email = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(pola_email, email):
+            self.lbl_daftar_error.setText("⚠ Format email tidak valid (harus menyertakan domain, cth: .com).")
             return
 
         username = email.split("@")[0].replace(".", "_")
@@ -632,7 +631,7 @@ class HalamanLogin(QDialog):
             password=password,
             email=email,
             display_name=username,
-            role=self._peran_dipilih   # ← role yang dipilih user (admin/user)
+            role=self._peran_dipilih   
         )
         if berhasil:
             self.lbl_daftar_sukses.setText(f"✅ Akun berhasil dibuat sebagai {self._peran_dipilih}!")
