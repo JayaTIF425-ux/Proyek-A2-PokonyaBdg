@@ -56,6 +56,9 @@ class ScraperWorker(QThread):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
+                env={**os.environ, "PYTHONIOENCODING": "utf-8"},
                 cwd=base,
             )
             for line in proc.stdout:
