@@ -316,5 +316,12 @@ class MainWindow(QMainWindow):
     # Navigasi dari beranda ke pencarian 
 
     def navigasi_ke_pencarian(self, keyword: str):
-        self.halaman_pencarian.set_keyword_dan_cari(keyword)
+        if "telur" in keyword.lower():
+            keyword_final = "Telur"
+        elif "ayam" in keyword.lower():
+            keyword_final = "Daging Ayam"
+        else:
+            keyword_final = keyword
+
+        self.halaman_pencarian.set_keyword_dan_cari(keyword_final)
         self._set_halaman(1)
