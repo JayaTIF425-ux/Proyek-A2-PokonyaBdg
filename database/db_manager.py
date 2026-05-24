@@ -93,14 +93,15 @@ class DBManager:
     def fetch_produk_pihps_by_pasar(self, jenis_pasar: str) -> list[sqlite3.Row]:
         if jenis_pasar == "semua":
             sql = """
-                SELECT komoditas, harga, jenis_pasar,
-                       'PIHPS Bandung' AS toko, tanggal
+                SELECT komoditas, AVG(harga) AS harga,
+                       'PIHPS Bandung' AS toko, MAX(tanggal) AS tanggal
                 FROM harga_pangan
-                WHERE (komoditas, tanggal) IN (
-                    SELECT komoditas, MAX(tanggal)
+                WHERE (komoditas, jenis_pasar, tanggal) IN (
+                    SELECT komoditas, jenis_pasar, MAX(tanggal)
                     FROM harga_pangan
-                    GROUP BY komoditas
+                    GROUP BY komoditas, jenis_pasar
                 )
+                GROUP BY komoditas
                 ORDER BY komoditas
             """
             with self._connect() as conn:
