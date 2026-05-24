@@ -27,18 +27,27 @@ HEADERS   = {
     "Accept-Language": "id",
 }
 
-KATEGORI_KEYWORDS: dict[str, list[str]] = {
-    "Daging Ayam":   ["ayam", "chicken", "daging ayam"],
-    "Daging Sapi":   ["sapi", "beef", "daging sapi", "has dalam", "has luar", "iga sapi"],
-    "Beras":         ["beras", "rice"],
-    "Minyak Goreng": ["minyak goreng", "cooking oil", "sunco", "bimoli", "filma", "sania"],
-    "Cabai Merah":   ["cabe merah", "cabai merah", "cabai keriting", "cabe keriting"],
-    "Cabai Rawit":   ["cabe rawit", "cabai rawit", "rawit"],
-    "Telur Ayam":    ["telur ayam", "telur", "telor"],
-    "Bawang Merah":  ["bawang merah", "shallot"],
-    "Bawang Putih":  ["bawang putih", "garlic"],
-    "Gula":          ["gula pasir", "gula merah", "gula aren", "gulaku"],
+# Mapping kategori → list category ID (bisa lebih dari satu ID per kategori)
+KATEGORI_IDS: dict[str, list[int]] = {
+    "Telur Ayam":    [790, 789],
+    "Daging Ayam":   [585],
+    "Daging Sapi":   [586],
+    "Beras":         [564],
+    "Cabe":          [707],  # dipisah jadi Cabai Merah/Rawit pakai keyword
+    "Bawang Merah":  [701],
+    "Bawang Putih":  [702],
+    "Minyak Goreng": [624],
+    "Gula":          [95],
 }
+
+# Keyword untuk pisah kategori cabe dari ID 707
+CABAI_KEYWORDS: dict[str, list[str]] = {
+    "Cabai Merah": ["cabe merah", "cabai merah", "cabai keriting", "cabe keriting"],
+    "Cabai Rawit": ["cabe rawit", "cabai rawit", "rawit"],
+}
+
+# Keyword untuk filter gula dari ID 95
+GULA_KEYWORDS: list[str] = ["gula pasir", "gula merah", "gula aren", "gulaku"]
 
 # Kata kunci yang menyebabkan produk di-skip (produk olahan/non-segar)
 NEGATIF = {
@@ -70,52 +79,68 @@ NEGATIF = {
     "rapika", "strepsil", "japota", "cerelac", "grill", "ciptadent", "insto", "milo",
     "mangkok", "veritop", "seblak", "sozzis", "cedea", "kencur", "tini", "wini", "iyes",
     "herbadrink", "camilan", "paskali", "daiko", "kombinasi", "porstex", "garuda",
-    "alamii", "pan", "colgate", "yogurt", "pronas", "asin", "puyuh", "teri", "desaku", 
-    "legging", "regulator", "caffe", "italian", "enzim", "setrika", "rak", "kanzler", "roasted"
+    "alamii", "pan", "colgate", "yogurt", "pronas", "asin", "puyuh", "teri", "desaku",
+    "legging", "regulator", "caffe", "italian", "enzim", "setrika", "rak", "kanzler", "roasted",
+    "spicy", "rolade", "canola", "sunflower", "virgin", "sasso classico"
 }
 
 
-# ── Logika Kategorisasi ────────────────────────────────────────────────────
+# ── Logika Kategorisasi Cabe ───────────────────────────────────────────────
 
-def deteksi_kategori(nama: str) -> str | None:
+def deteksi_cabai(nama: str) -> str | None:
     n = nama.lower()
-    if any(neg in n for neg in NEGATIF):
-        return None
-    for kat, keywords in KATEGORI_KEYWORDS.items():
-        if any(kw.lower() in n for kw in keywords):
-            return kat
-    return None
+    # Cek rawit dulu — lebih spesifik, hindari overlap "Cabai Rawit Merah"
+    if any(kw in n for kw in CABAI_KEYWORDS["Cabai Rawit"]):
+        return "Cabai Rawit"
+    # Baru cek merah
+    if any(kw in n for kw in CABAI_KEYWORDS["Cabai Merah"]):
+        return "Cabai Merah"
+    return None  # tidak cocok keyword manapun → skip
 
 
 # ── Scraper ────────────────────────────────────────────────────────────────
 
-def scrape_semua_produk(url_awal: str, is_promo: bool = False) -> list[dict]:
-    url   = url_awal
+def buat_session() -> requests.Session:
+    """Buat session baru untuk simulasi refresh browser."""
+    session = requests.Session()
+    session.headers.update(HEADERS)
+    try:
+        session.get("https://www.bormadago.com", timeout=10)
+    except Exception:
+        pass  # tetap lanjut meski refresh gagal
+    return session
+
+
+def scrape_kategori(kategori: str, cat_id: int, is_promo: bool = False) -> list[dict]:
+    url = f"{BASE_API}?is_offline_only=false&category={cat_id}"
+    if is_promo:
+        url += "&is_promo_active=true"
+
     hal   = 1
     hasil = []
     MAX_RETRY = 3
     TIMEOUT   = 20
 
     label = "Promo" if is_promo else "Reguler"
-    print(f"\n  [{NAMA_TOKO}] Ambil produk {label}...")
+    print(f"\n  [{NAMA_TOKO}] Ambil produk {kategori} — {label}...")
+
+    session = buat_session()  # fresh session tiap kategori
 
     while url:
         print(f"    Halaman {hal}...", end=" ", flush=True)
 
-        # ── retry loop ──
         berhasil = False
         data     = None
 
         for percobaan in range(1, MAX_RETRY + 1):
             try:
-                resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+                resp = session.get(url, timeout=TIMEOUT)
                 data = resp.json()
                 berhasil = True
                 break
             except requests.exceptions.Timeout:
                 if percobaan < MAX_RETRY:
-                    print(f"\n  ⚠ Timeout, retry ({percobaan}/{MAX_RETRY})...",
-                          end=" ", flush=True)
+                    print(f"\n  ⚠ Timeout, retry ({percobaan}/{MAX_RETRY})...", end=" ", flush=True)
                     time.sleep(3)
                 else:
                     print(f"\n  ✗ Gagal setelah {MAX_RETRY}x, skip halaman ini")
@@ -125,11 +150,8 @@ def scrape_semua_produk(url_awal: str, is_promo: bool = False) -> list[dict]:
 
         if not berhasil:
             hal += 1
-            if "page=" in url:
-                url = re.sub(r'page=\d+', f'page={hal}', url)
-            else:
-                sep = "&" if "?" in url else "?"
-                url = f"{url}{sep}page={hal}"
+            url = re.sub(r'page=\d+', f'page={hal}', url) if "page=" in url \
+                  else url + f"&page={hal}"
             continue
 
         results = data.get("results", [])
@@ -138,30 +160,38 @@ def scrape_semua_produk(url_awal: str, is_promo: bool = False) -> list[dict]:
             break
 
         for item in results:
-            nama     = item.get("title", "")
-            kategori = deteksi_kategori(nama)
-            if not kategori:
+            nama = item.get("title", "")
+            if any(neg in nama.lower() for neg in NEGATIF):
                 continue
+
+            # ── Khusus Cabe: pisah jadi Cabai Merah / Cabai Rawit ──
+            if kategori == "Cabe":
+                kategori_final = deteksi_cabai(nama)
+                if not kategori_final:
+                    continue  # tidak cocok keyword manapun → skip
+            # ── Khusus Gula: filter pakai keyword ──
+            elif kategori == "Gula":
+                if not any(kw in nama.lower() for kw in GULA_KEYWORDS):
+                    continue  # bukan gula yang relevan → skip
+                kategori_final = kategori
+            else:
+                kategori_final = kategori
 
             harga = 0.0
             stok  = 0
             try:
                 price_sell = item.get("price_sell") or {}
-                amount_raw = price_sell.get("price", {}).get("amount", 0)
-                harga = round(float(amount_raw or 0))
+                harga = round(float(price_sell.get("price", {}).get("amount", 0) or 0))
             except (TypeError, ValueError):
                 harga = 0.0
             try:
-                stok = int(
-                    (item.get("inventory_generic") or {})
-                    .get("quantity_available", 0) or 0
-                )
+                stok = int((item.get("inventory_generic") or {}).get("quantity_available", 0) or 0)
             except (TypeError, ValueError):
                 stok = 0
 
             hasil.append({
                 "toko":          NAMA_TOKO,
-                "kategori":      kategori,
+                "kategori":      kategori_final,
                 "nama_produk":   nama,
                 "harga":         harga,
                 "stok":          stok,
@@ -169,7 +199,7 @@ def scrape_semua_produk(url_awal: str, is_promo: bool = False) -> list[dict]:
             })
 
         print(f"✓ ({len(hasil)} total terkumpul)")
-        url = data.get("next")
+        url  = data.get("next")
         hal += 1
 
     return hasil
@@ -187,12 +217,15 @@ def main():
     db.init_schema()
     db.hapus_data_toko(NAMA_TOKO)
 
-    # Produk reguler + promo
-    produk_reguler = scrape_semua_produk(BASE_API)
-    produk_promo   = scrape_semua_produk(BASE_API + "?is_promo_active=true", is_promo=True)
+    semua: dict[tuple, dict] = {}  # key: (nama_produk, kategori) → deduplikasi
 
-    # Deduplikasi berdasarkan nama_produk
-    semua = {p["nama_produk"]: p for p in produk_reguler + produk_promo}
+    for kategori, ids in KATEGORI_IDS.items():
+        for cat_id in ids:
+            for is_promo in [False, True]:
+                produk = scrape_kategori(kategori, cat_id, is_promo)
+                for p in produk:
+                    semua[(p["nama_produk"], p["kategori"])] = p
+
     final = list(semua.values())
 
     if final:
