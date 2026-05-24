@@ -1,3 +1,6 @@
+""""
+gui/components/calculator_card.py — Kartu produk untuk halaman Penghitung Belanja.
+"""
 from PyQt6.QtWidgets import (
     QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QToolTip, QLineEdit
 )
