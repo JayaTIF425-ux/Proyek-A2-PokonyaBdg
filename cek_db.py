@@ -9,5 +9,5 @@ db.execute("""
     )
 """)
 db.commit()
-print("Duplikat dihapus")
+print("Duplikat dihapus:", db.total_changes, "baris")
 db.close()

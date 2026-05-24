@@ -420,7 +420,7 @@ class HalamanPencarian(QWidget):
         layout.addWidget(bar)
 
         self.refresh_bar = RefreshWidget()
-        self.refresh_bar.refresh_diminta.connect(self._bersihkan_grid)
+        self.refresh_bar.refresh_diminta.connect(self._refresh_tampilan)
         layout.addWidget(self.refresh_bar)
 
         self.loading = LoadingWidget("Memproses data...")
