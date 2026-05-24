@@ -1,7 +1,6 @@
 """
 gui/halaman_login.py — Dialog login + registrasi untuk PokokNya.Bdg.
-Desain ulang mengikuti screenshot: panel kiri maroon + panel kanan putih
-dengan kartu form, pemilih peran Admin/User, dan animasi transisi halus.
+dengan kartu form, pemilih peran Admin/User.
 """
 
 import os

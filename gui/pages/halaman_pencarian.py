@@ -10,9 +10,9 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QScrollArea, QGridLayout,
     QFrame, QDialog, QFormLayout, QMessageBox,
-    QFileDialog, QSizePolicy
+    QFileDialog, QSizePolicy, QDateEdit
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QByteArray
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QByteArray, QDate
 from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtGui import QPainter
@@ -48,78 +48,155 @@ class DialogFormProduk(QDialog):
         super().__init__(parent)
         self.data_awal = data_awal or {}
         mode = "Edit Data" if data_awal else "Tambah Data Baru"
+        
         self.setWindowTitle(mode)
-        self.setFixedSize(420, 320)
-        self.setStyleSheet("background-color: #fff;")
+        # 1. Menghapus setFixedSize yang terlalu sempit, diganti dengan minimum size yang ideal
+        self.setMinimumSize(450, 420) 
+        self.setStyleSheet("background-color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif;")
 
+        # Layout Utama
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 20, 24, 20)
-        layout.setSpacing(12)
+        layout.setContentsMargins(28, 24, 28, 24)
+        layout.setSpacing(16)
 
+        # Judul Form
         judul = QLabel(mode)
-        judul.setStyleSheet("font-size: 16px; font-weight: bold; color: #2c3e50;")
+        judul.setStyleSheet("font-size: 18px; font-weight: bold; color: #2c3e50;")
         layout.addWidget(judul)
 
+        # Garis Pembatas (Separator)
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
-        sep.setStyleSheet("color: #eee;")
+        sep.setStyleSheet("color: #eaeded; background-color: #eaeded; max-height: 1px;")
         layout.addWidget(sep)
 
+        # Form Layout
         form = QFormLayout()
-        form.setSpacing(10)
+        form.setSpacing(12)  # Jarak antar baris form
         form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
+        # Fungsi pembuat QLineEdit dengan style yang diperbaiki
         def buat_input(placeholder=""):
             inp = QLineEdit()
             inp.setPlaceholderText(placeholder)
             inp.setStyleSheet(
-                "padding: 7px 10px; border: 1px solid #ccc; "
-                "border-radius: 5px; font-size: 13px;"
+                "QLineEdit {"
+                "   padding: 6px 10px;"  # Padding disesuaikan agar teks tidak terpotong
+                "   border: 1px solid #ccd1d1;"
+                "   border-radius: 6px;"
+                "   font-size: 13px;"
+                "   color: #2c3e50;"
+                "}"
+                "QLineEdit:focus {"
+                "   border: 1px solid #3498db;"
+                "}"
             )
             return inp
 
+        # Inisialisasi Input
         self.inp_nama     = buat_input("misal: Beras Premium")
         self.inp_harga    = buat_input("misal: 15000")
         self.inp_toko     = buat_input("misal: Yogya, Borma, ...")
         self.inp_kategori = buat_input("misal: Beras, Sayuran, ...")
         self.inp_satuan   = buat_input("misal: kg, liter, pcs")
-        self.inp_tanggal  = buat_input("YYYY-MM-DD")
+        
+        # Mengubah tanggal menjadi QDateEdit agar lebih rapi dan user-friendly
+        self.inp_tanggal  = QDateEdit()
+        self.inp_tanggal.setCalendarPopup(True)
+        self.inp_tanggal.setDisplayFormat("yyyy-MM-dd")
 
+        self.inp_tanggal.setMaximumDate(QDate.currentDate())
+        
+        # Ambil widget kalender internalnya untuk dipasang stylesheet khusus
+        kalender = self.inp_tanggal.calendarWidget()
+        if kalender:
+            # Memaksa navigasi atas (bulan & tahun) menggunakan teks gelap
+            kalender.setStyleSheet(
+                "QCalendarWidget QWidget#qt_calendar_navigationbar {"
+                "   background-color: #f8fafc;"
+                "}"
+                "QCalendarWidget QWidget {"
+                "   color: #2c3e50;" # Memastikan semua teks kalender berwarna gelap
+                "}"
+            )
+
+        self.inp_tanggal.setStyleSheet(
+            "QDateEdit {"
+            "   padding: 6px 10px;"
+            "   border: 1px solid #ccd1d1;"
+            "   border-radius: 6px;"
+            "   font-size: 13px;"
+            "   color: #2c3e50;"
+            "}"
+        )
+
+        self.inp_tanggal.setStyleSheet(
+            "QDateEdit {"
+            "   padding: 6px 10px;"
+            "   border: 1px solid #ccd1d1;"
+            "   border-radius: 6px;"
+            "   font-size: 13px;"
+            "}"
+        )
+
+        # Set Data Awal / Default
         if data_awal:
             self.inp_nama.setText(str(data_awal.get("nama", "")))
             self.inp_harga.setText(str(data_awal.get("harga", "")))
             self.inp_toko.setText(str(data_awal.get("toko", "")))
             self.inp_kategori.setText(str(data_awal.get("kategori", "")))
             self.inp_satuan.setText(str(data_awal.get("satuan", "kg")))
-            self.inp_tanggal.setText(str(data_awal.get("tanggal", "")))
+            
+            tgl_str = data_awal.get("tanggal", date.today().isoformat())
+            self.inp_tanggal.setDate(date.fromisoformat(tgl_str))
         else:
-            self.inp_tanggal.setText(date.today().isoformat())
+            self.inp_tanggal.setDate(date.today())
             self.inp_satuan.setText("kg")
 
-        form.addRow("Nama Produk *:", self.inp_nama)
-        form.addRow("Harga (Rp) *:",  self.inp_harga)
-        form.addRow("Toko/Pasar *:",  self.inp_toko)
-        form.addRow("Kategori:",       self.inp_kategori)
-        form.addRow("Satuan:",         self.inp_satuan)
-        form.addRow("Tanggal:",        self.inp_tanggal)
+        # Menambahkan ke Form dengan label bergaya semi-bold
+        label_style = "font-size: 13px; color: #34495e; font-weight: 500;"
+        for teks_label, widget in [
+            ("Nama Produk *:", self.inp_nama),
+            ("Harga (Rp) *:",  self.inp_harga),
+            ("Toko/Pasar *:",  self.inp_toko),
+            ("Kategori:",       self.inp_kategori),
+            ("Satuan:",         self.inp_satuan),
+            ("Tanggal:",        self.inp_tanggal)
+        ]:
+            lbl = QLabel(teks_label)
+            lbl.setStyleSheet(label_style)
+            form.addRow(lbl, widget)
+            
         layout.addLayout(form)
+        layout.addSpacing(10) # Beri sedikit jarak sebelum tombol
 
+        # Tombol Aksi
         btn_row = QHBoxLayout()
-        btn_row.setSpacing(10)
+        btn_row.setSpacing(12)
 
         btn_batal = QPushButton("Batal")
+        btn_batal.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_batal.setStyleSheet(
-            "padding: 8px 20px; border: 1px solid #ccc; border-radius: 5px; "
-            "background: white; color: #333; font-size: 13px;"
+            "QPushButton {"
+            "   padding: 8px 24px; border: 1px solid #cbd5e1; border-radius: 6px; "
+            "   background: #ffffff; color: #475569; font-size: 13px; font-weight: 500;"
+            "}"
+            "QPushButton:hover { background: #f8fafc; border-color: #94a3b8; }"
         )
         btn_batal.clicked.connect(self.reject)
 
-        warna_ok = "#f39c12" if data_awal else "#27AE60"
+        warna_ok = "#e67e22" if data_awal else "#2ecc71"
+        warna_ok_hover = "#d35400" if data_awal else "#27ae60"
         teks_ok  = "💾 Simpan Perubahan" if data_awal else "✅ Tambah Data"
+        
         btn_simpan = QPushButton(teks_ok)
+        btn_simpan.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_simpan.setStyleSheet(
-            f"padding: 8px 20px; border-radius: 5px; background: {warna_ok}; "
-            f"color: white; font-size: 13px; font-weight: bold; border: none;"
+            "QPushButton {"
+            f"   padding: 8px 24px; border-radius: 6px; background: {warna_ok}; "
+            "   color: white; font-size: 13px; font-weight: bold; border: none;"
+            "}"
+            f"QPushButton:hover {{ background: {warna_ok_hover}; }}"
         )
         btn_simpan.clicked.connect(self._validasi_dan_accept)
 
@@ -132,6 +209,18 @@ class DialogFormProduk(QDialog):
         if not self.inp_nama.text().strip():
             QMessageBox.warning(self, "Validasi", "Nama produk tidak boleh kosong!")
             return
+        
+        tanggal_input = self.inp_tanggal.date()
+        tanggal_hari_ini = QDate.currentDate()
+
+        if tanggal_input > tanggal_hari_ini:
+            QMessageBox.warning(
+                self, 
+                "Validasi Tanggal", 
+                "Tanggal tidak boleh melebihi hari ini! Anda tidak bisa menginput data masa depan."
+            )
+            return
+
         try:
             float(self.inp_harga.text().replace(".", "").replace(",", "."))
         except ValueError:
@@ -150,7 +239,7 @@ class DialogFormProduk(QDialog):
             "toko":     self.inp_toko.text().strip(),
             "kategori": self.inp_kategori.text().strip(),
             "satuan":   self.inp_satuan.text().strip() or "kg",
-            "tanggal":  self.inp_tanggal.text().strip(),
+            "tanggal":  self.inp_tanggal.date().toPyDate().isoformat(), # Disesuaikan dengan QDateEdit
         }
 
 
