@@ -287,7 +287,7 @@ def petakan_keyword(nama_komoditas: str) -> str:
     for kunci, keyword in KEYWORD_MAP.items():
         if kunci in nama_lower:
             return keyword
-    return nama_komoditas.split()[0].lower()
+    return nama_lower # ← kirim semua keyword yang diketik user
 
 
 # ── Widget Statistik ───────────────────────────────────────────────────────
