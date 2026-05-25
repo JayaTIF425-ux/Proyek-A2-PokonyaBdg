@@ -432,6 +432,7 @@ class HalamanLogin(QDialog):
         layout.addWidget(self._label_field("Alamat Email"))
         layout.addSpacing(6)
         self.inp_email_login = self._input_field("you@example.com", icon="✉")
+        self.inp_email_login.returnPressed.connect(self._aksi_login)
         layout.addWidget(self.inp_email_login)
         layout.addSpacing(14)
 
@@ -522,6 +523,7 @@ class HalamanLogin(QDialog):
         layout.addWidget(self._label_field("Kata Sandi"))
         layout.addSpacing(6)
         self.inp_pass_daftar = self._input_field("Masukkan kata sandi", icon="🔒", password=True)
+        self.inp_pass_daftar.returnPressed.connect(self._aksi_daftar)
         layout.addWidget(self.inp_pass_daftar)
         layout.addSpacing(20)
 
