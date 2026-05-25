@@ -554,10 +554,6 @@ class HalamanLogin(QDialog):
         layout.addSpacing(16)
 
         # Tombol submit daftar
-        lbl_sk = QLabel('<a href="#">Baca Syarat & Ketentuan</a>')
-        lbl_sk.setTextFormat(Qt.TextFormat.RichText)
-        lbl_sk.linkActivated.connect(lambda: DialogSyaratKetentuan(self).exec())
-        layout.addWidget(lbl_sk)
         btn_buat = self._btn_utama("Buat Akun")
         btn_buat.clicked.connect(self._aksi_daftar)
         layout.addWidget(btn_buat)
@@ -693,8 +689,6 @@ class HalamanLogin(QDialog):
         return lbl
 
     def _input_field(self, placeholder: str, icon: str = "", password: bool = False) -> QLineEdit:
-        # Selalu kembalikan QLineEdit langsung (bukan container QWidget)
-        # agar layout.addWidget() dan .returnPressed.connect() tidak error.
         inp = QLineEdit()
         inp.setPlaceholderText(placeholder)
         inp.setFixedHeight(48)
@@ -825,37 +819,3 @@ class HalamanLogin(QDialog):
 
     def get_user(self) -> Optional[dict]:
         return self._current_user
-    
-class DialogSyaratKetentuan(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Syarat dan Ketentuan")
-        self.setMinimumSize(480, 360)
-        layout = QVBoxLayout(self)
-
-        teks = QLabel("""
-<b>Syarat dan Ketentuan Penggunaan PokokNya.Bdg</b><br><br>
-Dengan mendaftar, Anda menyetujui hal berikut:<br><br>
-<b>1. Data yang kami kumpulkan</b><br>
-Kami hanya menyimpan: username, email (opsional), dan password terenkripsi.<br><br>
-<b>2. Penggunaan data</b><br>
-Data Anda hanya digunakan untuk keperluan autentikasi aplikasi ini.<br>
-Kami tidak menjual atau membagikan data Anda kepada pihak ketiga.<br><br>
-<b>3. Hak pengguna</b><br>
-Anda dapat meminta penghapusan akun melalui admin kapan saja.<br><br>
-<b>4. Keamanan</b><br>
-Password disimpan dalam bentuk hash SHA-256 dan tidak dapat dibaca oleh siapapun.
-        """)
-        teks.setWordWrap(True)
-        teks.setTextFormat(Qt.TextFormat.RichText)
-        teks.setStyleSheet("font-size: 13px; line-height: 1.5;")
-
-        scroll = QScrollArea()
-        scroll.setWidget(teks)
-        scroll.setWidgetResizable(True)
-        layout.addWidget(scroll)
-
-        btn_tutup = QPushButton("Saya Mengerti")
-        btn_tutup.clicked.connect(self.accept)
-        btn_tutup.setStyleSheet("background:#44101A;color:white;padding:8px;border-radius:6px;border:none;")
-        layout.addWidget(btn_tutup)
