@@ -208,11 +208,11 @@ class AuthManager:
     def _seed_default_accounts(self):
         """Tambahkan akun admin dan user default jika belum ada."""
         akun_default = [
-            ("admin", "admin123", "admin"),
-            ("user",  "user123",  "user"),
+            ("admin", "admin123", "admin", "admin@gmail.com", "Admin"),
+            ("user",  "user123",  "user",  "",                "User"),
         ]
         with self._connect() as conn:
-            for username, password, role in akun_default:
+            for username, password, role, email, display_name in akun_default:
                 existing = conn.execute(
                     "SELECT id FROM users WHERE username = ?", (username,)
                 ).fetchone()
