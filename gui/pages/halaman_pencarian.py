@@ -353,6 +353,7 @@ class HalamanPencarian(QWidget):
         super().__init__()
         self.is_admin = is_admin
         self._data_terakhir: list = []
+        self._keyword_terakhir: str = ""
         self._init_ui()
 
     def _init_ui(self):
@@ -454,6 +455,7 @@ class HalamanPencarian(QWidget):
         if not keyword:
             QMessageBox.information(self, "Info", "Masukkan kata kunci terlebih dahulu.")
             return
+        self._keyword_terakhir = keyword
         self.loading.show()
         self._bersihkan_grid()
         self.worker = CariWorker(keyword)
@@ -595,7 +597,8 @@ class HalamanPencarian(QWidget):
                 QMessageBox.critical(self, "Error", f"Gagal menghapus data:\n{e}")
 
     def _refresh_tampilan(self):
-        if self.input_cari.text().strip():
+        if self._keyword_terakhir:
+            self.input_cari.setText(self._keyword_terakhir)
             self._cari()
         else:
             self._tampilkan_semua()
