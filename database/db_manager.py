@@ -125,8 +125,9 @@ class DBManager:
 
     # ── Query: Pencarian ────────────────────────────────────────────────
 
-    def cari_produk(self, keyword: str) -> list[sqlite3.Row]:
+    def cari_produk(self, keyword: str, exclude: str = "") -> list[sqlite3.Row]:
         kw = f"%{keyword}%"
+        exclude_clause = f"AND nama_produk NOT LIKE '%{exclude}%'" if exclude else ""
         sql_pihps = """
             SELECT komoditas AS nama, harga, 'PIHPS Nasional' AS toko,
                 tanggal, '' AS thumbnail_url
@@ -138,11 +139,12 @@ class DBManager:
                 GROUP BY komoditas
             )
         """
-        sql_toko = """
+        sql_toko = f"""
             SELECT nama_produk AS nama, harga, toko,
                 tanggal_scraping AS tanggal, thumbnail_url
             FROM harga_supermarket
             WHERE nama_produk LIKE ?
+            {exclude_clause}
             ORDER BY harga ASC
         """
         with self._connect() as conn:
@@ -284,27 +286,38 @@ class DBManager:
         with self._connect() as conn:
             conn.execute("DELETE FROM harga_supermarket WHERE id = ?", (id_produk,))
 
-    def cari_produk_dengan_id(self, keyword: str) -> list[sqlite3.Row]:
-        """Cari produk dan kembalikan id-nya (untuk keperluan Edit/Hapus)."""
+    def _buat_exclude_clause(self, exclude: str, kolom: str) -> str:
+        if not exclude:
+            return ""
+        kata = exclude.split()
+        return " ".join(f"AND {kolom} NOT LIKE '%{k}%'" for k in kata)
+
+    def cari_produk_dengan_id(self, keyword: str, exclude: str = "") -> list[sqlite3.Row]:
         kw = f"%{keyword}%"
-        sql_toko = """
+        exclude_clause       = self._buat_exclude_clause(exclude, "nama_produk")
+        exclude_clause_pihps = self._buat_exclude_clause(exclude, "komoditas")
+
+        sql_toko = f"""
             SELECT id, nama_produk AS nama, harga, toko,
                 tanggal_scraping AS tanggal, thumbnail_url,
                 'supermarket' AS sumber
             FROM harga_supermarket
             WHERE nama_produk LIKE ?
+            {exclude_clause}
             ORDER BY harga ASC
         """
-        sql_pihps = """
+        sql_pihps = f"""
             SELECT id, komoditas AS nama, harga,
                 'PIHPS Nasional' AS toko,
                 tanggal, '' AS thumbnail_url,
                 'pihps' AS sumber
             FROM harga_pangan
             WHERE komoditas LIKE ?
+            {exclude_clause_pihps}
             AND (komoditas, tanggal) IN (
                 SELECT komoditas, MAX(tanggal) FROM harga_pangan
                 WHERE komoditas LIKE ?
+                {exclude_clause_pihps}
                 GROUP BY komoditas
             )
         """
