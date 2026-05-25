@@ -52,7 +52,7 @@ KEYWORDS = {
     "beras":         ["beras"],
     "sayur_sayuran": ["bawang putih", "bawang merah", "cabe", "cabai"],
     "minyak_goreng": ["bimoli", "filma", "sania", "sunco", "tropical", "minyak goreng"],
-    "gula":          ["gula"],
+    "gula":          ["gula pasir", "gula merah", "gula aren", "gulaku"],
 }
 
 SCROLL_PAUSE              = 1.2
@@ -103,7 +103,6 @@ def build_driver(headless: bool = True):
     opts.add_argument("--disable-notifications")
     opts.add_argument("--blink-settings=imagesEnabled=false")  # skip download gambar = lebih cepat
 
-    # ⚡ KUNCI KECEPATAN: jangan tunggu semua resource, cukup DOM siap
     opts.page_load_strategy = "eager"
 
     opts.add_experimental_option("prefs", {

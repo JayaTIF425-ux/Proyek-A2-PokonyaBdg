@@ -640,10 +640,16 @@ class HalamanLogin(QDialog):
             role=self._peran_dipilih   
         )
         if berhasil:
-            self.lbl_daftar_sukses.setText(f"✅ Akun berhasil dibuat sebagai {self._peran_dipilih}!")
-            user = self.auth.login(username, password)
-            if user:
-                QTimer.singleShot(800, lambda: self._masuk(user))
+            self.lbl_daftar_sukses.setText(
+                f"✅ Akun berhasil dibuat sebagai {self._peran_dipilih}! Silakan masuk."
+            )
+            def _ke_login():
+                self.inp_email_login.setText(email)
+                self.inp_pass_login.clear()
+                self._pilih_peran(self._peran_dipilih, "login")
+                self.stack.slide_to(0)
+
+            QTimer.singleShot(1200, _ke_login)
         else:
             self.lbl_daftar_error.setText(f"❌ {pesan}")
 
