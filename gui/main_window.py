@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QFrame, QLabel, QPushButton, QStackedWidget, QSizePolicy
 )
-from PyQt6.QtCore import Qt, QByteArray
+from PyQt6.QtCore import Qt, QByteArray, pyqtSignal
 from PyQt6.QtGui import QFont, QIcon, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtGui import QPainter
@@ -84,11 +84,21 @@ _IKON = {
   <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
   <path d="M17 13l1.5 1.5L21 12" stroke="#F1C40F" stroke-width="2.5"/>
 </svg>""",
+
+    "logout": """
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+     stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+  <polyline points="16 17 21 12 16 7"/>
+  <line x1="21" y1="12" x2="9" y2="12"/>
+</svg>""",
 }
 
 
 class MainWindow(QMainWindow):
     """Jendela utama dengan sidebar collapsible + konten stacked."""
+
+    logout_requested = pyqtSignal()
 
     WARNA_SIDEBAR   = "#44101A"
     WARNA_AKTIF     = "#6B1525"
@@ -243,6 +253,36 @@ class MainWindow(QMainWindow):
             self.menu_buttons.append(btn_admin)
             layout.addWidget(btn_admin)
 
+        # Tombol Logout
+        sep_logout = QFrame()
+        sep_logout.setFrameShape(QFrame.Shape.HLine)
+        sep_logout.setStyleSheet(f"color: {self.WARNA_AKTIF}; margin: 4px 0;")
+        layout.addWidget(sep_logout)
+
+        self.btn_logout = QPushButton("Keluar")
+        self.btn_logout.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_logout.setToolTip("Logout")
+        if "logout" in _IKON:
+            self.btn_logout.setIcon(_svg_to_icon(_IKON["logout"], size=20))
+            self.btn_logout.setIconSize(QPixmap(20, 20).size())
+        self.btn_logout.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: #FF6B6B;
+                text-align: left;
+                padding: 12px 20px;
+                border: none;
+                border-left: 4px solid transparent;
+                font-size: 14px;
+            }}
+            QPushButton:hover {{
+                background-color: rgba(255, 107, 107, 0.15);
+                border-left: 4px solid #FF6B6B;
+            }}
+        """)
+        self.btn_logout.clicked.connect(self._konfirmasi_logout)
+        layout.addWidget(self.btn_logout)
+
         return sidebar
 
     def _tombol_menu(self, teks: str, index: int, ikon_key: str,
@@ -302,6 +342,7 @@ class MainWindow(QMainWindow):
             self.btn_collapse.setToolTip("Sembunyikan sidebar")
             for btn, teks in zip(self.menu_buttons, _teks_menu):
                 btn.setText(teks)
+            self.btn_logout.setText("Keluar")
         else:
             self.sidebar.setFixedWidth(self.LEBAR_COLLAPSED)
             self.lbl_brand.setVisible(False)
@@ -312,6 +353,8 @@ class MainWindow(QMainWindow):
             for btn, tip in zip(self.menu_buttons, _teks_menu):
                 btn.setToolTip(tip)
                 btn.setText("")
+            self.btn_logout.setText("")
+            self.btn_logout.setToolTip("Keluar")
 
     # Navigasi dari beranda ke pencarian 
 
@@ -325,3 +368,32 @@ class MainWindow(QMainWindow):
 
         self.halaman_pencarian.set_keyword_dan_cari(keyword_final)
         self._set_halaman(1)
+    # ── Logout ────────────────────────────────────────────────────────────────
+
+    def _konfirmasi_logout(self):
+        from PyQt6.QtWidgets import QMessageBox
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Konfirmasi Logout")
+        msg.setText(
+            f"Yakin ingin keluar dari akun "
+            f"<b>{self.current_user.get('username', '')}</b>?"
+        )
+        msg.setStandardButtons(
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        msg.setDefaultButton(QMessageBox.StandardButton.No)
+        msg.button(QMessageBox.StandardButton.Yes).setText("Ya, Keluar")
+        msg.button(QMessageBox.StandardButton.No).setText("Batal")
+        msg.setStyleSheet("""
+            QMessageBox { background-color: #FFFFFF; }
+            QLabel { color: #1A0A0E; font-size: 13px; }
+            QPushButton {
+                padding: 8px 20px;
+                border-radius: 6px;
+                font-size: 13px;
+                min-width: 80px;
+            }
+        """)
+        if msg.exec() == QMessageBox.StandardButton.Yes:
+            self.logout_requested.emit()
+            self.close()
