@@ -40,18 +40,32 @@ def main():
     auth = AuthManager()
     auth.init_schema()
 
-    # ── Tampilkan dialog login ────────────────────────────────────────────
-    login_dialog = HalamanLogin()
-    if login_dialog.exec() != HalamanLogin.DialogCode.Accepted:
-        sys.exit(0)
+    # ── Loop login → main window (mendukung logout) ───────────────────────
+    while True:
+        login_dialog = HalamanLogin()
+        if login_dialog.exec() != HalamanLogin.DialogCode.Accepted:
+            break
 
-    user_data = login_dialog.get_user()
+        user_data = login_dialog.get_user()
 
-    # ── Buka jendela utama fullscreen ─────────────────────────────────────
-    window = MainWindow(current_user=user_data)
-    window.showMaximized()
+        window = MainWindow(current_user=user_data)
 
-    sys.exit(app.exec())
+        # Flag untuk mendeteksi apakah user menekan logout
+        did_logout = False
+        def on_logout():
+            nonlocal did_logout
+            did_logout = True
+
+        window.logout_requested.connect(on_logout)
+        window.showMaximized()
+        app.exec()
+
+        if not did_logout:
+            # User menutup window biasa (bukan logout) → keluar aplikasi
+            break
+        # Jika logout → ulangi loop, tampilkan login lagi
+
+    sys.exit(0)
 
 
 if __name__ == "__main__":
