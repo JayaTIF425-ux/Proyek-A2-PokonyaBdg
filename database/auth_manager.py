@@ -172,13 +172,38 @@ class AuthManager:
         with self._connect() as conn:
             conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
         return True
+    
+    def update_profil(self, user_id: int, display_name: str, username: str) -> tuple[bool, str]:
+        """Update nama tampilan dan username."""
+        if not username or len(username) < 3:
+            return False, "Username minimal 3 karakter."
+        try:
+            with self._connect() as conn:
+                conn.execute(
+                    "UPDATE users SET display_name=?, username=? WHERE id=?",
+                    (display_name, username, user_id)
+                )
+            return True, ""
+        except sqlite3.IntegrityError:
+            return False, "Username sudah digunakan."
 
-    def ubah_password(self, user_id: int, password_baru: str):
+    def ubah_password(self, user_id: int, password_lama: str, password_baru: str) -> tuple[bool, str]:
+        """Ubah password dengan verifikasi password lama."""
+        hashed_lama = self._hash_password(password_lama)
         with self._connect() as conn:
+            row = conn.execute(
+                "SELECT id FROM users WHERE id = ? AND password = ?",
+                (user_id, hashed_lama)
+            ).fetchone()
+            if not row:
+                return False, "Password lama salah."
+            if len(password_baru) < 6:
+                return False, "Password baru minimal 6 karakter."
             conn.execute(
-                "UPDATE users SET password = ? WHERE id = ?",
+                "UPDATE users SET password=? WHERE id=?",
                 (self._hash_password(password_baru), user_id)
             )
+        return True, ""
 
     def _seed_default_accounts(self):
         """Tambahkan akun admin dan user default jika belum ada."""
@@ -196,3 +221,15 @@ class AuthManager:
                         "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
                         (username, self._hash_password(password), role)
                     )
+
+    def update_profil_email(self, user_id: int, display_name: str, email: str) -> bool:
+        """Update nama tampilan dan email pengguna."""
+        try:
+            with self._connect() as conn:
+                conn.execute(
+                    "UPDATE users SET display_name = ?, email = ? WHERE id = ?",
+                    (display_name, email, user_id)
+                )
+            return True
+        except Exception:
+            return False

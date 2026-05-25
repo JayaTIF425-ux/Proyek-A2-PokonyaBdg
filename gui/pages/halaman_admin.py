@@ -234,6 +234,8 @@ class HalamanAdmin(QWidget):
         self.tab_user   = self._buat_tab_user()
         self.tabs.addTab(self.tab_produk, "📦  Manajemen Produk")
         self.tabs.addTab(self.tab_user,   "👥  Manajemen Akun")
+        self.tab_profil = self._buat_tab_profil()
+        self.tabs.addTab(self.tab_profil, "👤  Profil Saya")
         layout.addWidget(self.tabs)
 
         # Muat data awal
@@ -545,3 +547,76 @@ class HalamanAdmin(QWidget):
             self.auth.ubah_role(user_id, role_baru)
             self._muat_users()
             QMessageBox.information(self, "Berhasil", f"Role berhasil diubah menjadi {role_baru}.")
+
+    # ── Tab: Profil Saya ─────────────────────────────────────────────────
+    def _buat_tab_profil(self) -> QWidget:
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
+
+        lbl = QLabel("Edit Profil")
+        lbl.setStyleSheet("font-size: 16px; font-weight: bold; color: #44101A;")
+        layout.addWidget(lbl)
+
+        form = QFormLayout()
+        self.inp_display_name = QLineEdit(self.current_user.get("display_name", ""))
+        self.inp_username_profil = QLineEdit(self.current_user.get("username", ""))
+        form.addRow("Nama Tampilan:", self.inp_display_name)
+        form.addRow("Username:", self.inp_username_profil)
+        layout.addLayout(form)
+
+        btn_simpan = QPushButton("Simpan Perubahan")
+        btn_simpan.setStyleSheet("background:#44101A;color:white;padding:8px 16px;border-radius:6px;border:none;")
+        btn_simpan.clicked.connect(self._simpan_profil)
+        layout.addWidget(btn_simpan)
+
+        # Divider
+        sep = QFrame(); sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setStyleSheet("color:#ddd;"); layout.addWidget(sep)
+
+        lbl2 = QLabel("Ubah Password")
+        lbl2.setStyleSheet("font-size: 16px; font-weight: bold; color: #44101A;")
+        layout.addWidget(lbl2)
+
+        form2 = QFormLayout()
+        self.inp_pass_lama   = QLineEdit(); self.inp_pass_lama.setEchoMode(QLineEdit.EchoMode.Password)
+        self.inp_pass_baru   = QLineEdit(); self.inp_pass_baru.setEchoMode(QLineEdit.EchoMode.Password)
+        self.inp_pass_ulang  = QLineEdit(); self.inp_pass_ulang.setEchoMode(QLineEdit.EchoMode.Password)
+        form2.addRow("Password lama:", self.inp_pass_lama)
+        form2.addRow("Password baru:", self.inp_pass_baru)
+        form2.addRow("Ulangi password baru:", self.inp_pass_ulang)
+        layout.addLayout(form2)
+
+        btn_ubah_pass = QPushButton("Ubah Password")
+        btn_ubah_pass.setStyleSheet("background:#2980b9;color:white;padding:8px 16px;border-radius:6px;border:none;")
+        btn_ubah_pass.clicked.connect(self._ubah_password_profil)
+        layout.addWidget(btn_ubah_pass)
+        layout.addStretch()
+        return widget
+
+    def _simpan_profil(self):
+        ok, pesan = self.auth.update_profil(
+            self.current_user["id"],
+            self.inp_display_name.text().strip(),
+            self.inp_username_profil.text().strip()
+        )
+        if ok:
+            QMessageBox.information(self, "Berhasil", "Profil berhasil diperbarui.")
+        else:
+            QMessageBox.warning(self, "Gagal", pesan)
+
+    def _ubah_password_profil(self):
+        if self.inp_pass_baru.text() != self.inp_pass_ulang.text():
+            QMessageBox.warning(self, "Gagal", "Password baru tidak cocok.")
+            return
+        ok, pesan = self.auth.ubah_password(
+            self.current_user["id"],
+            self.inp_pass_lama.text(),
+            self.inp_pass_baru.text()
+        )
+        if ok:
+            QMessageBox.information(self, "Berhasil", "Password berhasil diubah.")
+            self.inp_pass_lama.clear(); self.inp_pass_baru.clear(); self.inp_pass_ulang.clear()
+        else:
+            QMessageBox.warning(self, "Gagal", pesan)
