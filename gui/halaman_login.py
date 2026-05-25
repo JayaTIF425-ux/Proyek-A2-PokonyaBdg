@@ -554,10 +554,6 @@ class HalamanLogin(QDialog):
         layout.addSpacing(16)
 
         # Tombol submit daftar
-        lbl_sk = QLabel('<a href="#">Baca Syarat & Ketentuan</a>')
-        lbl_sk.setTextFormat(Qt.TextFormat.RichText)
-        lbl_sk.linkActivated.connect(lambda: DialogSyaratKetentuan(self).exec())
-        layout.addWidget(lbl_sk)
         btn_buat = self._btn_utama("Buat Akun")
         btn_buat.clicked.connect(self._aksi_daftar)
         layout.addWidget(btn_buat)
@@ -693,35 +689,11 @@ class HalamanLogin(QDialog):
         return lbl
 
     def _input_field(self, placeholder: str, icon: str = "", password: bool = False) -> QLineEdit:
-        container = QWidget()
-        row = QHBoxLayout(container)
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(0)
-
-
         inp = QLineEdit()
         inp.setPlaceholderText(placeholder)
         inp.setFixedHeight(48)
         if password:
             inp.setEchoMode(QLineEdit.EchoMode.Password)
-
-        if password:
-            btn_eye = QPushButton("👁")
-            btn_eye.setFixedSize(32, 36)
-            btn_eye.setStyleSheet("border:none;background:transparent;font-size:14px;cursor:pointer;")
-            btn_eye.setCheckable(True)
-            def _toggle(checked, field=inp):
-                field.setEchoMode(
-                    QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password
-                )
-            btn_eye.toggled.connect(_toggle)
-            row.addWidget(inp)
-            row.addWidget(btn_eye)
-        else:
-            row.addWidget(inp)
-
-        # simpan referensi ke inp agar bisa di-akses dari luar
-        container._inp = inp
 
         padding_left = "38px" if icon else "14px"
 
@@ -826,37 +798,3 @@ class HalamanLogin(QDialog):
 
     def get_user(self) -> Optional[dict]:
         return self._current_user
-    
-class DialogSyaratKetentuan(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Syarat dan Ketentuan")
-        self.setMinimumSize(480, 360)
-        layout = QVBoxLayout(self)
-
-        teks = QLabel("""
-<b>Syarat dan Ketentuan Penggunaan PokokNya.Bdg</b><br><br>
-Dengan mendaftar, Anda menyetujui hal berikut:<br><br>
-<b>1. Data yang kami kumpulkan</b><br>
-Kami hanya menyimpan: username, email (opsional), dan password terenkripsi.<br><br>
-<b>2. Penggunaan data</b><br>
-Data Anda hanya digunakan untuk keperluan autentikasi aplikasi ini.<br>
-Kami tidak menjual atau membagikan data Anda kepada pihak ketiga.<br><br>
-<b>3. Hak pengguna</b><br>
-Anda dapat meminta penghapusan akun melalui admin kapan saja.<br><br>
-<b>4. Keamanan</b><br>
-Password disimpan dalam bentuk hash SHA-256 dan tidak dapat dibaca oleh siapapun.
-        """)
-        teks.setWordWrap(True)
-        teks.setTextFormat(Qt.TextFormat.RichText)
-        teks.setStyleSheet("font-size: 13px; line-height: 1.5;")
-
-        scroll = QScrollArea()
-        scroll.setWidget(teks)
-        scroll.setWidgetResizable(True)
-        layout.addWidget(scroll)
-
-        btn_tutup = QPushButton("Saya Mengerti")
-        btn_tutup.clicked.connect(self.accept)
-        btn_tutup.setStyleSheet("background:#44101A;color:white;padding:8px;border-radius:6px;border:none;")
-        layout.addWidget(btn_tutup)
