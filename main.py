@@ -15,9 +15,9 @@ from database.db_manager import DBManager
 from database.auth_manager import AuthManager
 
 
-def _asset(nama: str) -> str:
+def _asset_root(nama: str) -> str:
     base = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base, "assets", nama)
+    return os.path.join(base, nama)
 
 
 def main():
@@ -27,9 +27,11 @@ def main():
     app.setOrganizationName("POLBAN Informatika")
 
     # ── Icon aplikasi (taskbar & title bar) ──────────────────────────────
-    icon_path = _asset("app_icon.ico")
+    icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gui", "assets", "images", "app_icon.ico")
     if os.path.exists(icon_path):
         app.setWindowIcon(QIcon(icon_path))
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("PokokNya.Bdg")
 
     # ── Inisialisasi database ─────────────────────────────────────────────
     db = DBManager()
