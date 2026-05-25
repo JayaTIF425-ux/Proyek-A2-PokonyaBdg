@@ -299,10 +299,29 @@ class HalamanPenghitung(QWidget):
             subtot = harga * qty
 
             self.tabel_keranjang.insertRow(baris)
-            self.tabel_keranjang.setRowHeight(baris, 40)
-
+            self.tabel_keranjang.setRowHeight(baris, 48)
             self.tabel_keranjang.setItem(baris, 0, self._buat_item_readonly(nama))
-            self.tabel_keranjang.setItem(baris, 1, self._buat_item_readonly(f"× {qty}"))
+            
+            # Kolom jumlah — widget +/- langsung di tabel
+            qty_widget = QWidget()
+            qty_row = QHBoxLayout(qty_widget)
+            qty_row.setContentsMargins(4, 4, 4, 4)
+            qty_row.setSpacing(4)
+            btn_m = QPushButton("−"); btn_p = QPushButton("+")
+            lbl_q = QLabel(str(qty))
+            lbl_q.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            lbl_q.setFixedWidth(28)
+            for b in (btn_m, btn_p):
+                b.setFixedSize(24, 24)
+                b.setStyleSheet(
+                    "background:#6B8E23;color:white;border-radius:12px;"
+                    "font-weight:bold;font-size:13px;border:none;"
+                )
+            btn_m.clicked.connect(lambda _, n=nama: self._ubah_qty_keranjang(n, -1))
+            btn_p.clicked.connect(lambda _, n=nama: self._ubah_qty_keranjang(n, +1))
+            qty_row.addWidget(btn_m); qty_row.addWidget(lbl_q); qty_row.addWidget(btn_p)
+            self.tabel_keranjang.setCellWidget(baris, 1, qty_widget)
+
             self.tabel_keranjang.setItem(
                 baris, 2,
                 self._buat_item_readonly(

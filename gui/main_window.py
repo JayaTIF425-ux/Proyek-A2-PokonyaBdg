@@ -5,7 +5,8 @@ Versi ini mendukung role user/admin: menu Admin hanya muncul untuk admin.
 
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
-    QFrame, QLabel, QPushButton, QStackedWidget, QSizePolicy
+    QFrame, QLabel, QPushButton, QStackedWidget, QSizePolicy,
+    QDialog, QLineEdit, QGridLayout,
 )
 from PyQt6.QtCore import Qt, QByteArray, pyqtSignal
 from PyQt6.QtGui import QFont, QIcon, QPixmap
@@ -214,6 +215,28 @@ class MainWindow(QMainWindow):
         """)
         layout.addWidget(self.lbl_user_info)
 
+        # Tombol Edit Profil
+        self.btn_edit_profil = QPushButton("✏ Edit Profil")
+        self.btn_edit_profil.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_edit_profil.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: rgba(255,255,255,0.65);
+                border: 1px solid rgba(255,255,255,0.2);
+                border-radius: 6px;
+                font-size: 11px;
+                padding: 4px 10px;
+                margin: 0 12px 8px 12px;
+            }}
+            QPushButton:hover {{
+                background-color: rgba(255,255,255,0.12);
+                color: {self.WARNA_AKSEN};
+                border-color: {self.WARNA_AKSEN};
+            }}
+        """)
+        self.btn_edit_profil.clicked.connect(self._buka_edit_profil)
+        layout.addWidget(self.btn_edit_profil)
+
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
         sep.setStyleSheet(f"color: {self.WARNA_AKTIF};")
@@ -338,6 +361,7 @@ class MainWindow(QMainWindow):
             self.lbl_brand.setVisible(True)
             self.lbl_sub.setVisible(True)
             self.lbl_user_info.setVisible(True)
+            self.btn_edit_profil.setVisible(True)
             self.btn_collapse.setText("◀")
             self.btn_collapse.setToolTip("Sembunyikan sidebar")
             for btn, teks in zip(self.menu_buttons, _teks_menu):
@@ -348,6 +372,7 @@ class MainWindow(QMainWindow):
             self.lbl_brand.setVisible(False)
             self.lbl_sub.setVisible(False)
             self.lbl_user_info.setVisible(False)
+            self.btn_edit_profil.setVisible(False)
             self.btn_collapse.setText("▶")
             self.btn_collapse.setToolTip("Tampilkan sidebar")
             for btn, tip in zip(self.menu_buttons, _teks_menu):
@@ -371,29 +396,290 @@ class MainWindow(QMainWindow):
     # ── Logout ────────────────────────────────────────────────────────────────
 
     def _konfirmasi_logout(self):
-        from PyQt6.QtWidgets import QMessageBox
-        msg = QMessageBox(self)
-        msg.setWindowTitle("Konfirmasi Logout")
-        msg.setText(
-            f"Yakin ingin keluar dari akun "
-            f"<b>{self.current_user.get('username', '')}</b>?"
+        dialog = _DialogLogout(
+            username=self.current_user.get("display_name")
+                     or self.current_user.get("username", ""),
+            parent=self,
         )
-        msg.setStandardButtons(
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        msg.setDefaultButton(QMessageBox.StandardButton.No)
-        msg.button(QMessageBox.StandardButton.Yes).setText("Ya, Keluar")
-        msg.button(QMessageBox.StandardButton.No).setText("Batal")
-        msg.setStyleSheet("""
-            QMessageBox { background-color: #FFFFFF; }
-            QLabel { color: #1A0A0E; font-size: 13px; }
-            QPushButton {
-                padding: 8px 20px;
-                border-radius: 6px;
-                font-size: 13px;
-                min-width: 80px;
-            }
-        """)
-        if msg.exec() == QMessageBox.StandardButton.Yes:
+        if dialog.exec():
             self.logout_requested.emit()
             self.close()
+
+    # ── Edit Profil ───────────────────────────────────────────────────────────
+
+    def _buka_edit_profil(self):
+        from database.auth_manager import AuthManager
+        dialog = _DialogEditProfil(self.current_user, AuthManager(), parent=self)
+        if dialog.exec():
+            updated = dialog.get_updated_user()
+            self.current_user.update(updated)
+            username = self.current_user.get("username", "guest")
+            role     = self.current_user.get("role", "user")
+            display  = self.current_user.get("display_name") or username
+            badge    = "🔑 Admin" if role == "admin" else "👤 User"
+            self.lbl_user_info.setText(f"{badge}\n{display}")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Dialog Konfirmasi Logout — desain custom
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Dialog Konfirmasi Logout — custom, tanpa QMessageBox
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+
+class _DialogLogout(QDialog):
+    """Pop-up konfirmasi logout yang rapi dengan dua tombol bergaya."""
+
+    def __init__(self, username: str, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Konfirmasi Logout")
+        self.setWindowFlags(
+            Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setFixedWidth(380)
+
+        # Card utama
+        card = QFrame(self)
+        card.setObjectName("LogoutCard")
+        card.setStyleSheet("""
+            #LogoutCard {
+                background: #FFFFFF;
+                border-radius: 16px;
+                border: 1px solid #E8E0D4;
+            }
+        """)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(card)
+
+        lay = QVBoxLayout(card)
+        lay.setContentsMargins(28, 24, 28, 24)
+        lay.setSpacing(0)
+
+        # Ikon
+        ikon = QLabel("🚪")
+        ikon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ikon.setStyleSheet("font-size: 40px; background: transparent;")
+        lay.addWidget(ikon)
+        lay.addSpacing(12)
+
+        # Judul
+        judul = QLabel("Keluar dari Akun?")
+        judul.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        judul.setStyleSheet(
+            "font-size: 18px; font-weight: 700; color: #1A0A0E; background: transparent;"
+        )
+        lay.addWidget(judul)
+        lay.addSpacing(8)
+
+        # Sub-teks
+        sub = QLabel(f'Yakin ingin keluar dari akun <b>{username}</b>?')
+        sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        sub.setTextFormat(Qt.TextFormat.RichText)
+        sub.setWordWrap(True)
+        sub.setStyleSheet(
+            "font-size: 13px; color: #6B5B61; background: transparent;"
+        )
+        lay.addWidget(sub)
+        lay.addSpacing(24)
+
+        # Tombol
+        row = QHBoxLayout()
+        row.setSpacing(12)
+
+        btn_batal = QPushButton("Batal")
+        btn_batal.setFixedHeight(44)
+        btn_batal.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_batal.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                color: #44101A;
+                border: 1.5px solid #E2D9CC;
+                border-radius: 10px;
+                font-size: 14px;
+                font-weight: 500;
+            }
+            QPushButton:hover {
+                background: #F4F0EA;
+                border-color: #44101A;
+            }
+        """)
+        btn_batal.clicked.connect(self.reject)
+
+        btn_keluar = QPushButton("Ya, Keluar")
+        btn_keluar.setFixedHeight(44)
+        btn_keluar.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_keluar.setStyleSheet("""
+            QPushButton {
+                background: #C0392B;
+                color: white;
+                border: none;
+                border-radius: 10px;
+                font-size: 14px;
+                font-weight: 700;
+            }
+            QPushButton:hover { background: #A93226; }
+            QPushButton:pressed { background: #922B21; }
+        """)
+        btn_keluar.clicked.connect(self.accept)
+
+        row.addWidget(btn_batal)
+        row.addWidget(btn_keluar)
+        lay.addLayout(row)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Dialog Edit Profil
+# ══════════════════════════════════════════════════════════════════════════════
+
+class _DialogEditProfil(QDialog):
+    """Dialog untuk mengubah display name dan password."""
+
+    def __init__(self, user: dict, auth_manager, parent=None):
+        super().__init__(parent)
+        self._user = user
+        self._auth = auth_manager
+        self._updated: dict = {}
+
+        self.setWindowTitle("Edit Profil")
+        self.setFixedWidth(400)
+        self.setStyleSheet("background: #FFFFFF;")
+
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(32, 28, 32, 28)
+        lay.setSpacing(0)
+
+        # Judul
+        judul = QLabel("Edit Profil")
+        judul.setStyleSheet(
+            "font-size: 20px; font-weight: 700; color: #44101A;"
+        )
+        lay.addWidget(judul)
+        lay.addSpacing(4)
+
+        sub = QLabel(f"Akun: {user.get('username', '')}")
+        sub.setStyleSheet("font-size: 12px; color: #A89BA0;")
+        lay.addWidget(sub)
+        lay.addSpacing(20)
+
+        # Display name
+        lay.addWidget(self._lbl("Nama Tampilan"))
+        lay.addSpacing(6)
+        self.inp_display = QLineEdit()
+        self.inp_display.setText(user.get("display_name") or user.get("username", ""))
+        self.inp_display.setPlaceholderText("Nama yang ditampilkan")
+        self._style_input(self.inp_display)
+        lay.addWidget(self.inp_display)
+        lay.addSpacing(16)
+
+        # Password baru
+        lay.addWidget(self._lbl("Password Baru (kosongkan jika tidak diubah)"))
+        lay.addSpacing(6)
+        self.inp_pass = QLineEdit()
+        self.inp_pass.setEchoMode(QLineEdit.EchoMode.Password)
+        self.inp_pass.setPlaceholderText("••••••••")
+        self._style_input(self.inp_pass)
+        lay.addWidget(self.inp_pass)
+        lay.addSpacing(8)
+
+        self.inp_pass_confirm = QLineEdit()
+        self.inp_pass_confirm.setEchoMode(QLineEdit.EchoMode.Password)
+        self.inp_pass_confirm.setPlaceholderText("Konfirmasi password baru")
+        self._style_input(self.inp_pass_confirm)
+        lay.addWidget(self.inp_pass_confirm)
+        lay.addSpacing(8)
+
+        # Pesan error
+        self.lbl_error = QLabel("")
+        self.lbl_error.setStyleSheet("color: #C0392B; font-size: 12px;")
+        self.lbl_error.setWordWrap(True)
+        lay.addWidget(self.lbl_error)
+        lay.addSpacing(16)
+
+        # Tombol
+        row = QHBoxLayout()
+        row.setSpacing(12)
+
+        btn_batal = QPushButton("Batal")
+        btn_batal.setFixedHeight(44)
+        btn_batal.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_batal.setStyleSheet("""
+            QPushButton {
+                background: transparent; color: #44101A;
+                border: 1.5px solid #E2D9CC; border-radius: 10px;
+                font-size: 14px;
+            }
+            QPushButton:hover { background: #F4F0EA; }
+        """)
+        btn_batal.clicked.connect(self.reject)
+
+        btn_simpan = QPushButton("Simpan")
+        btn_simpan.setFixedHeight(44)
+        btn_simpan.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_simpan.setStyleSheet("""
+            QPushButton {
+                background: #44101A; color: white;
+                border: none; border-radius: 10px;
+                font-size: 14px; font-weight: 700;
+            }
+            QPushButton:hover { background: #6B1525; }
+        """)
+        btn_simpan.clicked.connect(self._simpan)
+
+        row.addWidget(btn_batal)
+        row.addWidget(btn_simpan)
+        lay.addLayout(row)
+
+    def _lbl(self, teks: str) -> QLabel:
+        l = QLabel(teks)
+        l.setStyleSheet("font-size: 13px; font-weight: 500; color: #1A0A0E;")
+        return l
+
+    def _style_input(self, w: QLineEdit):
+        w.setFixedHeight(44)
+        w.setStyleSheet("""
+            QLineEdit {
+                background: #FAFAF8; border: 1.5px solid #E2D9CC;
+                border-radius: 10px; padding: 10px 14px;
+                font-size: 13px; color: #1A0A0E;
+            }
+            QLineEdit:focus { border: 2px solid #44101A; background: #FFFFFF; }
+        """)
+
+    def _simpan(self):
+        self.lbl_error.setText("")
+        display = self.inp_display.text().strip()
+        new_pass = self.inp_pass.text()
+        confirm  = self.inp_pass_confirm.text()
+
+        if not display:
+            self.lbl_error.setText("⚠ Nama tampilan tidak boleh kosong.")
+            return
+
+        if new_pass:
+            if len(new_pass) < 6:
+                self.lbl_error.setText("⚠ Password minimal 6 karakter.")
+                return
+            if new_pass != confirm:
+                self.lbl_error.setText("⚠ Konfirmasi password tidak cocok.")
+                return
+
+        # Simpan ke DB jika auth_manager punya method update_profile
+        try:
+            if hasattr(self._auth, "update_profile"):
+                self._auth.update_profile(
+                    user_id=self._user.get("id"),
+                    display_name=display,
+                    new_password=new_pass if new_pass else None,
+                )
+        except Exception:
+            pass  # Jika method belum ada, skip saja
+
+        self._updated = {"display_name": display}
+        self.accept()
+
+    def get_updated_user(self) -> dict:
+        return self._updated

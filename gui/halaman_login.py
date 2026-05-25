@@ -693,44 +693,23 @@ class HalamanLogin(QDialog):
         return lbl
 
     def _input_field(self, placeholder: str, icon: str = "", password: bool = False) -> QLineEdit:
-        container = QWidget()
-        row = QHBoxLayout(container)
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(0)
-
-
+        # Selalu kembalikan QLineEdit langsung (bukan container QWidget)
+        # agar layout.addWidget() dan .returnPressed.connect() tidak error.
         inp = QLineEdit()
         inp.setPlaceholderText(placeholder)
         inp.setFixedHeight(48)
         if password:
             inp.setEchoMode(QLineEdit.EchoMode.Password)
 
-        if password:
-            btn_eye = QPushButton("👁")
-            btn_eye.setFixedSize(32, 36)
-            btn_eye.setStyleSheet("border:none;background:transparent;font-size:14px;cursor:pointer;")
-            btn_eye.setCheckable(True)
-            def _toggle(checked, field=inp):
-                field.setEchoMode(
-                    QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password
-                )
-            btn_eye.toggled.connect(_toggle)
-            row.addWidget(inp)
-            row.addWidget(btn_eye)
-        else:
-            row.addWidget(inp)
-
-        # simpan referensi ke inp agar bisa di-akses dari luar
-        container._inp = inp
-
         padding_left = "38px" if icon else "14px"
+        padding_right = "44px" if password else "14px"
 
         inp.setStyleSheet(f"""
             QLineEdit {{
                 background: {C["input_bg"]};
                 border: 1.5px solid {C["border"]};
                 border-radius: 10px;
-                padding: 10px 14px 10px {padding_left};
+                padding: 10px {padding_right} 10px {padding_left};
                 font-size: 13px;
                 color: {C["text_dark"]};
             }}
@@ -748,6 +727,26 @@ class HalamanLogin(QDialog):
             icon_lbl.setStyleSheet("background: transparent; font-size: 14px;")
             icon_lbl.setGeometry(10, 14, 20, 20)
             icon_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+
+        if password:
+            btn_eye = QPushButton("👁", inp)
+            btn_eye.setFixedSize(32, 32)
+            btn_eye.setStyleSheet(
+                "border:none; background:transparent; font-size:14px; cursor:pointer;"
+            )
+            btn_eye.setCheckable(True)
+            def _toggle(checked, field=inp):
+                field.setEchoMode(
+                    QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password
+                )
+            btn_eye.toggled.connect(_toggle)
+            # Posisi tombol mata di kanan dalam input
+            inp.setTextMargins(0, 0, 36, 0)
+
+            def _reposition_eye(event=None, b=btn_eye, f=inp):
+                b.move(f.width() - 38, (f.height() - 32) // 2)
+
+            inp.resizeEvent = _reposition_eye
 
         return inp
 
