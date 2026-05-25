@@ -30,6 +30,8 @@ def main():
     icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gui", "assets", "images", "app_icon.ico")
     if os.path.exists(icon_path):
         app.setWindowIcon(QIcon(icon_path))
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("PokokNya.Bdg")
 
     # ── Inisialisasi database ─────────────────────────────────────────────
     db = DBManager()
