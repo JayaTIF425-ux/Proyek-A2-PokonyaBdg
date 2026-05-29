@@ -36,23 +36,30 @@ TARGET_STORE_KEYWORDS = ["JUNCTION", "SUMBER", "SARI"]
 TARGET_STORE_VERIFY  = "SUMBER"
 
 KATEGORI = [
-    ("telur",         "fresh-telur"),
-    ("daging_sapi",   "fresh-daging-dan-ayam-daging-sapi"),
-    ("daging_ayam",   "fresh-daging-dan-ayam-ayam-bebek"),
-    ("beras",         "makanan-bahan-masakan-beras"),
-    ("sayur_sayuran", "fresh-buah-sayur-sayursayuran"),
-    ("minyak_goreng", "makanan-bahan-masakan-cooking-oil"),
-    ("gula",          "makanan-bahan-masakan-gula"),
+    ("Telur Ayam",    "fresh-telur"),
+    ("Daging Sapi",   "fresh-daging-dan-ayam-daging-sapi"),
+    ("Daging Ayam",   "fresh-daging-dan-ayam-ayam-bebek"),
+    ("Beras",         "makanan-bahan-masakan-beras"),
+    ("Cabe",          "fresh-buah-sayur-sayursayuran"),
+    ("Bawang Merah",  "fresh-buah-sayur-sayursayuran"),
+    ("Bawang Putih",  "fresh-buah-sayur-sayursayuran"),
+    ("Cabai Merah",   "fresh-buah-sayur-sayursayuran"),
+    ("Cabai Rawit",   "fresh-buah-sayur-sayursayuran")
+    ("Minyak Goreng", "makanan-bahan-masakan-cooking-oil"),
+    ("Gula",          "makanan-bahan-masakan-gula"),
 ]
 
 KEYWORDS = {
-    "telur":         ["telur ayam", "telur"],
-    "daging_sapi":   ["sapi", "has dalam", "has luar", "sandung"],
-    "daging_ayam":   ["ayam", "fillet", "paha", "dada", "sayap"],
-    "beras":         ["beras"],
-    "sayur_sayuran": ["bawang putih", "bawang merah", "cabe", "cabai"],
-    "minyak_goreng": ["bimoli", "filma", "sania", "sunco", "tropical", "minyak goreng"],
-    "gula":          ["gula pasir", "gula merah", "gula aren", "gulaku"],
+    "Telur Ayam":         ["telur ayam", "omega", "dha", "kampoeng", "kampung"],
+    "Daging Sapi":   ["sapi", "has dalam", "has luar", "sandung"],
+    "Daging Ayam":   ["ayam", "fillet", "paha", "dada", "sayap"],
+    "Beras":         ["beras"],
+    "Bawang Putih": ["bawang putih"],
+    "Bawang Merah": ["bawang merah"],
+    "Cabai Merah": ["cabe merah", "cabai merah", "cabai keriting", "cabe keriting"],
+    "Cabai Rawit": ["cabe rawit", "cabai rawit", "rawit"],
+    "Minyak Goreng": ["bimoli", "filma", "sania", "sunco", "tropical", "minyak goreng"],
+    "Gula":          ["gula pasir", "gulaku", "gula putih"],
 }
 
 SCROLL_PAUSE              = 1.2

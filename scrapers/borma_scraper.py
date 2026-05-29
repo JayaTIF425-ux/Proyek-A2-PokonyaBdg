@@ -47,7 +47,7 @@ CABAI_KEYWORDS: dict[str, list[str]] = {
 }
 
 # Keyword untuk filter gula dari ID 95
-GULA_KEYWORDS: list[str] = ["gula pasir", "gula merah", "gula aren", "gulaku"]
+GULA_KEYWORDS: list[str] = ["gula pasir", "gulaku", "gula putih"]
 
 # Kata kunci yang menyebabkan produk di-skip (produk olahan/non-segar)
 NEGATIF = {
