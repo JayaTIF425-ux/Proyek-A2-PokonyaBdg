@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QCursor, QPixmap, QImage, QIntValidator
+from gui.components.icon_helper import apply_icon_to_label, get_icon_path, get_emoji
 import os
 import requests
 
@@ -54,6 +55,7 @@ class CalculatorCard(QFrame):
         harga_per_toko: dict[str, float],
         callback_update,
         gambar_url: str = "",
+        kategori: str = "",         
     ):
         super().__init__()
         self.nama = nama
@@ -62,6 +64,7 @@ class CalculatorCard(QFrame):
         self.callback = callback_update
         self.qty = 0
         self.gambar_url = gambar_url if isinstance(gambar_url, str) and gambar_url.strip() else ""
+        self.kategori = kategori 
 
         self.setFixedSize(230, 300)
         self.setStyleSheet("""
@@ -191,12 +194,24 @@ class CalculatorCard(QFrame):
         self._thread.start()
 
     def _tampilkan_placeholder(self):
-        self.lbl_gambar.setPixmap(QPixmap())
-        self.lbl_gambar.setStyleSheet(
-            "border: 2px dashed #ccc; border-radius: 10px;"
-            "background-color: #f5f5f5; color: #aaa; font-size: 11px;"
-        )
-        self.lbl_gambar.setText("No Image")
+        icon_path = get_icon_path(self.nama, self.kategori)
+        if icon_path:
+            from PyQt6.QtGui import QPixmap
+            from PyQt6.QtCore import Qt
+            pixmap = QPixmap(icon_path).scaled(
+                118, 118,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            self.lbl_gambar.setStyleSheet("border: none;")
+            self.lbl_gambar.setText("")
+            self.lbl_gambar.setPixmap(pixmap)
+        else:
+            self.lbl_gambar.setText(get_emoji(self.nama))
+            self.lbl_gambar.setStyleSheet(
+                "border: 2px dashed #ccc; border-radius: 10px;"
+                "background-color: #f5f5f5; color: #aaa; font-size: 28px;"
+            )
 
     def _tampilkan_gambar(self, pixmap: QPixmap):
         scaled = pixmap.scaled(

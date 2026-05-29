@@ -236,6 +236,7 @@ class HalamanPenghitung(QWidget):
                 harga_per_toko=info["harga_toko"],
                 callback_update=self._update_keranjang,
                 gambar_url=info.get("gambar_url"),
+                kategori=info.get("kategori", ""), 
             )
             self._semua_cards.append(card)
 
