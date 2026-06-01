@@ -80,7 +80,7 @@ class DBManager:
 
     def fetch_semua_produk_pihps(self) -> list[sqlite3.Row]:
         sql = """
-            SELECT komoditas, harga, 'PIHPS Bandung' AS toko, tanggal
+            SELECT komoditas, harga, 'PIHPS Nasional' AS toko, tanggal
             FROM harga_pangan
             WHERE (komoditas, tanggal) IN (
                 SELECT komoditas, MAX(tanggal) FROM harga_pangan GROUP BY komoditas
@@ -94,7 +94,7 @@ class DBManager:
         if jenis_pasar == "semua":
             sql = """
                 SELECT komoditas, AVG(harga) AS harga,
-                       'PIHPS Bandung' AS toko, MAX(tanggal) AS tanggal
+                       'PIHPS Nasional' AS toko, MAX(tanggal) AS tanggal
                 FROM harga_pangan
                 WHERE (komoditas, jenis_pasar, tanggal) IN (
                     SELECT komoditas, jenis_pasar, MAX(tanggal)
@@ -109,7 +109,7 @@ class DBManager:
         else:
             sql = """
                 SELECT komoditas, harga, jenis_pasar,
-                    'PIHPS Bandung' AS toko, tanggal
+                    'PIHPS Nasional' AS toko, tanggal
                 FROM harga_pangan
                 WHERE jenis_pasar = ?
                 AND (komoditas, tanggal) IN (
@@ -118,6 +118,7 @@ class DBManager:
                     WHERE jenis_pasar = ?
                     GROUP BY komoditas
                 )
+                GROUP BY komoditas
                 ORDER BY komoditas
             """
             with self._connect() as conn:
@@ -313,13 +314,16 @@ class DBManager:
                 'pihps' AS sumber
             FROM harga_pangan
             WHERE komoditas LIKE ?
+            AND jenis_pasar = 'tradisional'
             {exclude_clause_pihps}
             AND (komoditas, tanggal) IN (
                 SELECT komoditas, MAX(tanggal) FROM harga_pangan
                 WHERE komoditas LIKE ?
+                AND jenis_pasar = 'tradisional'
                 {exclude_clause_pihps}
                 GROUP BY komoditas
             )
+            GROUP BY komoditas
         """
         with self._connect() as conn:
             hasil_toko  = conn.execute(sql_toko, (kw,)).fetchall()

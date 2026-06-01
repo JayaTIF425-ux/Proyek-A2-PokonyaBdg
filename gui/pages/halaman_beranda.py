@@ -153,7 +153,7 @@ class HalamanBeranda(QWidget):
 
         jenis = self._get_jenis_pasar()
         sumber = {
-            "semua":       "PIHPS Bandung — Tradisional & Modern",
+            "semua":       "PIHPS Bandung — Pasar Tradisional & Modern",
             "tradisional": "PIHPS Bandung — Pasar Tradisional",
             "modern":      "PIHPS Bandung — Pasar Modern",
         }.get(jenis, "PIHPS Bandung")

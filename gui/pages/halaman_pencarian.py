@@ -268,6 +268,8 @@ class SemuaDataWorker(QThread):
 # ── Mapping keyword ────────────────────────────────────────────────────────
 
 KEYWORD_MAP = {
+    "telur":        ("telur",        ""),
+
     "bawang merah": ("bawang merah", ""),
     "bawang putih": ("bawang putih", ""),
     "cabai merah":  ("cabai merah",  ""),
@@ -276,7 +278,6 @@ KEYWORD_MAP = {
     "ayam":         ("ayam",         "telur beras"),  
     "daging sapi":  ("sapi",         ""),
     "sapi":         ("sapi",         ""),
-    "telur":        ("telur",        ""),
     "beras":        ("beras",        ""),
     "minyak":       ("minyak",       ""),
     "gula":         ("gula",         ""),
@@ -284,6 +285,9 @@ KEYWORD_MAP = {
 
 def petakan_keyword(nama_komoditas: str) -> tuple[str, str]:
     nama_lower = nama_komoditas.lower()
+    if "telur" in nama_lower:
+        return ("telur", "")
+    
     for kunci, nilai in KEYWORD_MAP.items():
         if kunci in nama_lower:
             return nilai  # (keyword, exclude)
