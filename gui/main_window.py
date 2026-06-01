@@ -8,9 +8,10 @@ from PyQt6.QtWidgets import (
     QFrame, QLabel, QPushButton, QStackedWidget, QSizePolicy
 )
 from PyQt6.QtCore import Qt, QByteArray, pyqtSignal
-from PyQt6.QtGui import QFont, QIcon, QPixmap
+from PyQt6.QtGui import QFont, QIcon, QPixmap, QPainter
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtGui import QPainter
+import os
 
 from gui.pages.halaman_beranda import HalamanBeranda
 from gui.pages.halaman_pencarian import HalamanPencarian
@@ -114,6 +115,9 @@ class MainWindow(QMainWindow):
         self.is_admin = self.current_user.get("role") == "admin"
 
         self.setWindowTitle("PokokNya.Bdg — Harga Bahan Pokok Bandung")
+        icon_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "gui", "assets", "images", "logo_app.png")
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
         self.resize(1200, 800)
         self.setMinimumSize(900, 600)
         self._sidebar_expanded = True
@@ -160,15 +164,11 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 20)
         layout.setSpacing(4)
 
-        # Baris brand + tombol collapse 
+        # Baris brand + tombol collapse
         brand_row = QHBoxLayout()
-        brand_row.setContentsMargins(20, 24, 8, 0)
+        brand_row.setContentsMargins(12, 16, 8, 0)
 
-        self.lbl_brand = QLabel("PokokNya")
-        self.lbl_brand.setStyleSheet(
-            f"color: {self.WARNA_AKSEN}; font-size: 22px; font-weight: bold;"
-        )
-
+        # Buat btn_collapse DULU sebelum brand_row.addWidget
         self.btn_collapse = QPushButton("◀")
         self.btn_collapse.setFixedSize(28, 28)
         self.btn_collapse.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -176,7 +176,7 @@ class MainWindow(QMainWindow):
         self.btn_collapse.setStyleSheet(f"""
             QPushButton {{
                 background-color: {self.WARNA_AKTIF};
-                color: {self.WARNA_AKSEN};
+                color: white;
                 border: none;
                 border-radius: 14px;
                 font-size: 12px;
@@ -186,16 +186,48 @@ class MainWindow(QMainWindow):
         """)
         self.btn_collapse.clicked.connect(self._toggle_sidebar)
 
+        # Logo bulat
+        BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        logo_path = os.path.join(BASE_DIR, "gui", "assets", "images", "logo_app.png")
+        self.lbl_logo = QLabel()
+        pixmap = QPixmap(logo_path)
+        if not pixmap.isNull():
+            pixmap = pixmap.scaled(48, 48, Qt.AspectRatioMode.KeepAspectRatio,
+                                Qt.TransformationMode.SmoothTransformation)
+            rounded = QPixmap(48, 48)
+            rounded.fill(Qt.GlobalColor.transparent)
+            painter = QPainter(rounded)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            from PyQt6.QtGui import QBrush
+            from PyQt6.QtCore import QRect
+            painter.setBrush(QBrush(pixmap))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawEllipse(QRect(0, 0, 48, 48))
+            painter.end()
+            self.lbl_logo.setPixmap(rounded)
+        self.lbl_logo.setFixedSize(48, 48)
+
+        # Teks brand
+        brand_teks = QVBoxLayout()
+        brand_teks.setSpacing(0)
+        self.lbl_brand = QLabel("PokokNya.Bdg")
+        self.lbl_brand.setStyleSheet(
+            "color: #6B8E23; font-size: 16px; font-weight: bold;"
+        )
+        brand_teks.addWidget(self.lbl_brand)
+
+        brand_row.addWidget(self.lbl_logo)
+        brand_row.addSpacing(6)
+        brand_row.addLayout(brand_teks)
+        brand_row.addStretch()
+        brand_row.addWidget(self.btn_collapse)
+        layout.addLayout(brand_row)
+        layout.addSpacing(8)
+
         brand_row.addWidget(self.lbl_brand)
         brand_row.addStretch()
         brand_row.addWidget(self.btn_collapse)
         layout.addLayout(brand_row)
-
-        self.lbl_sub = QLabel(".Bdg")
-        self.lbl_sub.setStyleSheet(
-            f"color: {self.WARNA_TEKS}; font-size: 13px; padding: 0 20px 10px 20px;"
-        )
-        layout.addWidget(self.lbl_sub)
 
         # Info user yang login 
         username = self.current_user.get("username", "guest")
@@ -335,8 +367,8 @@ class MainWindow(QMainWindow):
 
         if self._sidebar_expanded:
             self.sidebar.setFixedWidth(self.LEBAR_EXPANDED)
+            self.lbl_logo.setVisible(True)
             self.lbl_brand.setVisible(True)
-            self.lbl_sub.setVisible(True)
             self.lbl_user_info.setVisible(True)
             self.btn_collapse.setText("◀")
             self.btn_collapse.setToolTip("Sembunyikan sidebar")
@@ -345,8 +377,8 @@ class MainWindow(QMainWindow):
             self.btn_logout.setText("Keluar")
         else:
             self.sidebar.setFixedWidth(self.LEBAR_COLLAPSED)
+            self.lbl_logo.setVisible(False)
             self.lbl_brand.setVisible(False)
-            self.lbl_sub.setVisible(False)
             self.lbl_user_info.setVisible(False)
             self.btn_collapse.setText("▶")
             self.btn_collapse.setToolTip("Tampilkan sidebar")
