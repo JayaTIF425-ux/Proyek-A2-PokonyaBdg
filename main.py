@@ -27,7 +27,7 @@ def main():
     app.setOrganizationName("POLBAN Informatika")
 
     # ── Icon aplikasi (taskbar & title bar) ──────────────────────────────
-    icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gui", "assets", "images", "app_icon.ico")
+    icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gui", "assets", "images", "logo_app.png")
     if os.path.exists(icon_path):
         app.setWindowIcon(QIcon(icon_path))
         import ctypes

@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QPixmap
+from gui.components.icon_helper import apply_icon_to_label
 import urllib.request
 import os
 
@@ -67,9 +68,7 @@ class SearchCard(QFrame):
         if self.thumbnail_url:
             self._load_gambar(self.thumbnail_url)
         else:
-            emoji = "🌾" if self.sumber == "pihps" else "🛒"
-            self.lbl_gambar.setText(emoji)
-            self.lbl_gambar.setStyleSheet(self.lbl_gambar.styleSheet() + "font-size: 28px;")
+            apply_icon_to_label(self.lbl_gambar, self.nama, kategori=self.kategori)
 
         layout.addWidget(self.lbl_gambar)
 
@@ -79,7 +78,7 @@ class SearchCard(QFrame):
         info_layout.setSpacing(3)
 
         badge_warna = "#27AE60" if self.sumber == "pihps" else "#2980b9"
-        badge_teks  = "PIHPS Nasional" if self.sumber == "pihps" else "Supermarket"
+        badge_teks  = "Pasar Tradisional" if self.sumber == "pihps" else "Supermarket"
         lbl_badge = QLabel(badge_teks)
         lbl_badge.setFixedWidth(90)
         lbl_badge.setStyleSheet(

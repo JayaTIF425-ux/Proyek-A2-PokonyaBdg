@@ -248,14 +248,14 @@ class DialogFormProduk(QDialog):
 class CariWorker(QThread):
     selesai = pyqtSignal(list)
 
-    def __init__(self, keyword: str):
+    def __init__(self, keyword: str, exclude: str = ""):
         super().__init__()
         self.keyword = keyword
+        self.exclude = exclude
 
     def run(self):
-        data = DBManager().cari_produk_dengan_id(self.keyword)
+        data = DBManager().cari_produk_dengan_id(self.keyword, exclude=self.exclude)
         self.selesai.emit(list(data))
-
 
 class SemuaDataWorker(QThread):
     selesai = pyqtSignal(list)
@@ -268,26 +268,30 @@ class SemuaDataWorker(QThread):
 # ── Mapping keyword ────────────────────────────────────────────────────────
 
 KEYWORD_MAP = {
-    "bawang merah": "bawang merah",
-    "bawang putih": "bawang putih",
-    "cabai merah":  "cabai merah",
-    "cabai rawit":  "cabai rawit",
-    "daging ayam":  "ayam",
-    "ayam":         "ayam",
-    "daging sapi":  "sapi",
-    "sapi":         "sapi",
-    "telur":        "telur",
-    "beras":        "beras",
-    "minyak":       "minyak",
-    "gula":         "gula",
+    "telur":        ("telur",        ""),
+
+    "bawang merah": ("bawang merah", ""),
+    "bawang putih": ("bawang putih", ""),
+    "cabai merah":  ("cabai merah",  ""),
+    "cabai rawit":  ("cabai rawit",  ""),
+    "daging ayam":  ("ayam",         "telur beras"),  # ← exclude telur
+    "ayam":         ("ayam",         "telur beras"),  
+    "daging sapi":  ("sapi",         ""),
+    "sapi":         ("sapi",         ""),
+    "beras":        ("beras",        ""),
+    "minyak":       ("minyak",       ""),
+    "gula":         ("gula",         ""),
 }
 
-def petakan_keyword(nama_komoditas: str) -> str:
+def petakan_keyword(nama_komoditas: str) -> tuple[str, str]:
     nama_lower = nama_komoditas.lower()
-    for kunci, keyword in KEYWORD_MAP.items():
+    if "telur" in nama_lower:
+        return ("telur", "")
+    
+    for kunci, nilai in KEYWORD_MAP.items():
         if kunci in nama_lower:
-            return keyword
-    return nama_lower # ← kirim semua keyword yang diketik user
+            return nilai  # (keyword, exclude)
+    return (nama_komoditas.split()[0].lower(), "")
 
 
 # ── Widget Statistik ───────────────────────────────────────────────────────
@@ -450,15 +454,14 @@ class HalamanPencarian(QWidget):
 
     # ── Pencarian ──────────────────────────────────────────────────────
 
-    def _cari(self):
+    def _cari(self, exclude: str = ""):
         keyword = self.input_cari.text().strip()
         if not keyword:
             QMessageBox.information(self, "Info", "Masukkan kata kunci terlebih dahulu.")
             return
-        self._keyword_terakhir = keyword
         self.loading.show()
         self._bersihkan_grid()
-        self.worker = CariWorker(keyword)
+        self.worker = CariWorker(keyword, exclude=exclude)
         self.worker.selesai.connect(self._tampilkan_hasil)
         self.worker.start()
 
@@ -627,6 +630,6 @@ class HalamanPencarian(QWidget):
                 w.setParent(None)
 
     def set_keyword_dan_cari(self, nama_komoditas: str):
-        keyword = petakan_keyword(nama_komoditas)
+        keyword, exclude = petakan_keyword(nama_komoditas)
         self.input_cari.setText(keyword)
-        self._cari()
+        self._cari(exclude=exclude)
