@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QFrame, QLabel, QPushButton, QStackedWidget, QSizePolicy
 )
-from PyQt6.QtCore import Qt, QByteArray, pyqtSignal
+from PyQt6.QtCore import QSize, Qt, QByteArray, pyqtSignal, QRectF
 from PyQt6.QtGui import QFont, QIcon, QPixmap, QPainter
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtGui import QPainter
@@ -25,11 +25,17 @@ from gui.pages.halaman_admin import HalamanAdmin
 
 def _svg_to_icon(svg_str: str, size: int = 20) -> QIcon:
     """Render SVG string menjadi QIcon berukuran size×size px."""
-    renderer = QSvgRenderer(QByteArray(svg_str.encode()))
+    ba = QByteArray(svg_str.strip().encode('utf-8'))
+    renderer = QSvgRenderer(ba)
+
+    ukuran_master = 64
     pixmap = QPixmap(size, size)
     pixmap.fill(Qt.GlobalColor.transparent)
+    
     painter = QPainter(pixmap)
-    renderer.render(painter)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+    renderer.render(painter, QRectF(0, 0, size, size))
     painter.end()
     return QIcon(pixmap)
 
@@ -38,14 +44,14 @@ def _svg_to_icon(svg_str: str, size: int = 20) -> QIcon:
 
 _IKON = {
     "beranda": """
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
      stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/>
   <path d="M9 21V12h6v9"/>
 </svg>""",
 
     "pencarian": """
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
      stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <circle cx="10" cy="10" r="6"/>
   <line x1="14.5" y1="14.5" x2="21" y2="21"/>
@@ -54,7 +60,7 @@ _IKON = {
 </svg>""",
 
     "penghitung": """
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
      stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <path d="M6 2h12a1 1 0 0 1 1 1v3H5V3a1 1 0 0 1 1-1z"/>
   <path d="M5 6h14l-1.5 14H6.5L5 6z"/>
@@ -64,14 +70,14 @@ _IKON = {
 </svg>""",
 
     "tutorial": """
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
      stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <rect x="3" y="3" width="18" height="18" rx="2"/>
   <polygon points="9,8 17,12 9,16" fill="white" stroke="none"/>
 </svg>""",
 
     "tentang": """
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
      stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <circle cx="12" cy="12" r="9"/>
   <line x1="12" y1="8" x2="12" y2="8.5" stroke-width="2.5"/>
@@ -79,7 +85,7 @@ _IKON = {
 </svg>""",
 
     "admin": """
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
      stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <circle cx="12" cy="8" r="4"/>
   <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
@@ -87,14 +93,13 @@ _IKON = {
 </svg>""",
 
     "logout": """
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
      stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
   <polyline points="16 17 21 12 16 7"/>
   <line x1="21" y1="12" x2="9" y2="12"/>
 </svg>""",
 }
-
 
 class MainWindow(QMainWindow):
     """Jendela utama dengan sidebar collapsible + konten stacked."""
@@ -224,27 +229,62 @@ class MainWindow(QMainWindow):
         layout.addLayout(brand_row)
         layout.addSpacing(8)
 
-        brand_row.addWidget(self.lbl_brand)
-        brand_row.addStretch()
-        brand_row.addWidget(self.btn_collapse)
-        layout.addLayout(brand_row)
-
         # Info user yang login 
         username = self.current_user.get("username", "guest")
         role     = self.current_user.get("role", "user")
-        badge    = "🔑 Admin" if role == "admin" else "👤 User"
+        badge    = "Admin" if role == "admin" else "User"
 
-        self.lbl_user_info = QLabel(f"{badge}\n{username}")
-        self.lbl_user_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl_user_info.setStyleSheet(f"""
+        self.user_frame = QFrame()
+        self.user_frame.setStyleSheet("""
+            QFrame#userFrame {
+                background: rgba(255,255,255,0.08);
+                border-radius: 6px;
+            }
+        """)
+        self.user_frame.setObjectName("userFrame")  # ← pakai objectName agar selector spesifik
+
+        # Atur margin lewat layout, bukan stylesheet
+        user_layout = QHBoxLayout(self.user_frame)
+        user_layout.setContentsMargins(8, 8, 8, 8)
+        user_layout.setSpacing(8)
+        user_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Tambah margin dari luar lewat parent layout
+        layout.addSpacing(0)
+        layout.addWidget(self.user_frame)
+        # Ganti addWidget dengan ini agar ada margin kiri-kanan:
+        layout.setContentsMargins(0, 0, 0, 20)
+
+        # SVG user icon
+        svg_user = """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F1C40F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.925 20.056a6 6 0 0 0-11.851.001"/><circle cx="12" cy="11" r="4"/><circle cx="12" cy="12" r="10"/></svg>"""
+
+        renderer = QSvgRenderer(QByteArray(svg_user.encode()))
+        pm = QPixmap(18, 18)
+        pm.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pm)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        renderer.render(painter, QRectF(0, 0, 18, 18))
+        painter.end()
+
+        lbl_ikon = QLabel()
+        lbl_ikon.setFixedSize(18, 18)
+        lbl_ikon.setPixmap(pm)
+        lbl_ikon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_ikon.setStyleSheet("border: none; background: transparent;")
+        
+        self.lbl_user_teks = QLabel(f"{badge}\n{username}")
+        self.lbl_user_teks.setStyleSheet(f"""
             color: {self.WARNA_AKSEN};
             font-size: 11px;
-            background: rgba(255,255,255,0.08);
-            border-radius: 6px;
-            padding: 6px 10px;
-            margin: 0 12px 8px 12px;
+            font-weight: bold;
+            border: none;
+            background: transparent;
         """)
-        layout.addWidget(self.lbl_user_info)
+        self.lbl_user_teks.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        user_layout.addWidget(lbl_ikon)
+        user_layout.addWidget(self.lbl_user_teks)
+        layout.addWidget(self.user_frame)
 
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
@@ -324,8 +364,9 @@ class MainWindow(QMainWindow):
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         if ikon_key in _IKON:
+            icon_master = _svg_to_icon(_IKON[ikon_key])
             btn.setIcon(_svg_to_icon(_IKON[ikon_key], size=20))
-            btn.setIconSize(QPixmap(20, 20).size())
+            btn.setIconSize(QSize(20, 20))
 
         warna_teks = self.WARNA_AKSEN if aksen else self.WARNA_TEKS
         btn.setStyleSheet(f"""
@@ -333,7 +374,7 @@ class MainWindow(QMainWindow):
                 background-color: transparent;
                 color: {warna_teks};
                 text-align: left;
-                padding: 12px 20px;
+                padding: 12px 10px;
                 border: none;
                 border-left: 4px solid transparent;
                 font-size: 14px;
@@ -369,19 +410,22 @@ class MainWindow(QMainWindow):
             self.sidebar.setFixedWidth(self.LEBAR_EXPANDED)
             self.lbl_logo.setVisible(True)
             self.lbl_brand.setVisible(True)
-            self.lbl_user_info.setVisible(True)
+            self.user_frame.setVisible(True)
             self.btn_collapse.setText("◀")
             self.btn_collapse.setToolTip("Sembunyikan sidebar")
+
             for btn, teks in zip(self.menu_buttons, _teks_menu):
                 btn.setText(teks)
+                btn.setToolTip("")
             self.btn_logout.setText("Keluar")
         else:
             self.sidebar.setFixedWidth(self.LEBAR_COLLAPSED)
             self.lbl_logo.setVisible(False)
             self.lbl_brand.setVisible(False)
-            self.lbl_user_info.setVisible(False)
+            self.user_frame.setVisible(False)
             self.btn_collapse.setText("▶")
             self.btn_collapse.setToolTip("Tampilkan sidebar")
+            
             for btn, tip in zip(self.menu_buttons, _teks_menu):
                 btn.setToolTip(tip)
                 btn.setText("")
