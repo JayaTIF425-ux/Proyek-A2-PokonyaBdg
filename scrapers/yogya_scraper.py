@@ -44,7 +44,7 @@ KATEGORI = [
     ("Bawang Merah",  "fresh-buah-sayur-sayursayuran"),
     ("Bawang Putih",  "fresh-buah-sayur-sayursayuran"),
     ("Cabai Merah",   "fresh-buah-sayur-sayursayuran"),
-    ("Cabai Rawit",   "fresh-buah-sayur-sayursayuran")
+    ("Cabai Rawit",   "fresh-buah-sayur-sayursayuran"),
     ("Minyak Goreng", "makanan-bahan-masakan-cooking-oil"),
     ("Gula",          "makanan-bahan-masakan-gula"),
 ]

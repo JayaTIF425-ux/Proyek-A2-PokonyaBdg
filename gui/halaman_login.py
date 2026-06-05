@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import (
     Qt, pyqtSignal, QSize, QPropertyAnimation,
-    QEasingCurve, QTimer, QRect, QPoint
+    QEasingCurve, QTimer, QRect, QPoint, QByteArray
 )
 from PyQt6.QtGui import (
     QPixmap, QIcon, QFont, QColor, QPainter,
@@ -27,6 +27,19 @@ from PyQt6.QtGui import (
 
 from database.auth_manager import AuthManager
 
+_SVG_ICONS = {
+    "email": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+        viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/>
+        <rect x="2" y="4" width="20" height="16" rx="2"/></svg>""",
+    "key": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+        viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="16" r="1"/>
+        <rect x="3" y="10" width="18" height="12" rx="2"/>
+        <path d="M7 10V7a5 5 0 0 1 10 0v3"/></svg>""",
+}
 
 # ── Path helper ───────────────────────────────────────────────────────────────
 
@@ -431,7 +444,7 @@ class HalamanLogin(QDialog):
         # Email
         layout.addWidget(self._label_field("Alamat Email"))
         layout.addSpacing(6)
-        self.inp_email_login = self._input_field("you@example.com", icon="✉")
+        self.inp_email_login = self._input_field("you@example.com", icon="email")
         self.inp_email_login.returnPressed.connect(self._aksi_login)
         layout.addWidget(self.inp_email_login)
         layout.addSpacing(14)
@@ -439,7 +452,7 @@ class HalamanLogin(QDialog):
         # Password
         layout.addWidget(self._label_field("Kata Sandi"))
         layout.addSpacing(6)
-        self.inp_pass_login = self._input_field("Masukkan kata sandi", icon="🔒", password=True)
+        self.inp_pass_login  = self._input_field("Masukkan kata sandi", icon="key", password=True)
         layout.addWidget(self.inp_pass_login)
         self.inp_pass_login.returnPressed.connect(self._aksi_login)
         layout.addSpacing(20)
@@ -515,14 +528,14 @@ class HalamanLogin(QDialog):
         # Email
         layout.addWidget(self._label_field("Alamat Email"))
         layout.addSpacing(6)
-        self.inp_email_daftar = self._input_field("you@example.com", icon="✉")
+        self.inp_email_daftar = self._input_field("you@example.com", icon="email")
         layout.addWidget(self.inp_email_daftar)
         layout.addSpacing(14)
 
         # Password
         layout.addWidget(self._label_field("Kata Sandi"))
         layout.addSpacing(6)
-        self.inp_pass_daftar = self._input_field("Masukkan kata sandi", icon="🔒", password=True)
+        self.inp_pass_daftar = self._input_field("Masukkan kata sandi", icon="key", password=True)
         self.inp_pass_daftar.returnPressed.connect(self._aksi_daftar)
         layout.addWidget(self.inp_pass_daftar)
         layout.addSpacing(20)
@@ -722,11 +735,28 @@ class HalamanLogin(QDialog):
         """)
 
         if icon:
-            icon_lbl = QLabel(icon, inp)
-            icon_lbl.setStyleSheet("background: transparent; font-size: 14px;")
-            icon_lbl.setGeometry(10, 14, 20, 20)
-            icon_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-
+            svg_str = _SVG_ICONS.get(icon)
+            if svg_str:
+                # Render SVG
+                from PyQt6.QtSvg import QSvgRenderer
+                renderer = QSvgRenderer(QByteArray(svg_str.encode()))
+                pixmap   = QPixmap(18, 18)
+                pixmap.fill(Qt.GlobalColor.transparent)
+                painter  = QPainter(pixmap)
+                renderer.render(painter)
+                painter.end()
+                icon_lbl = QLabel(inp)
+                icon_lbl.setPixmap(pixmap)
+                icon_lbl.setStyleSheet("background: transparent;")
+                icon_lbl.setGeometry(12, 15, 18, 18)
+                icon_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+            else:
+                # Fallback emoji lama
+                icon_lbl = QLabel(icon, inp)
+                icon_lbl.setStyleSheet("background: transparent; font-size: 14px;")
+                icon_lbl.setGeometry(10, 14, 20, 20)
+                icon_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+                
         return inp
 
     def _btn_utama(self, teks: str) -> QPushButton:
