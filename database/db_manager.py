@@ -193,17 +193,40 @@ class DBManager:
 
     # ── Query: Tren Harga ───────────────────────────────────────────────
 
-    def fetch_tren_harga(self, komoditas: str, hari: int = 999) -> list[sqlite3.Row]:
-        sql = """
-            SELECT tanggal, ROUND(AVG(harga), 0) AS harga
-            FROM harga_pangan
-            WHERE komoditas LIKE ?
-              AND tanggal >= date('now', ? || ' days')
-            GROUP BY tanggal
-            ORDER BY tanggal ASC
+    def fetch_tren_harga(self, komoditas: str, hari: int = 999,
+                         jenis_pasar: str = "semua") -> list[sqlite3.Row]:
         """
+        Ambil tren harga untuk satu komoditas.
+
+        Parameters
+        ----------
+        komoditas   : nama komoditas (fuzzy match via LIKE)
+        hari        : berapa hari ke belakang (default: semua)
+        jenis_pasar : 'tradisional', 'modern', atau 'semua' (default)
+        """
+        if jenis_pasar == "semua":
+            sql = """
+                SELECT tanggal, ROUND(AVG(harga), 0) AS harga
+                FROM harga_pangan
+                WHERE komoditas LIKE ?
+                  AND tanggal >= date('now', ? || ' days')
+                GROUP BY tanggal
+                ORDER BY tanggal ASC
+            """
+            params = (f"%{komoditas}%", f"-{hari}")
+        else:
+            sql = """
+                SELECT tanggal, ROUND(AVG(harga), 0) AS harga
+                FROM harga_pangan
+                WHERE komoditas LIKE ?
+                  AND jenis_pasar = ?
+                  AND tanggal >= date('now', ? || ' days')
+                GROUP BY tanggal
+                ORDER BY tanggal ASC
+            """
+            params = (f"%{komoditas}%", jenis_pasar, f"-{hari}")
         with self._connect() as conn:
-            return conn.execute(sql, (f"%{komoditas}%", f"-{hari}")).fetchall()
+            return conn.execute(sql, params).fetchall()
 
     # ── Insert: Dari Scraper ────────────────────────────────────────────
 

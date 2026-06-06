@@ -167,7 +167,7 @@ class HalamanPenghitung(QWidget):
         baris1.addWidget(self.refresh_bar)
         layout_kanan.addLayout(baris1)
 
-        # ── Baris 2: Filter + Refresh + Update ───────────────────────────
+        # ── Baris 2: Filter teks + Refresh + Update ──────────────────────
         baris2 = QHBoxLayout()
         baris2.setSpacing(8)
 
@@ -189,6 +189,58 @@ class HalamanPenghitung(QWidget):
         baris2.addWidget(btn_refresh2)
         baris2.addWidget(btn_update2)
         layout_kanan.addLayout(baris2)
+
+        # ── Baris 3: Filter Kategori ───────────────────────────────────────
+        from PyQt6.QtWidgets import QComboBox
+        baris3 = QHBoxLayout()
+        baris3.setSpacing(8)
+
+        lbl_kat = QLabel("Kategori:")
+        lbl_kat.setStyleSheet("font-size: 12px; color: #555;")
+        baris3.addWidget(lbl_kat)
+
+        self.combo_kat = QComboBox()
+        self.combo_kat.addItem("Semua Kategori")
+        self.combo_kat.setFixedWidth(180)
+        self.combo_kat.setStyleSheet("""
+            QComboBox {
+                padding: 4px 8px; border: 1px solid #ccc;
+                border-radius: 5px; background: white;
+                color: #333; font-size: 12px;
+            }
+            QComboBox QAbstractItemView {
+                background: white; color: #333;
+                selection-background-color: #6B8E23; selection-color: white;
+            }
+        """)
+        self.combo_kat.currentIndexChanged.connect(self._filter_produk_by_all)
+        baris3.addWidget(self.combo_kat)
+
+        # Urutan harga
+        lbl_urut = QLabel("Urutan:")
+        lbl_urut.setStyleSheet("font-size: 12px; color: #555;")
+        baris3.addWidget(lbl_urut)
+
+        self.combo_urut_kal = QComboBox()
+        self.combo_urut_kal.addItems(["Default", "Termurah", "Termahal", "Nama A-Z"])
+        self.combo_urut_kal.setFixedWidth(120)
+        self.combo_urut_kal.setStyleSheet("""
+            QComboBox {
+                padding: 4px 8px; border: 1px solid #ccc;
+                border-radius: 5px; background: white;
+                color: #333; font-size: 12px;
+            }
+            QComboBox QAbstractItemView {
+                background: white; color: #333;
+                selection-background-color: #6B8E23; selection-color: white;
+            }
+        """)
+        self.combo_urut_kal.currentIndexChanged.connect(self._filter_produk_by_all)
+        baris3.addWidget(self.combo_urut_kal)
+
+        baris3.addStretch()
+        layout_kanan.addLayout(baris3)
+        # ──────────────────────────────────────────────────────────────────
 
         self.loading_kanan = LoadingWidget("Memuat produk...")
         layout_kanan.addWidget(self.loading_kanan)
@@ -258,6 +310,19 @@ class HalamanPenghitung(QWidget):
             self._semua_cards.append(card)
 
         self._susun_grid_produk(self._semua_cards, kolom=2)
+
+        # ── Isi combo kategori dari data yang baru dimuat ──────────────────
+        daftar_kat = sorted({
+            info["kategori"]
+            for info in produk_dict.values()
+            if info.get("kategori")
+        })
+        self.combo_kat.blockSignals(True)
+        self.combo_kat.clear()
+        self.combo_kat.addItem("Semua Kategori")
+        for k in daftar_kat:
+            self.combo_kat.addItem(k)
+        self.combo_kat.blockSignals(False)
 
     # ── Grid Produk ───────────────────────────────────────────────────────
 
@@ -340,11 +405,32 @@ class HalamanPenghitung(QWidget):
 
     # ── Filter ────────────────────────────────────────────────────────────
 
-    def _filter_produk(self, keyword: str):
-        kw = keyword.lower().strip()
-        if not kw:
-            hasil = self._semua_cards
-        else:
-            hasil = [card for card in self._semua_cards if kw in card.nama.lower()]
+    def _filter_produk(self, keyword: str = ""):
+        """Filter berdasarkan teks — trigger dari input_filter."""
+        self._filter_produk_by_all()
+
+    def _filter_produk_by_all(self):
+        """Filter & urutkan berdasarkan teks + kategori + urutan."""
+        kw      = self.input_filter.text().lower().strip()
+        kat     = self.combo_kat.currentText()
+        urutan  = self.combo_urut_kal.currentText()
+
+        hasil = list(self._semua_cards)
+
+        # Filter teks
+        if kw:
+            hasil = [c for c in hasil if kw in c.nama.lower()]
+
+        # Filter kategori
+        if kat and kat != "Semua Kategori":
+            hasil = [c for c in hasil if (c.kategori or "").lower() == kat.lower()]
+
+        # Urutan
+        if urutan == "Termurah":
+            hasil.sort(key=lambda c: c.harga)
+        elif urutan == "Termahal":
+            hasil.sort(key=lambda c: c.harga, reverse=True)
+        elif urutan == "Nama A-Z":
+            hasil.sort(key=lambda c: c.nama.lower())
 
         self._susun_grid_produk(hasil, kolom=2)
