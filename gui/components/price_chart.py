@@ -1,6 +1,7 @@
 """
 gui/components/price_chart.py — Komponen grafik tren harga.
-Embed matplotlib ke PyQt6, data dari fetch_tren_harga() di DBManager.
+Embed matplotlib ke PyQt6, data dari fetch_tren_harga_by_pasar() di DBManager.
+Mendukung tampilan: Semua (dua garis), Tradisional, atau Modern saja.
 """
 
 from PyQt6.QtWidgets import (
@@ -20,37 +21,57 @@ from datetime import datetime
 from database.db_manager import DBManager
 
 
-# Worker Thread
+# ── Worker Thread ──────────────────────────────────────────────────────────────
 
 class TrenWorker(QThread):
-    """Ambil data tren di background agar UI tidak freeze."""
-    selesai = pyqtSignal(list, str)
+    """Ambil data tren tradisional DAN modern di background."""
+    selesai = pyqtSignal(list, list, str)   # (data_t, data_m, komoditas)
 
-    def __init__(self, komoditas: str, hari: int = 30):
+    def __init__(self, komoditas: str, jenis_pasar: str = "semua", hari: int = 30):
         super().__init__()
-        self.komoditas = komoditas
-        self.hari      = hari
+        self.komoditas   = komoditas
+        self.jenis_pasar = jenis_pasar
+        self.hari        = hari
 
     def run(self):
         try:
-            data = DBManager().fetch_tren_harga(self.komoditas, self.hari)
-            self.selesai.emit(list(data), self.komoditas)
+            db = DBManager()
+            if self.jenis_pasar == "semua":
+                data_t = list(db.fetch_tren_harga_by_pasar(
+                    self.komoditas, "tradisional", self.hari))
+                data_m = list(db.fetch_tren_harga_by_pasar(
+                    self.komoditas, "modern", self.hari))
+            elif self.jenis_pasar == "tradisional":
+                data_t = list(db.fetch_tren_harga_by_pasar(
+                    self.komoditas, "tradisional", self.hari))
+                data_m = []
+            else:  # modern
+                data_t = []
+                data_m = list(db.fetch_tren_harga_by_pasar(
+                    self.komoditas, "modern", self.hari))
+            self.selesai.emit(data_t, data_m, self.komoditas)
         except Exception as e:
             print(f"[TrenWorker] Error: {e}")
-            self.selesai.emit([], self.komoditas)
+            self.selesai.emit([], [], self.komoditas)
 
 
-# Canvas Matplotlib 
+# ── Canvas Matplotlib ──────────────────────────────────────────────────────────
 
 class GrafikCanvas(FigureCanvas):
     """Canvas matplotlib yang di-embed di PyQt6."""
 
-    # Warna sesuai tema PokokNya.Bdg
-    WARNA_GARIS  = "#6B1423"   # maroon
-    WARNA_AREA   = "#6B1423"
-    WARNA_TITIK  = "#D4A017"   # kuning emas
-    WARNA_GRID   = "#f0ede8"
-    WARNA_BG     = "#ffffff"
+    # Warna pasar tradisional
+    WARNA_TRADISIONAL      = "#8B5E00"   # coklat emas
+    WARNA_TRADISIONAL_AREA = "#D4A017"
+    WARNA_TITIK_T          = "#D4A017"
+
+    # Warna pasar modern
+    WARNA_MODERN           = "#1E3A8A"   # biru tua
+    WARNA_MODERN_AREA      = "#3B82F6"
+    WARNA_TITIK_M          = "#60A5FA"
+
+    WARNA_GRID = "#f0ede8"
+    WARNA_BG   = "#ffffff"
 
     def __init__(self, parent=None):
         self.fig = Figure(figsize=(5, 2.8), dpi=100)
@@ -84,21 +105,9 @@ class GrafikCanvas(FigureCanvas):
     def tampilkan_loading(self):
         self._tampilkan_placeholder("Memuat data...")
 
-    def plot(self, data: list, komoditas: str):
-        """Render grafik tren harga dari data (tanggal, harga)."""
-        self._bersihkan()
-
-        if not data:
-            self._tampilkan_placeholder(
-                f"Belum ada data tren untuk\n'{komoditas}'\n\n"
-                "Jalankan scraper PIHPS terlebih dahulu.",
-                warna="#aaa"
-            )
-            return
-
-        # ── Parse data ──
-        tanggal_list = []
-        harga_list   = []
+    @staticmethod
+    def _parse_data(data: list):
+        tanggal_list, harga_list = [], []
         for row in data:
             try:
                 tgl = datetime.strptime(row["tanggal"], "%Y-%m-%d")
@@ -106,91 +115,128 @@ class GrafikCanvas(FigureCanvas):
                 harga_list.append(float(row["harga"]))
             except (ValueError, KeyError, TypeError):
                 continue
+        return tanggal_list, harga_list
 
-        if len(tanggal_list) < 2:
-            self._tampilkan_placeholder(
-                f"Data terlalu sedikit untuk\n'{komoditas}'\n"
-                f"(hanya {len(tanggal_list)} titik data)"
-            )
-            return
-
-        # ── Plot garis ──
+    def _plot_satu_garis(self, tanggal_list, harga_list,
+                         warna_garis, warna_area, warna_titik,
+                         label: str):
+        """Gambar satu garis dengan area dan titik data."""
         self.ax.plot(
             tanggal_list, harga_list,
-            color=self.WARNA_GARIS,
-            linewidth=2,
-            zorder=3
+            color=warna_garis, linewidth=2,
+            label=label, zorder=3
         )
-
-        # ── Area di bawah garis ──
         self.ax.fill_between(
             tanggal_list, harga_list,
-            alpha=0.12,
-            color=self.WARNA_AREA,
-            zorder=2
+            alpha=0.10, color=warna_area, zorder=2
         )
-
-        # ── Titik data ──
         self.ax.scatter(
             tanggal_list, harga_list,
-            color=self.WARNA_TITIK,
-            s=35, zorder=4,
-            edgecolors=self.WARNA_GARIS,
-            linewidths=0.8
+            color=warna_titik, s=30, zorder=4,
+            edgecolors=warna_garis, linewidths=0.8
         )
-
-        # ── Anotasi titik terakhir ──
+        # Anotasi titik terakhir
         self.ax.annotate(
             f"Rp {harga_list[-1]:,.0f}",
             xy=(tanggal_list[-1], harga_list[-1]),
-            xytext=(8, 8),
-            textcoords="offset points",
-            fontsize=8,
-            color=self.WARNA_GARIS,
-            fontweight="bold",
+            xytext=(8, 6), textcoords="offset points",
+            fontsize=7, color=warna_garis, fontweight="bold",
             bbox=dict(
-                boxstyle="round,pad=0.3",
+                boxstyle="round,pad=0.25",
                 facecolor="#fff",
-                edgecolor=self.WARNA_GARIS,
+                edgecolor=warna_garis,
                 linewidth=0.7,
                 alpha=0.9
             )
         )
 
-        # ── Label perubahan di judul ──
-        if len(harga_list) >= 2:
-            selisih = harga_list[-1] - harga_list[0]
-            persen  = (selisih / harga_list[0] * 100) if harga_list[0] else 0
-            tanda   = "↑" if selisih > 0 else "↓" if selisih < 0 else "→"
-            warna_p = "#C0392B" if selisih > 0 else "#27AE60" if selisih < 0 else "#888"
-            self.ax.set_title(
-                f"{tanda} {abs(persen):.1f}%  (Rp {abs(selisih):,.0f})",
-                fontsize=9, color=warna_p, pad=5, loc="right"
-            )
-
-        # ── Format sumbu X ──
-        if len(tanggal_list) <= 14:
+    def _format_sumbu(self, semua_tanggal):
+        """Format sumbu X dan Y."""
+        if len(semua_tanggal) <= 14:
             self.ax.xaxis.set_major_locator(mdates.DayLocator(interval=2))
         else:
             self.ax.xaxis.set_major_locator(mdates.WeekdayLocator(interval=1))
         self.ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %b"))
         plt.setp(self.ax.get_xticklabels(), rotation=30, ha="right", fontsize=7)
-
-        # ── Format sumbu Y ──
         self.ax.yaxis.set_major_formatter(
             plt.FuncFormatter(lambda x, _: f"Rp {x:,.0f}")
         )
         self.ax.tick_params(axis="y", labelsize=7)
 
-        # Hapus Rp 0 sebagai batas bawah, 
-        # ganti dengan sedikit di bawah nilai minimum data
-        margin = (max(harga_list) - min(harga_list)) * 0.3 or max(harga_list) * 0.05 
+    def plot(self, data_t: list, data_m: list, komoditas: str):
+        """
+        Render grafik tren harga.
+        - data_t : tren pasar tradisional
+        - data_m : tren pasar modern
+        Bisa salah satu kosong (filter tunggal) atau keduanya ada (mode semua).
+        """
+        self._bersihkan()
+
+        tgl_t, hrg_t = self._parse_data(data_t)
+        tgl_m, hrg_m = self._parse_data(data_m)
+
+        ada_t = len(tgl_t) >= 2
+        ada_m = len(tgl_m) >= 2
+
+        if not ada_t and not ada_m:
+            self._tampilkan_placeholder(
+                f"Belum ada data tren untuk\n'{komoditas}'\n\n"
+                "Jalankan scraper PIHPS terlebih dahulu.",
+                warna="#aaa"
+            )
+            return
+
+        if ada_t:
+            self._plot_satu_garis(
+                tgl_t, hrg_t,
+                self.WARNA_TRADISIONAL,
+                self.WARNA_TRADISIONAL_AREA,
+                self.WARNA_TITIK_T,
+                label="Tradisional"
+            )
+
+        if ada_m:
+            self._plot_satu_garis(
+                tgl_m, hrg_m,
+                self.WARNA_MODERN,
+                self.WARNA_MODERN_AREA,
+                self.WARNA_TITIK_M,
+                label="Modern"
+            )
+
+        # Legend jika keduanya tampil
+        if ada_t and ada_m:
+            self.ax.legend(
+                loc="upper left", fontsize=8,
+                framealpha=0.85, edgecolor="#ccc"
+            )
+
+        # Judul perubahan (ambil dari data yang ada, prioritaskan tradisional)
+        ref_hrg = hrg_t if ada_t else hrg_m
+        if len(ref_hrg) >= 2:
+            selisih = ref_hrg[-1] - ref_hrg[0]
+            persen  = (selisih / ref_hrg[0] * 100) if ref_hrg[0] else 0
+            tanda   = "↑" if selisih > 0 else "↓" if selisih < 0 else "→"
+            warna_p = "#C0392B" if selisih > 0 else "#27AE60" if selisih < 0 else "#888"
+            label_jenis = "(Tradisional)" if ada_t else "(Modern)"
+            self.ax.set_title(
+                f"{tanda} {abs(persen):.1f}%  (Rp {abs(selisih):,.0f}) {label_jenis}",
+                fontsize=9, color=warna_p, pad=5, loc="right"
+            )
+
+        # Format sumbu
+        semua_tgl = tgl_t + tgl_m
+        self._format_sumbu(semua_tgl)
+
+        # Rentang Y agar kedua garis terlihat
+        semua_hrg = hrg_t + hrg_m
+        margin = (max(semua_hrg) - min(semua_hrg)) * 0.3 or max(semua_hrg) * 0.05
         self.ax.set_ylim(
-        bottom=min(harga_list) - margin,
-        top=max(harga_list) + margin
+            bottom=min(semua_hrg) - margin,
+            top=max(semua_hrg) + margin
         )
 
-        # ── Grid & styling ──
+        # Grid & styling
         self.ax.grid(True, axis="y", color=self.WARNA_GRID,
                      linewidth=0.8, linestyle="--")
         for spine in ["top", "right"]:
@@ -202,11 +248,12 @@ class GrafikCanvas(FigureCanvas):
         self.draw()
 
 
-# Widget Utama
+# ── Widget Utama ───────────────────────────────────────────────────────────────
 
 class PriceChartWidget(QWidget):
     """
-    Widget grafik tren harga lengkap dengan dropdown komoditas & periode.
+    Widget grafik tren harga lengkap dengan dropdown komoditas, periode,
+    dan jenis pasar (Semua / Tradisional / Modern).
 
     Cara pakai di halaman_beranda.py:
         from gui.components.price_chart import PriceChartWidget
@@ -225,7 +272,7 @@ class PriceChartWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
 
-        # Header: dropdown komoditas + periode
+        # ── Header: dropdown komoditas + periode + jenis pasar ──
         header = QFrame()
         header.setStyleSheet("""
             QFrame {
@@ -252,6 +299,15 @@ class PriceChartWidget(QWidget):
         self.combo_komoditas.setStyleSheet(self._style_combo())
         self.combo_komoditas.currentTextChanged.connect(self._on_komoditas_berubah)
 
+        # Dropdown jenis pasar
+        lbl_pasar = QLabel("Pasar:")
+        lbl_pasar.setStyleSheet("font-size: 11px; color: #555; border: none;")
+        self.combo_pasar = QComboBox()
+        self.combo_pasar.addItems(["Semua", "Tradisional", "Modern"])
+        self.combo_pasar.setFixedWidth(110)
+        self.combo_pasar.setStyleSheet(self._style_combo())
+        self.combo_pasar.currentIndexChanged.connect(self._on_filter_berubah)
+
         # Dropdown periode
         lbl_p = QLabel("Periode:")
         lbl_p.setStyleSheet("font-size: 11px; color: #555; border: none;")
@@ -260,17 +316,20 @@ class PriceChartWidget(QWidget):
         self.combo_hari.setCurrentIndex(2)  # default 30 hari
         self.combo_hari.setFixedWidth(85)
         self.combo_hari.setStyleSheet(self._style_combo())
-        self.combo_hari.currentIndexChanged.connect(self._on_periode_berubah)
+        self.combo_hari.currentIndexChanged.connect(self._on_filter_berubah)
 
         h_layout.addWidget(lbl_k)
         h_layout.addWidget(self.combo_komoditas)
+        h_layout.addSpacing(10)
+        h_layout.addWidget(lbl_pasar)
+        h_layout.addWidget(self.combo_pasar)
         h_layout.addSpacing(10)
         h_layout.addWidget(lbl_p)
         h_layout.addWidget(self.combo_hari)
 
         layout.addWidget(header)
 
-        # Area grafik 
+        # ── Area grafik ──
         self.frame_grafik = QFrame()
         self.frame_grafik.setStyleSheet("""
             QFrame {
@@ -309,7 +368,8 @@ class PriceChartWidget(QWidget):
             QComboBox::drop-down { border: none; }
         """
 
-    # Logic
+    # ── Logic ──────────────────────────────────────────────────────────
+
     def _muat_daftar_komoditas(self):
         """Isi dropdown dari database."""
         try:
@@ -319,7 +379,6 @@ class PriceChartWidget(QWidget):
             if daftar:
                 self.combo_komoditas.addItems(daftar)
                 self.combo_komoditas.blockSignals(False)
-                # Langsung plot komoditas pertama
                 self._muat_grafik(daftar[0])
             else:
                 self.combo_komoditas.addItem("Belum ada data")
@@ -333,11 +392,15 @@ class PriceChartWidget(QWidget):
     def _get_hari(self) -> int:
         return int(self.combo_hari.currentText().split()[0])
 
+    def _get_jenis_pasar(self) -> str:
+        mapping = {0: "semua", 1: "tradisional", 2: "modern"}
+        return mapping.get(self.combo_pasar.currentIndex(), "semua")
+
     def _on_komoditas_berubah(self, nama: str):
         if nama and nama != "Belum ada data":
             self._muat_grafik(nama)
 
-    def _on_periode_berubah(self):
+    def _on_filter_berubah(self):
         nama = self.combo_komoditas.currentText()
         if nama and nama != "Belum ada data":
             self._muat_grafik(nama)
@@ -347,24 +410,34 @@ class PriceChartWidget(QWidget):
         self.canvas.tampilkan_loading()
         self.lbl_status.setText("Memuat...")
 
-        # Batalkan worker sebelumnya
         if self._worker and self._worker.isRunning():
             self._worker.quit()
             self._worker.wait()
 
-        self._worker = TrenWorker(komoditas, self._get_hari())
+        self._worker = TrenWorker(
+            komoditas,
+            jenis_pasar=self._get_jenis_pasar(),
+            hari=self._get_hari()
+        )
         self._worker.selesai.connect(self._on_data_siap)
         self._worker.start()
 
-    def _on_data_siap(self, data: list, komoditas: str):
-        self.canvas.plot(data, komoditas)
-        if data:
+    def _on_data_siap(self, data_t: list, data_m: list, komoditas: str):
+        self.canvas.plot(data_t, data_m, komoditas)
+        total = len(data_t) + len(data_m)
+        jenis = self._get_jenis_pasar()
+        label_jenis = {
+            "semua": "Tradisional & Modern",
+            "tradisional": "Pasar Tradisional",
+            "modern": "Pasar Modern"
+        }.get(jenis, "")
+        if total:
             self.lbl_status.setText(
-                f"{len(data)} titik data  ·  {komoditas}  ·  Sumber: PIHPS Bandung"
+                f"{total} titik data  ·  {komoditas}  ·  {label_jenis}  ·  Sumber: PIHPS Bandung"
             )
         else:
             self.lbl_status.setText(
-                f"Tidak ada data untuk '{komoditas}'"
+                f"Tidak ada data untuk '{komoditas}' ({label_jenis})"
             )
 
     def refresh(self):
