@@ -1,8 +1,3 @@
-"""
-gui/main_window.py — Jendela utama aplikasi dengan sidebar navigasi + collapsible.
-Versi ini mendukung role user/admin: menu Admin hanya muncul untuk admin.
-"""
-
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QFrame, QLabel, QPushButton, QStackedWidget, QSizePolicy,
@@ -209,65 +204,77 @@ class MainWindow(QMainWindow):
         self.lbl_logo.setFixedSize(48, 48)
 
         # Teks brand
-        brand_teks = QVBoxLayout()
-        brand_teks.setSpacing(0)
         self.lbl_brand = QLabel("PokokNya.Bdg")
-        self.lbl_brand.setStyleSheet(
-            "color: #6B8E23; font-size: 16px; font-weight: bold;"
-        )
-        brand_teks.addWidget(self.lbl_brand)
+        self.lbl_brand.setStyleSheet("color: #8B9B3A; font-size: 15px; font-weight: bold;")
 
         brand_row.addWidget(self.lbl_logo)
         brand_row.addSpacing(6)
-        brand_row.addLayout(brand_teks)
-        brand_row.addStretch()
-        brand_row.addWidget(self.btn_collapse)
-        layout.addLayout(brand_row)
-        layout.addSpacing(8)
-
         brand_row.addWidget(self.lbl_brand)
         brand_row.addStretch()
         brand_row.addWidget(self.btn_collapse)
         layout.addLayout(brand_row)
+        layout.addSpacing(10)
 
-        # Info user yang login 
-        username = self.current_user.get("username", "guest")
-        role     = self.current_user.get("role", "user")
-        badge    = "🔑 Admin" if role == "admin" else "👤 User"
+        # Info user — role dan username dalam satu baris
+        username    = self.current_user.get("display_name") or self.current_user.get("username", "guest")
+        role        = self.current_user.get("role", "user")
+        badge_teks  = "Admin" if role == "admin" else "User"
+        badge_color = "#F1C40F" if role == "admin" else "#90CAF9"
 
-        self.lbl_user_info = QLabel(f"{badge}\n{username}")
-        self.lbl_user_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl_user_info.setStyleSheet(f"""
-            color: {self.WARNA_AKSEN};
-            font-size: 11px;
-            background: rgba(255,255,255,0.08);
-            border-radius: 6px;
-            padding: 6px 10px;
-            margin: 0 12px 8px 12px;
+        user_frame = QFrame()
+        user_frame.setStyleSheet(f"""
+            background: rgba(255,255,255,0.09);
+            border-radius: 8px;
+            margin: 0 10px 6px 10px;
         """)
-        layout.addWidget(self.lbl_user_info)
+        user_row = QHBoxLayout(user_frame)
+        user_row.setContentsMargins(10, 6, 10, 6)
+        user_row.setSpacing(6)
 
-        # Tombol Edit Profil
-        self.btn_edit_profil = QPushButton("✏ Edit Profil")
+        self.lbl_badge = QLabel(badge_teks)
+        self.lbl_badge.setStyleSheet(f"""
+            background: {badge_color};
+            color: #1A0A0E;
+            font-size: 10px; font-weight: 700;
+            border-radius: 4px; padding: 1px 5px;
+        """)
+        self.lbl_username = QLabel(username)
+        self.lbl_username.setStyleSheet("color: white; font-size: 12px; background: transparent;")
+        self.lbl_username.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+
+        user_row.addWidget(self.lbl_badge)
+        user_row.addWidget(self.lbl_username)
+
+        # Tombol edit profil kecil (ikon pensil SVG)
+        from PyQt6.QtCore import QByteArray
+        from PyQt6.QtSvg import QSvgRenderer
+        _SVG_EDIT = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+            stroke="rgba(255,255,255,0.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>"""
+        renderer = QSvgRenderer(QByteArray(_SVG_EDIT.encode()))
+        pix_edit = QPixmap(16, 16)
+        pix_edit.fill(Qt.GlobalColor.transparent)
+        pp = QPainter(pix_edit)
+        renderer.render(pp)
+        pp.end()
+
+        self.btn_edit_profil = QPushButton()
+        self.btn_edit_profil.setIcon(QIcon(pix_edit))
+        self.btn_edit_profil.setIconSize(QPixmap(16, 16).size())
+        self.btn_edit_profil.setFixedSize(24, 24)
+        self.btn_edit_profil.setToolTip("Edit Profil")
         self.btn_edit_profil.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_edit_profil.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                color: rgba(255,255,255,0.65);
-                border: 1px solid rgba(255,255,255,0.2);
-                border-radius: 6px;
-                font-size: 11px;
-                padding: 4px 10px;
-                margin: 0 12px 8px 12px;
-            }}
-            QPushButton:hover {{
-                background-color: rgba(255,255,255,0.12);
-                color: {self.WARNA_AKSEN};
-                border-color: {self.WARNA_AKSEN};
-            }}
+        self.btn_edit_profil.setStyleSheet("""
+            QPushButton { background: transparent; border: none; border-radius: 4px; }
+            QPushButton:hover { background: rgba(255,255,255,0.15); }
         """)
         self.btn_edit_profil.clicked.connect(self._buka_edit_profil)
-        layout.addWidget(self.btn_edit_profil)
+        user_row.addWidget(self.btn_edit_profil)
+
+        self.lbl_user_info = user_frame   # kept for toggle_sidebar compatibility
+        layout.addWidget(user_frame)
 
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
@@ -438,11 +445,8 @@ class MainWindow(QMainWindow):
         if dialog.exec():
             updated = dialog.get_updated_user()
             self.current_user.update(updated)
-            username = self.current_user.get("username", "guest")
-            role     = self.current_user.get("role", "user")
-            display  = self.current_user.get("display_name") or username
-            badge    = "🔑 Admin" if role == "admin" else "👤 User"
-            self.lbl_user_info.setText(f"{badge}\n{display}")
+            display = self.current_user.get("display_name") or self.current_user.get("username", "guest")
+            self.lbl_username.setText(display)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Dialog Konfirmasi Logout — desain custom
@@ -561,7 +565,19 @@ class _DialogLogout(QDialog):
 # ══════════════════════════════════════════════════════════════════════════════
 
 class _DialogEditProfil(QDialog):
-    """Dialog untuk mengubah display name dan password."""
+    """Dialog edit profil — desain selaras maroon/gold, SVG eye icon, simpan ke DB."""
+
+    _SVG_EYE_OPEN = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+      stroke="#A89BA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>"""
+    _SVG_EYE_OFF = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+      stroke="#A89BA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>"""
 
     def __init__(self, user: dict, auth_manager, parent=None):
         super().__init__(parent)
@@ -570,141 +586,218 @@ class _DialogEditProfil(QDialog):
         self._updated: dict = {}
 
         self.setWindowTitle("Edit Profil")
-        self.setFixedWidth(400)
-        self.setStyleSheet("background: #FFFFFF;")
+        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint)
+        self.setFixedWidth(440)
+        self.setStyleSheet("background: #F8F6F2;")
 
         lay = QVBoxLayout(self)
-        lay.setContentsMargins(32, 28, 32, 28)
+        lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
 
-        # Judul
-        judul = QLabel("Edit Profil")
-        judul.setStyleSheet(
-            "font-size: 20px; font-weight: 700; color: #44101A;"
+        # ── Header maroon ─────────────────────────────────────────────────
+        header = QFrame()
+        header.setStyleSheet("background: #5C1A28; border-radius: 0px;")
+        header.setFixedHeight(72)
+        h_lay = QHBoxLayout(header)
+        h_lay.setContentsMargins(24, 0, 24, 0)
+        lbl_h = QLabel("Edit Profil")
+        lbl_h.setStyleSheet("color: white; font-size: 18px; font-weight: 700; background: transparent;")
+        lbl_sub = QLabel(f"@{user.get('username', '')}")
+        lbl_sub.setStyleSheet("color: rgba(255,255,255,0.6); font-size: 12px; background: transparent;")
+        hv = QVBoxLayout()
+        hv.setSpacing(2)
+        hv.addWidget(lbl_h)
+        hv.addWidget(lbl_sub)
+        h_lay.addLayout(hv)
+        lay.addWidget(header)
+
+        # ── Body ──────────────────────────────────────────────────────────
+        body = QFrame()
+        body.setStyleSheet("background: #F8F6F2;")
+        b_lay = QVBoxLayout(body)
+        b_lay.setContentsMargins(28, 24, 28, 24)
+        b_lay.setSpacing(0)
+
+        # Nama tampilan
+        b_lay.addWidget(self._lbl("Nama Tampilan"))
+        b_lay.addSpacing(6)
+        self.inp_display = self._mk_input(
+            user.get("display_name") or user.get("username", ""),
+            "Nama yang ditampilkan"
         )
-        lay.addWidget(judul)
-        lay.addSpacing(4)
+        b_lay.addWidget(self.inp_display)
+        b_lay.addSpacing(18)
 
-        sub = QLabel(f"Akun: {user.get('username', '')}")
-        sub.setStyleSheet("font-size: 12px; color: #A89BA0;")
-        lay.addWidget(sub)
-        lay.addSpacing(20)
+        # Separator
+        sep = QFrame(); sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setStyleSheet("color: #E2D9CC;")
+        b_lay.addWidget(sep)
+        b_lay.addSpacing(14)
 
-        # Display name
-        lay.addWidget(self._lbl("Nama Tampilan"))
-        lay.addSpacing(6)
-        self.inp_display = QLineEdit()
-        self.inp_display.setText(user.get("display_name") or user.get("username", ""))
-        self.inp_display.setPlaceholderText("Nama yang ditampilkan")
-        self._style_input(self.inp_display)
-        lay.addWidget(self.inp_display)
-        lay.addSpacing(16)
+        lbl_pass_sec = QLabel("Ubah Password")
+        lbl_pass_sec.setStyleSheet("font-size: 13px; font-weight: 600; color: #5C1A28;")
+        b_lay.addWidget(lbl_pass_sec)
+        b_lay.addSpacing(4)
+        lbl_hint = QLabel("Kosongkan jika tidak ingin mengubah password")
+        lbl_hint.setStyleSheet("font-size: 11px; color: #A89BA0;")
+        b_lay.addWidget(lbl_hint)
+        b_lay.addSpacing(10)
 
-        # Password baru
-        lay.addWidget(self._lbl("Password Baru (kosongkan jika tidak diubah)"))
-        lay.addSpacing(6)
-        self.inp_pass = QLineEdit()
-        self.inp_pass.setEchoMode(QLineEdit.EchoMode.Password)
-        self.inp_pass.setPlaceholderText("••••••••")
-        self._style_input(self.inp_pass)
-        lay.addWidget(self.inp_pass)
-        lay.addSpacing(8)
+        b_lay.addWidget(self._lbl("Password Lama"))
+        b_lay.addSpacing(5)
+        self.inp_pass_lama = self._mk_input("", "••••••••", password=True)
+        b_lay.addWidget(self.inp_pass_lama)
+        b_lay.addSpacing(10)
 
-        self.inp_pass_confirm = QLineEdit()
-        self.inp_pass_confirm.setEchoMode(QLineEdit.EchoMode.Password)
-        self.inp_pass_confirm.setPlaceholderText("Konfirmasi password baru")
-        self._style_input(self.inp_pass_confirm)
-        lay.addWidget(self.inp_pass_confirm)
-        lay.addSpacing(8)
+        b_lay.addWidget(self._lbl("Password Baru"))
+        b_lay.addSpacing(5)
+        self.inp_pass_baru = self._mk_input("", "••••••••", password=True)
+        b_lay.addWidget(self.inp_pass_baru)
+        b_lay.addSpacing(10)
 
-        # Pesan error
+        b_lay.addWidget(self._lbl("Konfirmasi Password Baru"))
+        b_lay.addSpacing(5)
+        self.inp_pass_confirm = self._mk_input("", "Ulangi password baru", password=True)
+        b_lay.addWidget(self.inp_pass_confirm)
+        b_lay.addSpacing(10)
+
         self.lbl_error = QLabel("")
         self.lbl_error.setStyleSheet("color: #C0392B; font-size: 12px;")
         self.lbl_error.setWordWrap(True)
-        lay.addWidget(self.lbl_error)
-        lay.addSpacing(16)
+        b_lay.addWidget(self.lbl_error)
+        self.lbl_sukses = QLabel("")
+        self.lbl_sukses.setStyleSheet("color: #27AE60; font-size: 12px;")
+        b_lay.addWidget(self.lbl_sukses)
+        b_lay.addSpacing(20)
 
-        # Tombol
-        row = QHBoxLayout()
-        row.setSpacing(12)
-
+        row = QHBoxLayout(); row.setSpacing(12)
         btn_batal = QPushButton("Batal")
-        btn_batal.setFixedHeight(44)
+        btn_batal.setFixedHeight(46)
         btn_batal.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_batal.setStyleSheet("""
-            QPushButton {
-                background: transparent; color: #44101A;
-                border: 1.5px solid #E2D9CC; border-radius: 10px;
-                font-size: 14px;
-            }
-            QPushButton:hover { background: #F4F0EA; }
+            QPushButton { background:transparent; color:#5C1A28;
+                border:1.5px solid #E2D9CC; border-radius:10px; font-size:14px; }
+            QPushButton:hover { background:#F4F0EA; border-color:#5C1A28; }
         """)
         btn_batal.clicked.connect(self.reject)
 
-        btn_simpan = QPushButton("Simpan")
-        btn_simpan.setFixedHeight(44)
+        btn_simpan = QPushButton("Simpan Perubahan")
+        btn_simpan.setFixedHeight(46)
         btn_simpan.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_simpan.setStyleSheet("""
-            QPushButton {
-                background: #44101A; color: white;
-                border: none; border-radius: 10px;
-                font-size: 14px; font-weight: 700;
-            }
-            QPushButton:hover { background: #6B1525; }
+            QPushButton { background:#5C1A28; color:white;
+                border:none; border-radius:10px; font-size:14px; font-weight:700; }
+            QPushButton:hover { background:#7A2236; }
+            QPushButton:pressed { background:#3D0F1A; }
         """)
         btn_simpan.clicked.connect(self._simpan)
 
         row.addWidget(btn_batal)
         row.addWidget(btn_simpan)
-        lay.addLayout(row)
+        b_lay.addLayout(row)
+        lay.addWidget(body)
 
     def _lbl(self, teks: str) -> QLabel:
         l = QLabel(teks)
         l.setStyleSheet("font-size: 13px; font-weight: 500; color: #1A0A0E;")
         return l
 
-    def _style_input(self, w: QLineEdit):
-        w.setFixedHeight(44)
-        w.setStyleSheet("""
-            QLineEdit {
-                background: #FAFAF8; border: 1.5px solid #E2D9CC;
-                border-radius: 10px; padding: 10px 14px;
-                font-size: 13px; color: #1A0A0E;
-            }
-            QLineEdit:focus { border: 2px solid #44101A; background: #FFFFFF; }
+    def _mk_input(self, value: str = "", placeholder: str = "",
+                  password: bool = False) -> QLineEdit:
+        inp = QLineEdit()
+        inp.setText(value)
+        inp.setPlaceholderText(placeholder)
+        inp.setFixedHeight(46)
+        if password:
+            inp.setEchoMode(QLineEdit.EchoMode.Password)
+
+        pr = "44px" if password else "14px"
+        inp.setStyleSheet(f"""
+            QLineEdit {{
+                background:#FAFAF8; border:1.5px solid #E2D9CC;
+                border-radius:10px; padding:10px {pr} 10px 14px;
+                font-size:13px; color:#1A0A0E;
+            }}
+            QLineEdit:focus {{ border:2px solid #5C1A28; background:#FFFFFF; }}
+            QLineEdit::placeholder {{ color:#A89BA0; }}
         """)
+
+        if password:
+            from PyQt6.QtCore import QByteArray
+            from PyQt6.QtSvg import QSvgRenderer
+
+            def _mk_pix(svg_str):
+                r = QSvgRenderer(QByteArray(svg_str.encode()))
+                px = QPixmap(20, 20); px.fill(Qt.GlobalColor.transparent)
+                pp = QPainter(px); r.render(pp); pp.end()
+                return px
+
+            pix_open = _mk_pix(self._SVG_EYE_OPEN)
+            pix_off  = _mk_pix(self._SVG_EYE_OFF)
+
+            btn_eye = QPushButton(inp)
+            btn_eye.setFixedSize(32, 32)
+            btn_eye.setCheckable(True)
+            btn_eye.setStyleSheet("border:none; background:transparent; padding:0;")
+            btn_eye.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_eye.setIcon(QIcon(pix_open))
+            btn_eye.setIconSize(QSize(20, 20))
+
+            def _toggle(checked, b=btn_eye, f=inp):
+                f.setEchoMode(QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password)
+                b.setIcon(QIcon(pix_off if checked else pix_open))
+            btn_eye.toggled.connect(_toggle)
+            inp.setTextMargins(0, 0, 36, 0)
+
+            def _repos(ev=None, b=btn_eye, f=inp):
+                b.move(f.width() - 38, (f.height() - 32) // 2)
+            inp.resizeEvent = _repos
+
+        return inp
 
     def _simpan(self):
         self.lbl_error.setText("")
-        display = self.inp_display.text().strip()
-        new_pass = self.inp_pass.text()
-        confirm  = self.inp_pass_confirm.text()
+        self.lbl_sukses.setText("")
+        display   = self.inp_display.text().strip()
+        pass_lama = self.inp_pass_lama.text()
+        pass_baru = self.inp_pass_baru.text()
+        pass_conf = self.inp_pass_confirm.text()
 
         if not display:
             self.lbl_error.setText("⚠ Nama tampilan tidak boleh kosong.")
             return
 
-        if new_pass:
-            if len(new_pass) < 6:
-                self.lbl_error.setText("⚠ Password minimal 6 karakter.")
+        user_id = self._user.get("id")
+
+        # Simpan display_name ke DB
+        ok, pesan = self._auth.update_profil(
+            user_id=user_id,
+            display_name=display,
+            username=self._user.get("username", display),
+        )
+        if not ok:
+            self.lbl_error.setText(f"❌ {pesan}")
+            return
+
+        # Ubah password jika diisi
+        if pass_baru:
+            if not pass_lama:
+                self.lbl_error.setText("⚠ Masukkan password lama untuk mengubah password.")
                 return
-            if new_pass != confirm:
+            if len(pass_baru) < 6:
+                self.lbl_error.setText("⚠ Password baru minimal 6 karakter.")
+                return
+            if pass_baru != pass_conf:
                 self.lbl_error.setText("⚠ Konfirmasi password tidak cocok.")
                 return
-
-        # Simpan ke DB jika auth_manager punya method update_profile
-        try:
-            if hasattr(self._auth, "update_profile"):
-                self._auth.update_profile(
-                    user_id=self._user.get("id"),
-                    display_name=display,
-                    new_password=new_pass if new_pass else None,
-                )
-        except Exception:
-            pass  # Jika method belum ada, skip saja
+            ok2, pesan2 = self._auth.ubah_password(user_id, pass_lama, pass_baru)
+            if not ok2:
+                self.lbl_error.setText(f"❌ {pesan2}")
+                return
 
         self._updated = {"display_name": display}
-        self.accept()
+        self.lbl_sukses.setText("✅ Profil berhasil diperbarui!")
+        QTimer.singleShot(800, self.accept)
 
     def get_updated_user(self) -> dict:
         return self._updated
