@@ -160,20 +160,11 @@ class HalamanBeranda(QWidget):
 
         KOLOM = 3
         for i, row in enumerate(data):
-            keys = row.keys() if hasattr(row, "keys") else []
-            # Tentukan jenis pasar kartu: pakai kolom "jenis_pasar" jika ada,
-            # kalau tidak fallback ke filter aktif
-            if "jenis_pasar" in keys:
-                jenis_kartu = row["jenis_pasar"]
-            else:
-                jenis_kartu = jenis  # filter aktif (semua/tradisional/modern)
-
             card = ProductCard(
-                nama=row["komoditas"] if "komoditas" in keys else row[0],
-                harga=row["harga"]    if "harga"     in keys else row[1],
-                toko=row["toko"]      if "toko"      in keys else row[3],
-                tanggal=row["tanggal"] if "tanggal"  in keys else row[4],
-                jenis_pasar=jenis_kartu,
+                nama=row["komoditas"] if hasattr(row, "keys") else row[0],
+                harga=row["harga"]    if hasattr(row, "keys") else row[1],
+                toko=row["toko"]      if hasattr(row, "keys") else row[3],
+                tanggal=row["tanggal"] if hasattr(row, "keys") else row[4],
             )
             card.lihat_pencarian.connect(self.navigasi_pencarian)
             self.grid.addWidget(card, i // KOLOM, i % KOLOM)

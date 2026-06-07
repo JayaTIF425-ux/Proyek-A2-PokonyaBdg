@@ -2,7 +2,7 @@
 gui/components/product_card.py — Kartu komoditas dengan mini chart tren harga.
 
 Fitur:
-  - Header nama komoditas + badge jenis pasar (Tradisional / Modern / Trad & Modern)
+  - Header nama komoditas
   - Mini chart SVG tren harga (dari DB)
   - Harga terkini + persentase perubahan
   - Tombol "Lihat Harga Berbagai Merk" → navigasi ke halaman pencarian
@@ -71,12 +71,14 @@ class MiniChartWidget(QFrame):
 
         data = self._data_harga
         if len(data) < 2:
+            # Tampilkan placeholder garis datar
             pen = QPen(QColor("#ccc"), 1.5, Qt.PenStyle.DashLine)
             painter.setPen(pen)
             painter.drawLine(pad_x, h // 2, w - pad_x, h // 2)
             painter.end()
             return
 
+        # Normalisasi ke koordinat layar
         min_h = min(data)
         max_h = max(data)
         rentang = max_h - min_h if max_h != min_h else 1
@@ -85,10 +87,12 @@ class MiniChartWidget(QFrame):
             return pad_x + i * (w - 2 * pad_x) / (len(data) - 1)
 
         def to_y(val):
+            # Balik sumbu: nilai tinggi = posisi atas
             return (h - pad_y) - (val - min_h) / rentang * (h - 2 * pad_y)
 
         points = [(to_x(i), to_y(v)) for i, v in enumerate(data)]
 
+        # ── Area di bawah garis ──
         path_area = QPainterPath()
         path_area.moveTo(points[0][0], h - pad_y)
         for x, y in points:
@@ -100,6 +104,7 @@ class MiniChartWidget(QFrame):
         color_area.setAlpha(30)
         painter.fillPath(path_area, QBrush(color_area))
 
+        # ── Garis utama ──
         naik = data[-1] >= data[0]
         warna_garis = QColor("#27AE60") if naik else QColor("#6B1423")
         pen = QPen(warna_garis, 2, Qt.PenStyle.SolidLine)
@@ -113,12 +118,14 @@ class MiniChartWidget(QFrame):
             path_line.lineTo(x, y)
         painter.drawPath(path_line)
 
+        # ── Titik awal ──
         painter.setBrush(QBrush(QColor("#D4A017")))
         painter.setPen(QPen(QColor("#6B1423"), 1))
         painter.drawEllipse(
             int(points[0][0]) - 4, int(points[0][1]) - 4, 8, 8
         )
 
+        # ── Titik akhir ──
         painter.setBrush(QBrush(warna_garis))
         painter.setPen(QPen(Qt.GlobalColor.white, 1))
         painter.drawEllipse(
@@ -133,50 +140,28 @@ class MiniChartWidget(QFrame):
 class ProductCard(QFrame):
     """
     Kartu komoditas lengkap:
-      - Header nama + badge jenis pasar (Tradisional / Modern / Trad & Modern)
+      - Header nama
       - Mini chart tren harga (30 hari)
       - Harga terkini + % perubahan
       - Tombol link ke halaman pencarian
-
+    
     Signal:
       lihat_pencarian(str) — dipancarkan saat tombol diklik,
       berisi nama komoditas untuk langsung dicari di halaman pencarian.
     """
 
-    lihat_pencarian = pyqtSignal(str)
+    lihat_pencarian = pyqtSignal(str)   # ← signal navigasi
 
-    # Konfigurasi warna & label per jenis pasar
-    _PASAR_CONFIG = {
-        "tradisional": {
-            "badge_bg":    "#5D4037",
-            "badge_label": "🏪 Tradisional",
-            "header_bg":   "#6B8E23",
-        },
-        "modern": {
-            "badge_bg":    "#1565C0",
-            "badge_label": "🏬 Modern",
-            "header_bg":   "#2980b9",
-        },
-        "semua": {
-            "badge_bg":    "#6B1423",
-            "badge_label": "🏪🏬 Trad & Modern",
-            "header_bg":   "#6B8E23",
-        },
-    }
-
-    def __init__(self, nama: str, harga: float, toko: str, tanggal: str,
-                 jenis_pasar: str = "semua"):
+    def __init__(self, nama: str, harga: float, toko: str, tanggal: str):
         super().__init__()
-        self.nama        = nama
-        self.harga       = harga
-        self.toko        = toko
-        self.tanggal     = tanggal
-        self.jenis_pasar = jenis_pasar.lower() if jenis_pasar else "semua"
+        self.nama    = nama
+        self.harga   = harga
+        self.toko    = toko
+        self.tanggal = tanggal
         self._harga_awal: float = 0.0
         self._worker = None
 
-        # Tinggi sedikit lebih besar untuk akomodasi badge
-        self.setFixedSize(260, 235)
+        self.setFixedSize(260, 220)
         self.setStyleSheet("""
             QFrame {
                 background-color: white;
@@ -197,15 +182,13 @@ class ProductCard(QFrame):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        cfg = self._PASAR_CONFIG.get(self.jenis_pasar, self._PASAR_CONFIG["semua"])
-
-        # ── Header: nama komoditas ──
+        # ── Header nama komoditas ──
         self.lbl_nama = QLabel(self.nama)
         self.lbl_nama.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_nama.setWordWrap(True)
         self.lbl_nama.setFixedHeight(36)
-        self.lbl_nama.setStyleSheet(f"""
-            background-color: {cfg['header_bg']};
+        self.lbl_nama.setStyleSheet("""
+            background-color: #6B8E23;
             color: white;
             font-weight: bold;
             font-size: 11px;
@@ -214,36 +197,6 @@ class ProductCard(QFrame):
             border-top-right-radius: 7px;
         """)
         layout.addWidget(self.lbl_nama)
-
-        # ── Badge jenis pasar ──
-        badge_row = QHBoxLayout()
-        badge_row.setContentsMargins(8, 4, 8, 0)
-        badge_row.setSpacing(4)
-
-        lbl_badge = QLabel(cfg["badge_label"])
-        lbl_badge.setStyleSheet(f"""
-            background-color: {cfg['badge_bg']};
-            color: white;
-            font-size: 9px;
-            font-weight: bold;
-            padding: 2px 6px;
-            border-radius: 3px;
-            border: none;
-        """)
-        lbl_badge.setFixedHeight(16)
-        lbl_badge.setSizePolicy(
-            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed
-        )
-
-        # Tanggal update di kanan badge
-        lbl_tgl = QLabel(self.tanggal or "")
-        lbl_tgl.setStyleSheet("font-size: 9px; color: #aaa; border: none;")
-        lbl_tgl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-
-        badge_row.addWidget(lbl_badge)
-        badge_row.addStretch()
-        badge_row.addWidget(lbl_tgl)
-        layout.addLayout(badge_row)
 
         # ── Mini chart ──
         self.mini_chart = MiniChartWidget()
@@ -280,7 +233,7 @@ class ProductCard(QFrame):
 
         layout.addStretch()
 
-        # ── Footer: klik → navigasi pencarian ──
+        # ── Footer: seluruh area bisa diklik ──
         self.footer = QFrame()
         self.footer.setStyleSheet("""
             QFrame {
@@ -319,7 +272,10 @@ class ProductCard(QFrame):
 
         layout.addWidget(self.footer)
 
+    # ── Override mousePressEvent di footer ── tambahkan method ini di class
     def mousePressEvent(self, event):
+        """Klik di mana saja pada footer akan trigger navigasi."""
+        # Cek apakah klik di area footer
         footer_rect = self.footer.geometry()
         if footer_rect.contains(event.pos()):
             self.lihat_pencarian.emit(self.nama)
@@ -328,6 +284,7 @@ class ProductCard(QFrame):
     # ── Load chart data ───────────────────────────────────────────────────
 
     def _muat_chart(self):
+        """Ambil data tren 30 hari di background lalu render."""
         if self._worker and self._worker.isRunning():
             return
         self._worker = MiniChartWorker(self.nama, hari=999)
@@ -338,6 +295,7 @@ class ProductCard(QFrame):
     def _on_chart_data_siap(self, data: list):
         self.mini_chart.set_data(data)
 
+        # Hitung % perubahan dari data historis
         if len(data) >= 2:
             try:
                 h_awal  = float(data[0]["harga"])
@@ -358,5 +316,8 @@ class ProductCard(QFrame):
             except (TypeError, ValueError, KeyError):
                 pass
 
+    # ── Navigasi ke pencarian ─────────────────────────────────────────────
+
     def _on_lihat_diklik(self):
+        """Pancarkan signal dengan nama komoditas ke halaman pencarian."""
         self.lihat_pencarian.emit(self.nama)

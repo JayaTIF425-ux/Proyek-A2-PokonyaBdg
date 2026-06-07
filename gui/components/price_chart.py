@@ -26,17 +26,14 @@ class TrenWorker(QThread):
     """Ambil data tren di background agar UI tidak freeze."""
     selesai = pyqtSignal(list, str)
 
-    def __init__(self, komoditas: str, hari: int = 30, jenis_pasar: str = "semua"):
+    def __init__(self, komoditas: str, hari: int = 30):
         super().__init__()
-        self.komoditas   = komoditas
-        self.hari        = hari
-        self.jenis_pasar = jenis_pasar
+        self.komoditas = komoditas
+        self.hari      = hari
 
     def run(self):
         try:
-            data = DBManager().fetch_tren_harga(
-                self.komoditas, self.hari, self.jenis_pasar
-            )
+            data = DBManager().fetch_tren_harga(self.komoditas, self.hari)
             self.selesai.emit(list(data), self.komoditas)
         except Exception as e:
             print(f"[TrenWorker] Error: {e}")
@@ -219,8 +216,7 @@ class PriceChartWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._worker      = None
-        self._jenis_pasar = "semua"   # ← simpan filter pasar aktif
+        self._worker = None
         self._init_ui()
         self._muat_daftar_komoditas()
 
@@ -356,19 +352,9 @@ class PriceChartWidget(QWidget):
             self._worker.quit()
             self._worker.wait()
 
-        self._worker = TrenWorker(komoditas, self._get_hari(), self._jenis_pasar)
+        self._worker = TrenWorker(komoditas, self._get_hari())
         self._worker.selesai.connect(self._on_data_siap)
         self._worker.start()
-
-    def set_jenis_pasar(self, jenis_pasar: str):
-        """
-        Dipanggil dari halaman_beranda saat filter pasar berubah.
-        jenis_pasar: 'semua', 'tradisional', atau 'modern'
-        """
-        self._jenis_pasar = jenis_pasar
-        nama = self.combo_komoditas.currentText()
-        if nama and nama != "Belum ada data":
-            self._muat_grafik(nama)
 
     def _on_data_siap(self, data: list, komoditas: str):
         self.canvas.plot(data, komoditas)

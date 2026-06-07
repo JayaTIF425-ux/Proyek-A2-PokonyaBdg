@@ -5,7 +5,7 @@ gui/pages/halaman_tentang.py — Tentang Kami.
 import os
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QScrollArea, QFrame
+    QScrollArea, QFrame, QGridLayout, QSizePolicy
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
@@ -17,25 +17,52 @@ def _path_aset(nama: str) -> str:
 
 
 class AnggotaCard(QFrame):
-    def __init__(self, nama: str):
+    def __init__(self, nama: str, nim: str = ""):
         super().__init__()
-        self.setFixedSize(160, 130)
-        self.setStyleSheet(
-            "background: white; border: 1px solid #ddd; border-radius: 8px;"
-        )
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setMinimumWidth(140)
+        self.setFixedHeight(150)
+        self.setStyleSheet("""
+            AnggotaCard {
+                background: white;
+                border: 1.5px solid #E8E0D4;
+                border-radius: 12px;
+            }
+            AnggotaCard:hover {
+                border: 2px solid #44101A;
+                background: #FDF8F4;
+            }
+        """)
+
         lay = QVBoxLayout(self)
+        lay.setContentsMargins(12, 16, 12, 12)
+        lay.setSpacing(6)
         lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        avatar = QLabel("👤")
-        avatar.setStyleSheet("font-size: 36px; border: none;")
-        avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # Avatar lingkaran
+        avatar_frame = QFrame()
+        avatar_frame.setFixedSize(52, 52)
+        avatar_frame.setStyleSheet("""
+            background: #F4EBE8;
+            border-radius: 26px;
+            border: 2px solid #E0C8C0;
+        """)
+        av_lay = QVBoxLayout(avatar_frame)
+        av_lay.setContentsMargins(0, 0, 0, 0)
+        av_icon = QLabel("👤")
+        av_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        av_icon.setStyleSheet("font-size: 24px; border: none; background: transparent;")
+        av_lay.addWidget(av_icon)
 
         lbl_nama = QLabel(nama)
         lbl_nama.setWordWrap(True)
         lbl_nama.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_nama.setStyleSheet("font-weight: bold; font-size: 12px; border: none; color: #2c3e50;")
+        lbl_nama.setStyleSheet(
+            "font-weight: 700; font-size: 12px; border: none; "
+            "color: #2c3e50; background: transparent; line-height: 1.4;"
+        )
 
-        lay.addWidget(avatar)
+        lay.addWidget(avatar_frame, alignment=Qt.AlignmentFlag.AlignCenter)
         lay.addWidget(lbl_nama)
 
 
@@ -68,7 +95,7 @@ class HalamanTentang(QWidget):
         # ── Deskripsi ─────────────────────────────────────────────────────
         deskripsi = QLabel(
             "Kami membantu warga Kota Bandung membandingkan harga bahan pokok dari "
-            "pasar tradisional dan modern. Semua dalam satu aplikasi, gratis."
+            "pasar tradisional dan modern.\n— Semua dalam satu aplikasi, gratis."
         )
         deskripsi.setWordWrap(True)
         deskripsi.setStyleSheet("font-size: 14px; color: #555;")
@@ -150,17 +177,37 @@ class HalamanTentang(QWidget):
         lbl_tim.setStyleSheet("font-size: 16px; font-weight: bold; color: #44101A;")
         layout.addWidget(lbl_tim)
 
-        tim_layout = QHBoxLayout()
-        tim_layout.setSpacing(12)
         anggota = [
-            ("Hana Mardhiyyah"),
-            ("Imam Miftahul U."),
-            ("Iryansyah Jaya A."),
-            ("Lutfhiah Nurazizah"),
-            ("Salwa Zaida N."),
+            "Hana Mardhiyyah",
+            "Imam Miftahul U.",
+            "Iryansyah Jaya A.",
+            "Lutfhiah Nurazizah",
+            "Salwa Zaida N.",
         ]
-        for nama in anggota:
-            tim_layout.addWidget(AnggotaCard(nama))
-        tim_layout.addStretch()
-        layout.addLayout(tim_layout)
+
+        # Grid: 3 kolom baris pertama, 2 kolom baris kedua (rata tengah)
+        # Pakai wrapper agar bisa di-center
+        tim_outer = QHBoxLayout()
+        tim_outer.setContentsMargins(0, 0, 0, 0)
+
+        tim_widget = QWidget()
+        tim_widget.setStyleSheet("background: transparent;")
+        tim_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        grid = QGridLayout(tim_widget)
+        grid.setSpacing(14)
+        grid.setContentsMargins(0, 0, 0, 0)
+
+        cols = 3
+        for i, nama in enumerate(anggota):
+            row_i = i // cols
+            col_i = i % cols
+            card = AnggotaCard(nama)
+            grid.addWidget(card, row_i, col_i)
+
+        # Kolom stretch sama rata
+        for c in range(cols):
+            grid.setColumnStretch(c, 1)
+
+        tim_outer.addWidget(tim_widget)
+        layout.addLayout(tim_outer)
         layout.addStretch()

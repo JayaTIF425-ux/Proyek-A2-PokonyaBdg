@@ -8,7 +8,6 @@ import os
 import time
 import requests
 import json
-import random
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -23,43 +22,7 @@ HEADERS = {
     "X-Requested-With": "XMLHttpRequest",
 }
 
-# tempId untuk halaman beranda PIHPS BI — Bandung
-# Tradisional dan Modern menggunakan GUID berbeda di website BI
-TEMP_ID_TRADISIONAL = "57b2f394-0bb5-4d6d-b3e0-387ef8bc8738"
-TEMP_ID_MODERN      = "a1b2c3d4-0bb5-4d6d-b3e0-387ef8bc8738"  # endpoint modern BI
-
-# Faktor koreksi harga pasar modern vs tradisional (berbasis data empiris BPS/BI).
-# Digunakan sebagai fallback jika API mengembalikan nilai identik.
-# Referensi: pasar modern umumnya 5-12% lebih mahal untuk barang kebutuhan pokok.
-FAKTOR_MODERN: dict[str, float] = {
-    # Beras: supermarket biasanya jual dengan kemasan, sedikit lebih mahal
-    "Beras Kualitas Super I":      1.08,
-    "Beras Kualitas Super II":     1.07,
-    "Beras Kualitas Medium I":     1.06,
-    "Beras Kualitas Medium II":    1.06,
-    "Beras Kualitas Bawah I":      1.05,
-    "Beras Kualitas Bawah II":     1.05,
-    # Cabai & bumbu: pasar modern lebih konsisten tapi harga lebih tinggi
-    "Cabai Rawit Merah":           1.10,
-    "Cabai Rawit Hijau":           1.09,
-    "Cabai Merah Keriting":        1.09,
-    "Cabai Merah Besar":           1.08,
-    "Bawang Merah Ukuran Sedang":  1.07,
-    "Bawang Putih Ukuran Sedang":  1.07,
-    # Daging: pasar modern jual potongan bersih, lebih mahal
-    "Daging Sapi Kualitas 1":      1.12,
-    "Daging Sapi Kualitas 2":      1.11,
-    "Daging Ayam Ras Segar":       1.08,
-    # Telur: relatif sama, sedikit lebih mahal di modern
-    "Telur Ayam Ras Segar":        1.05,
-    # Gula & minyak kemasan: sudah beda komoditas di modern
-    "Gula Pasir Kualitas Premium":  1.06,
-    "Minyak Goreng Kemasan Bermerk 1": 1.00,  # harga kemasan sudah fix
-    "Minyak Goreng Kemasan Bermerk 2": 1.00,
-}
-
-# Variasi acak kecil agar data tidak terlihat mekanis (±0.5%)
-VARIASI_MAX = 0.005
+TEMP_ID = "57b2f394-0bb5-4d6d-b3e0-387ef8bc8738"
 
 # ── Pisahkan komoditas per jenis pasar ────────────────────────────────────
 KOMODITAS_TRADISIONAL = [
@@ -108,34 +71,18 @@ KOMODITAS_MODERN = [
 JEDA_ANTAR_REQUEST = 2
 
 
-def build_url(nama_komoditas: str, ts: int, temp_id: str) -> str:
+def build_url(nama_komoditas: str, ts: int) -> str:
     from urllib.parse import quote
     return (
         f"https://www.bi.go.id/hargapangan/WebSite/Home/GetChartData"
-        f"?tempId={temp_id}&comName={quote(nama_komoditas)}&_={ts}"
+        f"?tempId={TEMP_ID}&comName={quote(nama_komoditas)}&_={ts}"
     )
 
 
-def terapkan_faktor_modern(records: list[dict], nama_komoditas: str) -> list[dict]:
-    """
-    Terapkan faktor koreksi harga untuk pasar modern.
-    Dipanggil jika API mengembalikan data identik dengan tradisional.
-    """
-    faktor = FAKTOR_MODERN.get(nama_komoditas, 1.07)  # default +7% jika tidak ada mapping
-    hasil = []
-    for r in records:
-        harga_asli = r["harga"]
-        # Tambahkan variasi kecil per tanggal agar tidak flat
-        variasi = 1.0 + random.uniform(-VARIASI_MAX, VARIASI_MAX)
-        harga_baru = round(harga_asli * faktor * variasi / 50) * 50  # bulatkan ke 50
-        hasil.append({**r, "harga": harga_baru})
-    return hasil
-
-
-def fetch_satu_komoditas(nama: str, jenis_pasar: str, temp_id: str) -> list[dict]:
+def fetch_satu_komoditas(nama: str, jenis_pasar: str) -> list[dict]:
     """Ambil data satu komoditas. Return list of {komoditas, harga, tanggal, jenis_pasar}."""
     ts  = int(datetime.now().timestamp() * 1000)
-    url = build_url(nama, ts, temp_id)
+    url = build_url(nama, ts)
 
     try:
         resp = requests.get(url, headers=HEADERS, timeout=15)
@@ -174,27 +121,10 @@ def fetch_satu_komoditas(nama: str, jenis_pasar: str, temp_id: str) -> list[dict
             "komoditas":   item.get("name", nama),
             "harga":       float(item.get("nominal", 0) or 0),
             "tanggal":     tgl_raw.split("T")[0] if tgl_raw else "",
-            "jenis_pasar": jenis_pasar,
+            "jenis_pasar": jenis_pasar,  # ← TAMBAH INI
         })
 
     return hasil
-
-
-def cek_data_identik(records_tradisional: list[dict], records_modern: list[dict]) -> bool:
-    """
-    Cek apakah dua list data identik (harga sama persis untuk tanggal yang sama).
-    Jika ya, artinya API BI tidak membedakan harga — perlu faktor koreksi.
-    """
-    if not records_tradisional or not records_modern:
-        return False
-    map_trad = {r["tanggal"]: r["harga"] for r in records_tradisional}
-    map_mod  = {r["tanggal"]: r["harga"] for r in records_modern}
-    tanggal_sama = set(map_trad.keys()) & set(map_mod.keys())
-    if not tanggal_sama:
-        return False
-    identik = all(map_trad[t] == map_mod[t] for t in tanggal_sama)
-    return identik
-
 
 def konversi_ke_supermarket(records: list[dict]) -> list[dict]:
     """Konversi data PIHPS tradisional ke format harga_supermarket."""
@@ -211,34 +141,26 @@ def konversi_ke_supermarket(records: list[dict]) -> list[dict]:
         })
     return hasil
 
-
 def main():
-    print(f"\n{'='*60}")
-    print("  PIHPS Scraper — Mulai (v2: dual tempId + faktor koreksi)")
+    print(f"\n{'='*55}")
+    print("  PIHPS Scraper — Mulai")
     print(f"  Waktu: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"{'='*60}\n")
-
-    # Seed random agar variasi konsisten per run tapi berbeda tiap hari
-    random.seed(int(datetime.now().strftime("%Y%m%d")))
+    print(f"{'='*55}\n")
 
     db = DBManager()
     db.init_schema()
-    db.hapus_data_pihps()           # Hapus semua data lama
     db.hapus_data_toko("Pasar Tradisional")
 
-    total_records   = 0
+    total_records = 0
     semua_tradisional = []
 
     # ── Scrape pasar tradisional ──
     print("[ Pasar Tradisional ]")
-    cache_tradisional: dict[str, list[dict]] = {}  # simpan untuk cek identik
     for idx, nama in enumerate(KOMODITAS_TRADISIONAL, start=1):
         print(f"  [{idx:2}/{len(KOMODITAS_TRADISIONAL)}] {nama}...", end=" ", flush=True)
-        records = fetch_satu_komoditas(nama, jenis_pasar="tradisional",
-                                        temp_id=TEMP_ID_TRADISIONAL)
+        records = fetch_satu_komoditas(nama, jenis_pasar="tradisional")
         if records:
             db.insert_harga_pihps(records)
-            cache_tradisional[nama] = records
             semua_tradisional.extend(records)
             print(f"✓ {len(records)} titik data")
             total_records += len(records)
@@ -247,8 +169,9 @@ def main():
         if idx < len(KOMODITAS_TRADISIONAL):
             time.sleep(JEDA_ANTAR_REQUEST)
 
-    # Insert ke harga_supermarket sebagai "Pasar Tradisional"
+    # ── Insert ke harga_supermarket sebagai "Pasar Tradisional" ──
     if semua_tradisional:
+        # Ambil hanya data terbaru per komoditas
         terbaru: dict[str, dict] = {}
         for r in semua_tradisional:
             nama = r["komoditas"]
@@ -256,40 +179,25 @@ def main():
                 terbaru[nama] = r
         data_supermarket = konversi_ke_supermarket(list(terbaru.values()))
         db.insert_harga_supermarket(data_supermarket)
-        print(f"\n  ✓ {len(data_supermarket)} komoditas pasar tradisional → harga_supermarket\n")
+        print(f"\n  ✓ {len(data_supermarket)} komoditas pasar tradisional disimpan ke supermarket")
 
     # ── Scrape pasar modern ──
-    print("[ Pasar Modern ]")
-    faktor_applied = 0
+    print("\n[ Pasar Modern ]")
     for idx, nama in enumerate(KOMODITAS_MODERN, start=1):
         print(f"  [{idx:2}/{len(KOMODITAS_MODERN)}] {nama}...", end=" ", flush=True)
-
-        records = fetch_satu_komoditas(nama, jenis_pasar="modern",
-                                        temp_id=TEMP_ID_MODERN)
-
+        records = fetch_satu_komoditas(nama, jenis_pasar="modern")
         if records:
-            # Cek apakah API mengembalikan data identik dengan tradisional
-            trad_records = cache_tradisional.get(nama, [])
-            if trad_records and cek_data_identik(trad_records, records):
-                records = terapkan_faktor_modern(records, nama)
-                faktor_applied += 1
-                print(f"✓ {len(records)} titik data (faktor koreksi modern diterapkan)")
-            else:
-                print(f"✓ {len(records)} titik data (harga API berbeda)")
             db.insert_harga_pihps(records)
+            print(f"✓ {len(records)} titik data")
             total_records += len(records)
         else:
             print("0 data")
         if idx < len(KOMODITAS_MODERN):
             time.sleep(JEDA_ANTAR_REQUEST)
 
-    if faktor_applied:
-        print(f"\n  ℹ  {faktor_applied} komoditas menggunakan faktor koreksi")
-        print("     (API BI tidak membedakan harga per jenis pasar untuk komoditas tersebut)")
-
-    print(f"\n{'='*60}")
+    print(f"\n{'='*55}")
     print(f"  Selesai! {total_records} baris tersimpan ke database.")
-    print(f"{'='*60}\n")
+    print(f"{'='*55}\n")
 
 
 if __name__ == "__main__":

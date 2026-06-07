@@ -4,22 +4,14 @@ from PyQt6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QHeaderView,
     QLineEdit, QAbstractItemView
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QByteArray as _QBA
-from PyQt6.QtGui import QColor, QPixmap, QPainter, QIcon
-from PyQt6.QtSvg import QSvgRenderer as _QSvgR
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QColor
 
 from database.db_manager import DBManager
 from gui.components.calculator_card import CalculatorCard
 from gui.widgets.loading_widget import LoadingWidget
 from gui.widgets.refresh_widget import RefreshWidget
 
-_SVG_TRASH_STR = """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"
-stroke-linecap="round" stroke-linejoin="round">
-<path d="M10 11v6"/><path d="M14 11v6"/>
-<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
-<path d="M3 6h18"/>
-<path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>"""
 
 class KalkulatorWorker(QThread):
     selesai = pyqtSignal(list)
@@ -128,16 +120,7 @@ class HalamanPenghitung(QWidget):
 
         layout_isi.addSpacing(6)
 
-        _r = _QSvgR(_QBA(_SVG_TRASH_STR.encode()))
-        _px = QPixmap(18, 18)
-        _px.fill(Qt.GlobalColor.transparent)
-        _p = QPainter(_px)
-        _r.render(_p)
-        _p.end()
-
-        btn_reset = QPushButton("  Reset Keranjang")
-        btn_reset.setIcon(QIcon(_px))
-        btn_reset.setIconSize(_px.size())
+        btn_reset = QPushButton("🗑  Reset Keranjang")
         btn_reset.setStyleSheet("background: #e74c3c; color: white; padding: 8px; border-radius: 6px;")
         btn_reset.clicked.connect(self._reset_keranjang)
         layout_isi.addWidget(btn_reset)
@@ -167,7 +150,7 @@ class HalamanPenghitung(QWidget):
         baris1.addWidget(self.refresh_bar)
         layout_kanan.addLayout(baris1)
 
-        # ── Baris 2: Filter teks + Refresh + Update ──────────────────────
+        # ── Baris 2: Filter + Refresh + Update ───────────────────────────
         baris2 = QHBoxLayout()
         baris2.setSpacing(8)
 
@@ -189,58 +172,6 @@ class HalamanPenghitung(QWidget):
         baris2.addWidget(btn_refresh2)
         baris2.addWidget(btn_update2)
         layout_kanan.addLayout(baris2)
-
-        # ── Baris 3: Filter Kategori ───────────────────────────────────────
-        from PyQt6.QtWidgets import QComboBox
-        baris3 = QHBoxLayout()
-        baris3.setSpacing(8)
-
-        lbl_kat = QLabel("Kategori:")
-        lbl_kat.setStyleSheet("font-size: 12px; color: #555;")
-        baris3.addWidget(lbl_kat)
-
-        self.combo_kat = QComboBox()
-        self.combo_kat.addItem("Semua Kategori")
-        self.combo_kat.setFixedWidth(180)
-        self.combo_kat.setStyleSheet("""
-            QComboBox {
-                padding: 4px 8px; border: 1px solid #ccc;
-                border-radius: 5px; background: white;
-                color: #333; font-size: 12px;
-            }
-            QComboBox QAbstractItemView {
-                background: white; color: #333;
-                selection-background-color: #6B8E23; selection-color: white;
-            }
-        """)
-        self.combo_kat.currentIndexChanged.connect(self._filter_produk_by_all)
-        baris3.addWidget(self.combo_kat)
-
-        # Urutan harga
-        lbl_urut = QLabel("Urutan:")
-        lbl_urut.setStyleSheet("font-size: 12px; color: #555;")
-        baris3.addWidget(lbl_urut)
-
-        self.combo_urut_kal = QComboBox()
-        self.combo_urut_kal.addItems(["Default", "Termurah", "Termahal", "Nama A-Z"])
-        self.combo_urut_kal.setFixedWidth(120)
-        self.combo_urut_kal.setStyleSheet("""
-            QComboBox {
-                padding: 4px 8px; border: 1px solid #ccc;
-                border-radius: 5px; background: white;
-                color: #333; font-size: 12px;
-            }
-            QComboBox QAbstractItemView {
-                background: white; color: #333;
-                selection-background-color: #6B8E23; selection-color: white;
-            }
-        """)
-        self.combo_urut_kal.currentIndexChanged.connect(self._filter_produk_by_all)
-        baris3.addWidget(self.combo_urut_kal)
-
-        baris3.addStretch()
-        layout_kanan.addLayout(baris3)
-        # ──────────────────────────────────────────────────────────────────
 
         self.loading_kanan = LoadingWidget("Memuat produk...")
         layout_kanan.addWidget(self.loading_kanan)
@@ -311,19 +242,6 @@ class HalamanPenghitung(QWidget):
 
         self._susun_grid_produk(self._semua_cards, kolom=2)
 
-        # ── Isi combo kategori dari data yang baru dimuat ──────────────────
-        daftar_kat = sorted({
-            info["kategori"]
-            for info in produk_dict.values()
-            if info.get("kategori")
-        })
-        self.combo_kat.blockSignals(True)
-        self.combo_kat.clear()
-        self.combo_kat.addItem("Semua Kategori")
-        for k in daftar_kat:
-            self.combo_kat.addItem(k)
-        self.combo_kat.blockSignals(False)
-
     # ── Grid Produk ───────────────────────────────────────────────────────
 
     def _susun_grid_produk(self, cards: list[CalculatorCard], kolom: int = 2):
@@ -382,10 +300,29 @@ class HalamanPenghitung(QWidget):
             subtot = harga * qty
 
             self.tabel_keranjang.insertRow(baris)
-            self.tabel_keranjang.setRowHeight(baris, 40)
-
+            self.tabel_keranjang.setRowHeight(baris, 48)
             self.tabel_keranjang.setItem(baris, 0, self._buat_item_readonly(nama))
-            self.tabel_keranjang.setItem(baris, 1, self._buat_item_readonly(f"× {qty}"))
+            
+            # Kolom jumlah — widget +/- langsung di tabel
+            qty_widget = QWidget()
+            qty_row = QHBoxLayout(qty_widget)
+            qty_row.setContentsMargins(4, 4, 4, 4)
+            qty_row.setSpacing(4)
+            btn_m = QPushButton("−"); btn_p = QPushButton("+")
+            lbl_q = QLabel(str(qty))
+            lbl_q.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            lbl_q.setFixedWidth(28)
+            for b in (btn_m, btn_p):
+                b.setFixedSize(24, 24)
+                b.setStyleSheet(
+                    "background:#6B8E23;color:white;border-radius:12px;"
+                    "font-weight:bold;font-size:13px;border:none;"
+                )
+            btn_m.clicked.connect(lambda _, n=nama: self._ubah_qty_keranjang(n, -1))
+            btn_p.clicked.connect(lambda _, n=nama: self._ubah_qty_keranjang(n, +1))
+            qty_row.addWidget(btn_m); qty_row.addWidget(lbl_q); qty_row.addWidget(btn_p)
+            self.tabel_keranjang.setCellWidget(baris, 1, qty_widget)
+
             self.tabel_keranjang.setItem(
                 baris, 2,
                 self._buat_item_readonly(
@@ -405,32 +342,11 @@ class HalamanPenghitung(QWidget):
 
     # ── Filter ────────────────────────────────────────────────────────────
 
-    def _filter_produk(self, keyword: str = ""):
-        """Filter berdasarkan teks — trigger dari input_filter."""
-        self._filter_produk_by_all()
-
-    def _filter_produk_by_all(self):
-        """Filter & urutkan berdasarkan teks + kategori + urutan."""
-        kw      = self.input_filter.text().lower().strip()
-        kat     = self.combo_kat.currentText()
-        urutan  = self.combo_urut_kal.currentText()
-
-        hasil = list(self._semua_cards)
-
-        # Filter teks
-        if kw:
-            hasil = [c for c in hasil if kw in c.nama.lower()]
-
-        # Filter kategori
-        if kat and kat != "Semua Kategori":
-            hasil = [c for c in hasil if (c.kategori or "").lower() == kat.lower()]
-
-        # Urutan
-        if urutan == "Termurah":
-            hasil.sort(key=lambda c: c.harga)
-        elif urutan == "Termahal":
-            hasil.sort(key=lambda c: c.harga, reverse=True)
-        elif urutan == "Nama A-Z":
-            hasil.sort(key=lambda c: c.nama.lower())
+    def _filter_produk(self, keyword: str):
+        kw = keyword.lower().strip()
+        if not kw:
+            hasil = self._semua_cards
+        else:
+            hasil = [card for card in self._semua_cards if kw in card.nama.lower()]
 
         self._susun_grid_produk(hasil, kolom=2)

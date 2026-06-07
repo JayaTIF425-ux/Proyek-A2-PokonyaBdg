@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QScrollArea, QGridLayout,
     QFrame, QDialog, QFormLayout, QMessageBox,
-    QFileDialog, QSizePolicy, QDateEdit, QComboBox
+    QFileDialog, QSizePolicy, QDateEdit
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QByteArray, QDate
 from PyQt6.QtGui import QIcon, QPixmap
@@ -424,104 +424,6 @@ class HalamanPencarian(QWidget):
         bl.addWidget(self.btn_ekspor)
         layout.addWidget(bar)
 
-        # ── Baris Filter: Toko & Kategori ─────────────────────────────────
-        filter_bar = QFrame()
-        filter_bar.setStyleSheet(
-            "background: #f0f7e6; border: 1px solid #c5e0a0; "
-            "border-radius: 6px;"
-        )
-        fl = QHBoxLayout(filter_bar)
-        fl.setContentsMargins(12, 6, 12, 6)
-        fl.setSpacing(10)
-
-        lbl_filter = QLabel("🔽 Filter:")
-        lbl_filter.setStyleSheet("font-size: 12px; color: #555; font-weight: bold; border: none; background: transparent;")
-        fl.addWidget(lbl_filter)
-
-        # Combo filter toko
-        lbl_toko_f = QLabel("Toko:")
-        lbl_toko_f.setStyleSheet("font-size: 12px; color: #555; border: none; background: transparent;")
-        fl.addWidget(lbl_toko_f)
-
-        self.combo_filter_toko = QComboBox()
-        self.combo_filter_toko.addItem("Semua Toko")
-        self.combo_filter_toko.setFixedWidth(160)
-        self.combo_filter_toko.setStyleSheet("""
-            QComboBox {
-                padding: 4px 8px; border: 1px solid #aac27e;
-                border-radius: 4px; background: white; color: #333; font-size: 12px;
-            }
-            QComboBox QAbstractItemView {
-                background: white; color: #333;
-                selection-background-color: #6B8E23; selection-color: white;
-            }
-        """)
-        fl.addWidget(self.combo_filter_toko)
-
-        # Combo filter kategori
-        lbl_kat_f = QLabel("Kategori:")
-        lbl_kat_f.setStyleSheet("font-size: 12px; color: #555; border: none; background: transparent;")
-        fl.addWidget(lbl_kat_f)
-
-        self.combo_filter_kategori = QComboBox()
-        self.combo_filter_kategori.addItem("Semua Kategori")
-        self.combo_filter_kategori.setFixedWidth(180)
-        self.combo_filter_kategori.setStyleSheet("""
-            QComboBox {
-                padding: 4px 8px; border: 1px solid #aac27e;
-                border-radius: 4px; background: white; color: #333; font-size: 12px;
-            }
-            QComboBox QAbstractItemView {
-                background: white; color: #333;
-                selection-background-color: #6B8E23; selection-color: white;
-            }
-        """)
-        fl.addWidget(self.combo_filter_kategori)
-
-        # Urutan harga
-        lbl_urut = QLabel("Urutan:")
-        lbl_urut.setStyleSheet("font-size: 12px; color: #555; border: none; background: transparent;")
-        fl.addWidget(lbl_urut)
-
-        self.combo_urut = QComboBox()
-        self.combo_urut.addItems(["Default", "Harga Termurah", "Harga Termahal", "Nama A-Z"])
-        self.combo_urut.setFixedWidth(150)
-        self.combo_urut.setStyleSheet("""
-            QComboBox {
-                padding: 4px 8px; border: 1px solid #aac27e;
-                border-radius: 4px; background: white; color: #333; font-size: 12px;
-            }
-            QComboBox QAbstractItemView {
-                background: white; color: #333;
-                selection-background-color: #6B8E23; selection-color: white;
-            }
-        """)
-        fl.addWidget(self.combo_urut)
-
-        fl.addStretch()
-
-        # Tombol reset filter
-        btn_reset_filter = QPushButton("✕ Reset")
-        btn_reset_filter.setFixedHeight(28)
-        btn_reset_filter.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_reset_filter.setStyleSheet(
-            "background: #e74c3c; color: white; border-radius: 4px; "
-            "padding: 0 10px; font-size: 11px; border: none;"
-        )
-        btn_reset_filter.clicked.connect(self._reset_filter)
-        fl.addWidget(btn_reset_filter)
-
-        layout.addWidget(filter_bar)
-
-        # Sambungkan combo ke fungsi filter
-        self.combo_filter_toko.currentIndexChanged.connect(self._terapkan_filter)
-        self.combo_filter_kategori.currentIndexChanged.connect(self._terapkan_filter)
-        self.combo_urut.currentIndexChanged.connect(self._terapkan_filter)
-
-        # Isi combo toko & kategori dari DB saat pertama kali
-        self._isi_combo_filter()
-        # ──────────────────────────────────────────────────────────────────
-
         self.refresh_bar = RefreshWidget()
         self.refresh_bar.refresh_diminta.connect(self._refresh_tampilan)
         layout.addWidget(self.refresh_bar)
@@ -550,148 +452,6 @@ class HalamanPencarian(QWidget):
         self.btn_semua.clicked.connect(self._tampilkan_semua)
         self.btn_ekspor.clicked.connect(self._ekspor_csv)
 
-    # ── Filter Toko / Kategori / Urutan ───────────────────────────────
-
-    def _isi_combo_filter(self):
-        """Isi dropdown toko & kategori dari database."""
-        try:
-            db = DBManager()
-            # Toko
-            daftar_toko = db.daftar_toko()
-            self.combo_filter_toko.blockSignals(True)
-            self.combo_filter_toko.clear()
-            self.combo_filter_toko.addItem("Semua Toko")
-            for t in daftar_toko:
-                self.combo_filter_toko.addItem(t)
-            self.combo_filter_toko.blockSignals(False)
-
-            # Kategori — ambil dari harga_supermarket
-            with db._connect() as conn:
-                rows = conn.execute(
-                    "SELECT DISTINCT kategori FROM harga_supermarket "
-                    "WHERE kategori IS NOT NULL AND kategori != '' ORDER BY kategori"
-                ).fetchall()
-            self.combo_filter_kategori.blockSignals(True)
-            self.combo_filter_kategori.clear()
-            self.combo_filter_kategori.addItem("Semua Kategori")
-            for r in rows:
-                self.combo_filter_kategori.addItem(r[0])
-            self.combo_filter_kategori.blockSignals(False)
-        except Exception:
-            pass
-
-    def _terapkan_filter(self):
-        """Filter + urutkan data yang sudah ada di _data_terakhir."""
-        if not self._data_terakhir:
-            return
-        self._render_data_dengan_filter(self._data_terakhir)
-
-    def _reset_filter(self):
-        """Reset semua dropdown filter ke posisi awal."""
-        self.combo_filter_toko.blockSignals(True)
-        self.combo_filter_kategori.blockSignals(True)
-        self.combo_urut.blockSignals(True)
-        self.combo_filter_toko.setCurrentIndex(0)
-        self.combo_filter_kategori.setCurrentIndex(0)
-        self.combo_urut.setCurrentIndex(0)
-        self.combo_filter_toko.blockSignals(False)
-        self.combo_filter_kategori.blockSignals(False)
-        self.combo_urut.blockSignals(False)
-        if self._data_terakhir:
-            self._render_data_dengan_filter(self._data_terakhir)
-
-    def _filter_dan_urut(self, data: list) -> list:
-        """Terapkan filter toko, kategori, dan pengurutan ke data."""
-        toko_pilih = self.combo_filter_toko.currentText()
-        kat_pilih  = self.combo_filter_kategori.currentText()
-        urut_pilih = self.combo_urut.currentText()
-
-        hasil = list(data)
-
-        # Filter toko
-        if toko_pilih and toko_pilih != "Semua Toko":
-            def get_toko(row):
-                return row["toko"] if hasattr(row, "keys") and "toko" in row.keys() else ""
-            hasil = [r for r in hasil if get_toko(r).lower() == toko_pilih.lower()]
-
-        # Filter kategori (hanya berlaku untuk data supermarket)
-        if kat_pilih and kat_pilih != "Semua Kategori":
-            def get_kat(row):
-                try:
-                    keys = row.keys() if hasattr(row, "keys") else []
-                    return (row["kategori"] or "") if "kategori" in keys else ""
-                except Exception:
-                    return ""
-            hasil = [r for r in hasil if get_kat(r).lower() == kat_pilih.lower()]
-
-        # Pengurutan
-        def get_harga(row):
-            try:
-                return float(row["harga"] if hasattr(row, "keys") else row[2])
-            except Exception:
-                return 0.0
-
-        def get_nama(row):
-            try:
-                return (row["nama"] if hasattr(row, "keys") and "nama" in row.keys()
-                        else str(row[0])).lower()
-            except Exception:
-                return ""
-
-        if urut_pilih == "Harga Termurah":
-            hasil.sort(key=get_harga)
-        elif urut_pilih == "Harga Termahal":
-            hasil.sort(key=get_harga, reverse=True)
-        elif urut_pilih == "Nama A-Z":
-            hasil.sort(key=get_nama)
-
-        return hasil
-
-    def _render_data_dengan_filter(self, data: list):
-        """Render ulang grid berdasarkan data + filter aktif."""
-        self._bersihkan_grid()
-        data_terfilter = self._filter_dan_urut(data)
-
-        if not data_terfilter:
-            lbl = QLabel("Tidak ada hasil untuk filter yang dipilih.")
-            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl.setStyleSheet("color: #999; font-size: 14px; padding: 40px;")
-            self.grid.addWidget(lbl, 0, 0, 1, 2)
-            self.lbl_info.setText("0 hasil · (coba ubah filter)")
-            return
-
-        KOLOM = 2
-        for i, row in enumerate(data_terfilter):
-            try:
-                keys    = row.keys() if hasattr(row, "keys") else []
-                id_p    = row["id"]            if "id"            in keys else -1
-                nama    = row["nama"]          if "nama"          in keys else row[1]
-                harga   = row["harga"]         if "harga"         in keys else row[2]
-                toko    = row["toko"]          if "toko"          in keys else row[3]
-                tanggal = row["tanggal"]       if "tanggal"       in keys else ""
-                thumb   = row["thumbnail_url"] if "thumbnail_url" in keys else ""
-                sumber  = row["sumber"]        if "sumber"        in keys else "supermarket"
-                kategori = row["kategori"]     if "kategori"      in keys else ""
-                satuan  = row["satuan"]        if "satuan"        in keys else "kg"
-            except Exception:
-                continue
-
-            from gui.components.search_card import SearchCard
-            card = SearchCard(
-                nama=nama, harga=harga, toko=toko, tanggal=tanggal or "",
-                thumbnail_url=thumb or "", id_produk=id_p, sumber=sumber,
-                kategori=kategori or "", satuan=satuan or "kg",
-                is_admin=self.is_admin,
-            )
-            card.edit_diminta.connect(self._edit_data)
-            card.hapus_diminta.connect(self._hapus_data)
-            self.grid.addWidget(card, i // KOLOM, i % KOLOM)
-
-        self.lbl_info.setText(
-            f"{len(data_terfilter)} dari {len(data)} hasil"
-            + (" · (difilter)" if len(data_terfilter) < len(data) else "")
-        )
-
     # ── Pencarian ──────────────────────────────────────────────────────
 
     def _cari(self, exclude: str = ""):
@@ -715,27 +475,68 @@ class HalamanPencarian(QWidget):
 
     def _tampilkan_hasil_semua(self, data: list):
         self.loading.hide()
+        self._bersihkan_grid()
         self._data_terakhir = data
-        self._isi_combo_filter()   # ← refresh opsi filter
 
         if not data:
-            self._bersihkan_grid()
             self._tampilkan_kosong("Belum ada data supermarket. Jalankan scraper dulu.")
             return
 
-        self._render_data_dengan_filter(data)
+        KOLOM = 2
+        for i, row in enumerate(data):
+            keys = row.keys()
+            card = SearchCard(
+                nama          = row["nama"],
+                harga         = row["harga"],
+                toko          = row["toko"],
+                tanggal       = row["tanggal"] or "",
+                thumbnail_url = row["thumbnail_url"] or "" if "thumbnail_url" in keys else "",
+                id_produk     = row["id"],
+                sumber        = "supermarket",
+                kategori      = row["kategori"] or "" if "kategori" in keys else "",
+                satuan        = row["satuan"] or "kg" if "satuan" in keys else "kg",
+                is_admin      = self.is_admin,   # ← teruskan role
+            )
+            card.edit_diminta.connect(self._edit_data)
+            card.hapus_diminta.connect(self._hapus_data)
+            self.grid.addWidget(card, i // KOLOM, i % KOLOM)
+
+        self.lbl_info.setText(f"Menampilkan {len(data)} produk supermarket.")
 
     def _tampilkan_hasil(self, data: list):
         self.loading.hide()
+        self._bersihkan_grid()
         self._data_terakhir = data
 
         if not data:
-            self._bersihkan_grid()
             self._tampilkan_kosong("Tidak ditemukan data untuk kata kunci tersebut.")
             self.lbl_info.setText("0 hasil ditemukan.")
             return
 
-        self._render_data_dengan_filter(data)
+        KOLOM = 2
+        for i, row in enumerate(data):
+            try:
+                keys    = row.keys() if hasattr(row, "keys") else []
+                id_p    = row["id"]            if "id"            in keys else -1
+                nama    = row["nama"]          if "nama"          in keys else row[1]
+                harga   = row["harga"]         if "harga"         in keys else row[2]
+                toko    = row["toko"]          if "toko"          in keys else row[3]
+                tanggal = row["tanggal"]       if "tanggal"       in keys else ""
+                thumb   = row["thumbnail_url"] if "thumbnail_url" in keys else ""
+                sumber  = row["sumber"]        if "sumber"        in keys else "supermarket"
+            except Exception:
+                continue
+
+            card = SearchCard(
+                nama=nama, harga=harga, toko=toko, tanggal=tanggal or "",
+                thumbnail_url=thumb or "", id_produk=id_p, sumber=sumber,
+                is_admin=self.is_admin,   # ← teruskan role
+            )
+            card.edit_diminta.connect(self._edit_data)
+            card.hapus_diminta.connect(self._hapus_data)
+            self.grid.addWidget(card, i // KOLOM, i % KOLOM)
+
+        self.lbl_info.setText(f"{len(data)} hasil ditemukan.")
 
     def _tampilkan_kosong(self, pesan: str):
         lbl = QLabel(pesan)
