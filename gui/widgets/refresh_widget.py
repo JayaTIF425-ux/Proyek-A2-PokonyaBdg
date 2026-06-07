@@ -21,11 +21,13 @@ def _svg_to_icon(svg_str: str, size: int = 18) -> QIcon:
     painter.end()
     return QIcon(pixmap)
 
+
 _IKON_REFRESH = {
+    # Ikon refresh/reload untuk tombol "Refresh"
     "refresh": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>""",
 
-    # Ikon jam pasir (hourglass) — lebih intuitif untuk "sedang memproses/menunggu"
-    "update": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></svg>""",
+    # Ikon sync (dua panah berputar) untuk tombol "Update Data" — BUKAN hourglass
+    "update": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 0 1 7.38 16.75"/><path d="m16 12-4-4-4 4"/><path d="M12 16V8"/><path d="M2.5 8.875a10 10 0 0 0-.5 3"/><path d="M2.83 16a10 10 0 0 0 2.43 3.4"/><path d="M4.636 5.235a10 10 0 0 1 .891-.857"/><path d="M8.644 21.42a10 10 0 0 0 7.631-.38"/></svg>""",
 }
 
 
@@ -116,7 +118,7 @@ class RefreshWidget(QFrame):
         self.progress.hide()
         layout.addWidget(self.progress)
 
-        # ── Label status ──────────────────────────────────────────────────
+        # ── Label status (dipakai untuk teks "⏳ Mengambil data...") ──────
         self.lbl_status = QLabel("")
         self.lbl_status.setStyleSheet(
             "font-size: 11px; color: #555; border: none; background: transparent;"
@@ -145,7 +147,7 @@ class RefreshWidget(QFrame):
         self.btn_refresh.clicked.connect(self._klik_refresh)
         layout.addWidget(self.btn_refresh)
 
-        # ── Tombol Update Data ────────────────────────────────────────────
+        # ── Tombol Update Data — ikon sync/arrows vektor ──────────────────
         self.btn_update = QPushButton("  Update Data")
         self.btn_update.setFixedHeight(32)
         self.btn_update.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -222,12 +224,13 @@ class RefreshWidget(QFrame):
         self._status = self.STATUS_SCRAPING if aktif else self.STATUS_IDLE
         self.btn_refresh.setEnabled(not aktif)
         self.btn_update.setEnabled(not aktif)
-        self.btn_update.setText("⏳  Mengambil data…" if aktif else "  Update Data")
+        # ⏳ HANYA pada teks status label — BUKAN nama tombol
+        self.btn_update.setText("  Update Data")
 
         if aktif:
             self.progress.show()
             self.lbl_status.show()
-            self.lbl_status.setText("Menjalankan scraper…")
+            self.lbl_status.setText("⏳ Mengambil data…")  # ← hourglass DI SINI, bukan di tombol
         else:
             self.progress.hide()
 
