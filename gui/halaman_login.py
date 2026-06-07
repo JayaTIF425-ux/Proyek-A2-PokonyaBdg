@@ -17,13 +17,14 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import (
     Qt, pyqtSignal, QSize, QPropertyAnimation,
-    QEasingCurve, QTimer, QRect, QPoint
+    QEasingCurve, QTimer, QRect, QPoint, QByteArray
 )
 from PyQt6.QtGui import (
     QPixmap, QIcon, QFont, QColor, QPainter,
     QPainterPath, QLinearGradient, QBrush, QPen,
     QFontDatabase
 )
+from PyQt6.QtSvg import QSvgRenderer
 
 from database.auth_manager import AuthManager
 
@@ -239,6 +240,18 @@ class AnimatedStack(QStackedWidget):
 class HalamanLogin(QDialog):
     login_berhasil = pyqtSignal(dict)
 
+    _SVG_EYE_OPEN = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+      stroke="#A89BA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>"""
+    _SVG_EYE_OFF = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+      stroke="#A89BA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>"""
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.auth = AuthManager()
@@ -351,7 +364,6 @@ class HalamanLogin(QDialog):
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 
-        # ScrollArea agar form registrasi yang lebih panjang tidak terpotong
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
@@ -364,7 +376,6 @@ class HalamanLogin(QDialog):
         scroll_layout.setContentsMargins(40, 30, 40, 30)
         scroll_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Kartu tengah
         card = QFrame()
         card.setObjectName("LoginCard")
         card.setStyleSheet(f"""
@@ -382,7 +393,6 @@ class HalamanLogin(QDialog):
         card_layout.setContentsMargins(44, 40, 44, 44)
         card_layout.setSpacing(0)
 
-        # PENTING: Buat _form_daftar() DULU
         form_daftar = self._form_daftar()
         form_login  = self._form_login()
 
@@ -499,21 +509,18 @@ class HalamanLogin(QDialog):
         layout.addWidget(lbl_sub)
         layout.addSpacing(22)
 
-        # ── Nama Lengkap (BARU) ──────────────────────────────────────────
         layout.addWidget(self._label_field("Nama Lengkap"))
         layout.addSpacing(6)
         self.inp_nama_daftar = self._input_field("Masukkan nama lengkap Anda", icon="👤")
         layout.addWidget(self.inp_nama_daftar)
         layout.addSpacing(14)
 
-        # ── Email ────────────────────────────────────────────────────────
         layout.addWidget(self._label_field("Alamat Email"))
         layout.addSpacing(6)
         self.inp_email_daftar = self._input_field("you@example.com", icon="✉")
         layout.addWidget(self.inp_email_daftar)
         layout.addSpacing(14)
 
-        # ── Password ─────────────────────────────────────────────────────
         layout.addWidget(self._label_field("Kata Sandi"))
         layout.addSpacing(6)
         self.inp_pass_daftar = self._input_field("Masukkan kata sandi", icon="🔒", password=True)
@@ -627,7 +634,7 @@ class HalamanLogin(QDialog):
             username=username,
             password=password,
             email=email,
-            display_name=nama,       # ← nama yang diinput pengguna
+            display_name=nama,
             role=self._peran_dipilih
         )
         if berhasil:
@@ -717,14 +724,31 @@ class HalamanLogin(QDialog):
             icon_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
 
         if password:
-            btn_eye = QPushButton("👁", inp)
+            def _mk_pix(svg_str):
+                r = QSvgRenderer(QByteArray(svg_str.encode()))
+                px = QPixmap(20, 20)
+                px.fill(Qt.GlobalColor.transparent)
+                pp = QPainter(px)
+                r.render(pp)
+                pp.end()
+                return px
+
+            pix_open = _mk_pix(self._SVG_EYE_OPEN)
+            pix_off  = _mk_pix(self._SVG_EYE_OFF)
+
+            btn_eye = QPushButton(inp)
             btn_eye.setFixedSize(32, 32)
-            btn_eye.setStyleSheet("border:none; background:transparent; font-size:14px; cursor:pointer;")
             btn_eye.setCheckable(True)
-            def _toggle(checked, field=inp):
-                field.setEchoMode(
+            btn_eye.setStyleSheet("border:none; background:transparent; padding:0;")
+            btn_eye.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_eye.setIcon(QIcon(pix_open))
+            btn_eye.setIconSize(QSize(20, 20))
+
+            def _toggle(checked, b=btn_eye, f=inp):
+                f.setEchoMode(
                     QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password
                 )
+                b.setIcon(QIcon(pix_off if checked else pix_open))
             btn_eye.toggled.connect(_toggle)
             inp.setTextMargins(0, 0, 36, 0)
 

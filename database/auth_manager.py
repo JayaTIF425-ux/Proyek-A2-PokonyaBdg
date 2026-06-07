@@ -162,6 +162,20 @@ class AuthManager:
             conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
         return True
 
+    def ubah_role(self, user_id: int, role_baru: str) -> bool:
+        """Ubah role user (antara 'admin' dan 'user')."""
+        if role_baru not in ("admin", "user"):
+            return False
+        try:
+            with self._connect() as conn:
+                conn.execute(
+                    "UPDATE users SET role = ? WHERE id = ?",
+                    (role_baru, user_id)
+                )
+            return True
+        except Exception:
+            return False
+
     # ── [BARU] Update Profil Lengkap ─────────────────────────────────────────
 
     def update_profil_lengkap(
@@ -170,21 +184,6 @@ class AuthManager:
         display_name: str,
         new_password: Optional[str] = None,
     ) -> tuple[bool, str]:
-        """
-        [BARU] Update display_name dan (opsional) password sekaligus.
-
-        Ini adalah method utama yang dipanggil oleh _DialogEditProfil.
-        Password di-update TANPA memerlukan verifikasi password lama,
-        karena user sudah terautentikasi melalui sesi login.
-
-        Args:
-            user_id      : ID user di database.
-            display_name : Nama tampilan baru.
-            new_password : Password baru. Jika None / kosong, password tidak diubah.
-
-        Returns:
-            (True, "") jika berhasil, (False, pesan_error) jika gagal.
-        """
         if not display_name or not display_name.strip():
             return False, "Nama tampilan tidak boleh kosong."
 
@@ -194,12 +193,10 @@ class AuthManager:
 
         try:
             with self._connect() as conn:
-                # Selalu update display_name
                 conn.execute(
                     "UPDATE users SET display_name = ? WHERE id = ?",
                     (display_name.strip(), user_id)
                 )
-                # [FIX] Jika ada password baru, langsung update tanpa verifikasi lama
                 if new_password and new_password.strip():
                     conn.execute(
                         "UPDATE users SET password = ? WHERE id = ?",
@@ -234,19 +231,11 @@ class AuthManager:
         password_baru: str,
         force_update: bool = False,
     ) -> tuple[bool, str]:
-        """
-        Ubah password.
-
-        Args:
-            force_update: Jika True, skip verifikasi password lama.
-                          Dipakai oleh panel Edit Profil (user sudah login).
-        """
         if len(password_baru) < 6:
             return False, "Password baru minimal 6 karakter."
 
         with self._connect() as conn:
             if not force_update:
-                # Verifikasi password lama (untuk fitur ganti password dengan konfirmasi)
                 hashed_lama = self._hash_password(password_lama)
                 row = conn.execute(
                     "SELECT id FROM users WHERE id = ? AND password = ?",
@@ -264,10 +253,6 @@ class AuthManager:
     # ── [BARU] Set Password Langsung ────────────────────────────────────────
 
     def set_password(self, user_id: int, password_baru: str) -> tuple[bool, str]:
-        """
-        [BARU] Set password langsung tanpa verifikasi password lama.
-        Alias dari ubah_password(..., force_update=True).
-        """
         return self.ubah_password(
             user_id=user_id,
             password_lama="",

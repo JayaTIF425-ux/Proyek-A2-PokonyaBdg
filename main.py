@@ -69,6 +69,7 @@ def main():
     app.setApplicationName("PokokNya.Bdg")
     app.setApplicationVersion("1.0.0")
     app.setOrganizationName("POLBAN Informatika")
+    app.setQuitOnLastWindowClosed(False)  # Prevent app from quitting when modal dialogs close
 
     # ── Terapkan tema awal dari ThemeManager ─────────────────────────────
     ThemeManager.apply_to_app(app)
