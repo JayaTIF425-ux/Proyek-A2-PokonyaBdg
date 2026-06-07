@@ -4,22 +4,14 @@ from PyQt6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QHeaderView,
     QLineEdit, QAbstractItemView, QSizePolicy, QComboBox
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QByteArray as _QBA
-from PyQt6.QtGui import QColor, QPixmap, QPainter, QIcon, QFont
-from PyQt6.QtSvg import QSvgRenderer as _QSvgR
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QColor, QFont
 
 from database.db_manager import DBManager
 from gui.components.calculator_card import CalculatorCard
 from gui.widgets.loading_widget import LoadingWidget
 from gui.widgets.refresh_widget import RefreshWidget
 
-_SVG_TRASH_STR = """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"
-stroke-linecap="round" stroke-linejoin="round">
-<path d="M10 11v6"/><path d="M14 11v6"/>
-<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
-<path d="M3 6h18"/>
-<path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>"""
 
 class KalkulatorWorker(QThread):
     selesai = pyqtSignal(list)
@@ -128,16 +120,7 @@ class HalamanPenghitung(QWidget):
 
         layout_isi.addSpacing(6)
 
-        _r = _QSvgR(_QBA(_SVG_TRASH_STR.encode()))
-        _px = QPixmap(18, 18)
-        _px.fill(Qt.GlobalColor.transparent)
-        _p = QPainter(_px)
-        _r.render(_p)
-        _p.end()
-
-        btn_reset = QPushButton("  Reset Keranjang")
-        btn_reset.setIcon(QIcon(_px))
-        btn_reset.setIconSize(_px.size())
+        btn_reset = QPushButton("🗑  Reset Keranjang")
         btn_reset.setStyleSheet("background: #e74c3c; color: white; padding: 8px; border-radius: 6px;")
         btn_reset.clicked.connect(self._reset_keranjang)
         layout_isi.addWidget(btn_reset)

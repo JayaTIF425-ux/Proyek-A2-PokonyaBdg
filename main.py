@@ -19,6 +19,9 @@ def main():
     app.setApplicationVersion("1.0.0")
     app.setOrganizationName("POLBAN Informatika")
 
+     # ── Terapkan tema awal dari ThemeManager ─────────────────────────────
+    ThemeManager.apply_to_app(app)
+
     # ── Icon aplikasi (taskbar & title bar) ──────────────────────────────
     icon_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
