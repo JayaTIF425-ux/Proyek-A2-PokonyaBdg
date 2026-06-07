@@ -1,8 +1,3 @@
-"""
-gui/pages/halaman_pencarian.py — Pencarian & Kelola (CRUD) harga komoditas.
-Tombol Tambah Data, Edit, dan Hapus hanya tampil untuk admin.
-"""
-
 import os
 from datetime import date
 
@@ -41,6 +36,15 @@ _IKON_PENCARIAN = {
     "ekspor": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><path d="M12 10v6"/><path d="m15 13-3 3-3-3"/></svg>""",
 }
 
+# ── SVG ikon kecil untuk tiap stat ────────────────────────────────────────────
+_SVG_STAT = {
+    "produk":    """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>""",
+    "harga":     """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>""",
+    "toko":      """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>""",
+    "termahal":  """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>""",
+}
+
+
 # ── Dialog Form (Create & Update) ──────────────────────────────────────────
 
 class DialogFormProduk(QDialog):
@@ -48,40 +52,34 @@ class DialogFormProduk(QDialog):
         super().__init__(parent)
         self.data_awal = data_awal or {}
         mode = "Edit Data" if data_awal else "Tambah Data Baru"
-        
+
         self.setWindowTitle(mode)
-        # 1. Menghapus setFixedSize yang terlalu sempit, diganti dengan minimum size yang ideal
-        self.setMinimumSize(450, 420) 
+        self.setMinimumSize(450, 420)
         self.setStyleSheet("background-color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif;")
 
-        # Layout Utama
         layout = QVBoxLayout(self)
         layout.setContentsMargins(28, 24, 28, 24)
         layout.setSpacing(16)
 
-        # Judul Form
         judul = QLabel(mode)
         judul.setStyleSheet("font-size: 18px; font-weight: bold; color: #2c3e50;")
         layout.addWidget(judul)
 
-        # Garis Pembatas (Separator)
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
         sep.setStyleSheet("color: #eaeded; background-color: #eaeded; max-height: 1px;")
         layout.addWidget(sep)
 
-        # Form Layout
         form = QFormLayout()
-        form.setSpacing(12)  # Jarak antar baris form
+        form.setSpacing(12)
         form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
-        # Fungsi pembuat QLineEdit dengan style yang diperbaiki
         def buat_input(placeholder=""):
             inp = QLineEdit()
             inp.setPlaceholderText(placeholder)
             inp.setStyleSheet(
                 "QLineEdit {"
-                "   padding: 6px 10px;"  # Padding disesuaikan agar teks tidak terpotong
+                "   padding: 6px 10px;"
                 "   border: 1px solid #ccd1d1;"
                 "   border-radius: 6px;"
                 "   font-size: 13px;"
@@ -93,30 +91,25 @@ class DialogFormProduk(QDialog):
             )
             return inp
 
-        # Inisialisasi Input
         self.inp_nama     = buat_input("misal: Beras Premium")
         self.inp_harga    = buat_input("misal: 15000")
         self.inp_toko     = buat_input("misal: Yogya, Borma, ...")
         self.inp_kategori = buat_input("misal: Beras, Sayuran, ...")
         self.inp_satuan   = buat_input("misal: kg, liter, pcs")
-        
-        # Mengubah tanggal menjadi QDateEdit agar lebih rapi dan user-friendly
+
         self.inp_tanggal  = QDateEdit()
         self.inp_tanggal.setCalendarPopup(True)
         self.inp_tanggal.setDisplayFormat("yyyy-MM-dd")
-
         self.inp_tanggal.setMaximumDate(QDate.currentDate())
-        
-        # Ambil widget kalender internalnya untuk dipasang stylesheet khusus
+
         kalender = self.inp_tanggal.calendarWidget()
         if kalender:
-            # Memaksa navigasi atas (bulan & tahun) menggunakan teks gelap
             kalender.setStyleSheet(
                 "QCalendarWidget QWidget#qt_calendar_navigationbar {"
                 "   background-color: #f8fafc;"
                 "}"
                 "QCalendarWidget QWidget {"
-                "   color: #2c3e50;" # Memastikan semua teks kalender berwarna gelap
+                "   color: #2c3e50;"
                 "}"
             )
 
@@ -130,30 +123,19 @@ class DialogFormProduk(QDialog):
             "}"
         )
 
-        self.inp_tanggal.setStyleSheet(
-            "QDateEdit {"
-            "   padding: 6px 10px;"
-            "   border: 1px solid #ccd1d1;"
-            "   border-radius: 6px;"
-            "   font-size: 13px;"
-            "}"
-        )
-
-        # Set Data Awal / Default
         if data_awal:
             self.inp_nama.setText(str(data_awal.get("nama", "")))
             self.inp_harga.setText(str(data_awal.get("harga", "")))
             self.inp_toko.setText(str(data_awal.get("toko", "")))
             self.inp_kategori.setText(str(data_awal.get("kategori", "")))
             self.inp_satuan.setText(str(data_awal.get("satuan", "kg")))
-            
+
             tgl_str = data_awal.get("tanggal", date.today().isoformat())
             self.inp_tanggal.setDate(date.fromisoformat(tgl_str))
         else:
             self.inp_tanggal.setDate(date.today())
             self.inp_satuan.setText("kg")
 
-        # Menambahkan ke Form dengan label bergaya semi-bold
         label_style = "font-size: 13px; color: #34495e; font-weight: 500;"
         for teks_label, widget in [
             ("Nama Produk *:", self.inp_nama),
@@ -166,11 +148,10 @@ class DialogFormProduk(QDialog):
             lbl = QLabel(teks_label)
             lbl.setStyleSheet(label_style)
             form.addRow(lbl, widget)
-            
-        layout.addLayout(form)
-        layout.addSpacing(10) # Beri sedikit jarak sebelum tombol
 
-        # Tombol Aksi
+        layout.addLayout(form)
+        layout.addSpacing(10)
+
         btn_row = QHBoxLayout()
         btn_row.setSpacing(12)
 
@@ -188,7 +169,7 @@ class DialogFormProduk(QDialog):
         warna_ok = "#e67e22" if data_awal else "#2ecc71"
         warna_ok_hover = "#d35400" if data_awal else "#27ae60"
         teks_ok  = "💾 Simpan Perubahan" if data_awal else "✅ Tambah Data"
-        
+
         btn_simpan = QPushButton(teks_ok)
         btn_simpan.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_simpan.setStyleSheet(
@@ -209,14 +190,14 @@ class DialogFormProduk(QDialog):
         if not self.inp_nama.text().strip():
             QMessageBox.warning(self, "Validasi", "Nama produk tidak boleh kosong!")
             return
-        
+
         tanggal_input = self.inp_tanggal.date()
         tanggal_hari_ini = QDate.currentDate()
 
         if tanggal_input > tanggal_hari_ini:
             QMessageBox.warning(
-                self, 
-                "Validasi Tanggal", 
+                self,
+                "Validasi Tanggal",
                 "Tanggal tidak boleh melebihi hari ini! Anda tidak bisa menginput data masa depan."
             )
             return
@@ -239,7 +220,7 @@ class DialogFormProduk(QDialog):
             "toko":     self.inp_toko.text().strip(),
             "kategori": self.inp_kategori.text().strip(),
             "satuan":   self.inp_satuan.text().strip() or "kg",
-            "tanggal":  self.inp_tanggal.date().toPyDate().isoformat(), # Disesuaikan dengan QDateEdit
+            "tanggal":  self.inp_tanggal.date().toPyDate().isoformat(),
         }
 
 
@@ -269,13 +250,12 @@ class SemuaDataWorker(QThread):
 
 KEYWORD_MAP = {
     "telur":        ("telur",        ""),
-
     "bawang merah": ("bawang merah", ""),
     "bawang putih": ("bawang putih", ""),
     "cabai merah":  ("cabai merah",  ""),
     "cabai rawit":  ("cabai rawit",  ""),
-    "daging ayam":  ("ayam",         "telur beras"),  # ← exclude telur
-    "ayam":         ("ayam",         "telur beras"),  
+    "daging ayam":  ("ayam",         "telur beras"),
+    "ayam":         ("ayam",         "telur beras"),
     "daging sapi":  ("sapi",         ""),
     "sapi":         ("sapi",         ""),
     "beras":        ("beras",        ""),
@@ -287,51 +267,93 @@ def petakan_keyword(nama_komoditas: str) -> tuple[str, str]:
     nama_lower = nama_komoditas.lower()
     if "telur" in nama_lower:
         return ("telur", "")
-    
+
     for kunci, nilai in KEYWORD_MAP.items():
         if kunci in nama_lower:
-            return nilai  # (keyword, exclude)
+            return nilai
     return (nama_komoditas.split()[0].lower(), "")
 
 
-# ── Widget Statistik ───────────────────────────────────────────────────────
+# ── Widget Statistik (desain diselaraskan dengan tema maroon) ──────────────
 
 class StatistikBar(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setStyleSheet(
-            "background: #f0f7e6; border: 1px solid #c5e0a0; "
-            "border-radius: 8px; padding: 4px;"
-        )
-        self.setMinimumHeight(80)
-        self.setMaximumHeight(100)
+        self.setObjectName("StatistikBar")
+        self.setStyleSheet("""
+            #StatistikBar {
+                background: #FDF8F5;
+                border: 1px solid #E2D9CC;
+                border-radius: 8px;
+            }
+        """)
+        self.setMinimumHeight(82)
+        self.setMaximumHeight(104)
 
         self._layout = QHBoxLayout(self)
         self._layout.setContentsMargins(16, 12, 16, 12)
-        self._layout.setSpacing(24)
+        self._layout.setSpacing(0)
 
-        self.lbl_total    = self._buat_stat("Total Produk", "–")
-        self.lbl_avg      = self._buat_stat("Rata-Rata Harga", "–")
-        self.lbl_toko     = self._buat_stat("Jumlah Toko", "–")
-        self.lbl_termahal = self._buat_stat("Paling Mahal", "–")
+        self.lbl_total    = self._buat_stat("Total Produk",     "–", "produk")
+        self._layout.addWidget(self._sep())
+        self.lbl_avg      = self._buat_stat("Rata-Rata Harga",  "–", "harga")
+        self._layout.addWidget(self._sep())
+        self.lbl_toko     = self._buat_stat("Jumlah Toko",      "–", "toko")
+        self._layout.addWidget(self._sep())
+        self.lbl_termahal = self._buat_stat("Paling Mahal",     "–", "termahal")
 
         self.perbarui()
 
-    def _buat_stat(self, label: str, nilai: str) -> QLabel:
+    def _sep(self) -> QFrame:
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.VLine)
+        sep.setFixedWidth(1)
+        sep.setStyleSheet("background: #E2D9CC; border: none;")
+        return sep
+
+    def _buat_stat(self, label: str, nilai: str, ikon_key: str = "") -> QLabel:
+        """Buat satu kotak stat dengan ikon SVG kecil. Return label nilai."""
         container = QFrame()
         container.setStyleSheet("border: none; background: transparent;")
-        v = QVBoxLayout(container)
+        h = QHBoxLayout(container)
+        h.setContentsMargins(16, 0, 16, 0)
+        h.setSpacing(10)
+        h.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Ikon SVG kecil
+        if ikon_key in _SVG_STAT:
+            from PyQt6.QtSvg import QSvgRenderer
+            from PyQt6.QtCore import QByteArray
+            renderer = QSvgRenderer(QByteArray(_SVG_STAT[ikon_key].encode()))
+            pix = QPixmap(18, 18)
+            pix.fill(Qt.GlobalColor.transparent)
+            p = QPainter(pix)
+            renderer.render(p)
+            p.end()
+            lbl_ikon = QLabel()
+            lbl_ikon.setPixmap(pix)
+            lbl_ikon.setFixedSize(18, 18)
+            lbl_ikon.setStyleSheet("border: none; background: transparent;")
+            h.addWidget(lbl_ikon)
+
+        v = QVBoxLayout()
         v.setContentsMargins(0, 0, 0, 0)
         v.setSpacing(1)
 
         lbl_l = QLabel(label)
-        lbl_l.setStyleSheet("font-size: 9px; color: #666; border: none; background: transparent;")
+        lbl_l.setStyleSheet(
+            "font-size: 11px; color: #8B7B6B; border: none; background: transparent;"
+        )
         lbl_v = QLabel(nilai)
-        lbl_v.setStyleSheet("font-size: 12px; font-weight: bold; color: #2c3e50; border: none; background: transparent;")
+        lbl_v.setStyleSheet(
+            "font-size: 16px; font-weight: bold; color: #5C1A28; "
+            "border: none; background: transparent;"
+        )
         lbl_v.setWordWrap(True)
 
         v.addWidget(lbl_l)
         v.addWidget(lbl_v)
+        h.addLayout(v)
         self._layout.addWidget(container)
         return lbl_v
 
@@ -353,7 +375,7 @@ class StatistikBar(QFrame):
 
 class HalamanPencarian(QWidget):
 
-    def __init__(self, is_admin: bool = False):   # ← parameter baru
+    def __init__(self, is_admin: bool = False):
         super().__init__()
         self.is_admin = is_admin
         self._data_terakhir: list = []
@@ -414,7 +436,6 @@ class HalamanPencarian(QWidget):
         bl.addWidget(self.btn_cari)
         bl.addWidget(self.btn_semua)
 
-        # ── Tombol Tambah Data — hanya untuk admin ──────────────────────────
         if self.is_admin:
             self.btn_tambah = tombol("Tambah Data", "#2980b9", "Tambah data produk baru")
             self.btn_tambah.setIcon(_svg_to_icon(_IKON_PENCARIAN["tambah"]))
@@ -495,7 +516,7 @@ class HalamanPencarian(QWidget):
                 sumber        = "supermarket",
                 kategori      = row["kategori"] or "" if "kategori" in keys else "",
                 satuan        = row["satuan"] or "kg" if "satuan" in keys else "kg",
-                is_admin      = self.is_admin,   # ← teruskan role
+                is_admin      = self.is_admin,
             )
             card.edit_diminta.connect(self._edit_data)
             card.hapus_diminta.connect(self._hapus_data)
@@ -530,7 +551,7 @@ class HalamanPencarian(QWidget):
             card = SearchCard(
                 nama=nama, harga=harga, toko=toko, tanggal=tanggal or "",
                 thumbnail_url=thumb or "", id_produk=id_p, sumber=sumber,
-                is_admin=self.is_admin,   # ← teruskan role
+                is_admin=self.is_admin,
             )
             card.edit_diminta.connect(self._edit_data)
             card.hapus_diminta.connect(self._hapus_data)

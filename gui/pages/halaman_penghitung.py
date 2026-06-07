@@ -2,10 +2,10 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QScrollArea, QGridLayout, QFrame, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView,
-    QLineEdit, QAbstractItemView
+    QLineEdit, QAbstractItemView, QSizePolicy
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QColor
+from PyQt6.QtGui import QColor, QFont
 
 from database.db_manager import DBManager
 from gui.components.calculator_card import CalculatorCard
@@ -67,8 +67,8 @@ class HalamanPenghitung(QWidget):
         self.tabel_keranjang.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.tabel_keranjang.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
         self.tabel_keranjang.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        self.tabel_keranjang.setColumnWidth(1, 90)
-        self.tabel_keranjang.setColumnWidth(2, 120)
+        self.tabel_keranjang.setColumnWidth(1, 110)
+        self.tabel_keranjang.setColumnWidth(2, 130)
         self.tabel_keranjang.horizontalHeader().setDefaultAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
         )
@@ -103,7 +103,7 @@ class HalamanPenghitung(QWidget):
             }
             QTableWidget::item {
                 padding: 10px;
-                color: #6B8E23;
+                color: #333333;
                 border-bottom: 1px solid #E0E0E0;
             }
         """)
@@ -161,8 +161,7 @@ class HalamanPenghitung(QWidget):
         )
         self.input_filter.textChanged.connect(self._filter_produk)
 
-        # Buat tombol refresh & update baru yang terhubung ke refresh_bar
-        from PyQt6.QtCore import Qt as _Qt
+        # Tampilkan ulang tombol refresh & update yang tersembunyi
         btn_refresh2 = self.refresh_bar.btn_refresh
         btn_update2  = self.refresh_bar.btn_update
         btn_refresh2.show()
@@ -187,7 +186,7 @@ class HalamanPenghitung(QWidget):
         scroll.setWidget(self.grid_container)
         layout_kanan.addWidget(scroll)
 
-        # Panel kiri sama kayak kanan 
+        # Panel kiri sama kayak kanan
         root.addWidget(panel_kiri, 5)
         root.addWidget(panel_kanan, 5)
 
@@ -236,7 +235,7 @@ class HalamanPenghitung(QWidget):
                 harga_per_toko=info["harga_toko"],
                 callback_update=self._update_keranjang,
                 gambar_url=info.get("gambar_url"),
-                kategori=info.get("kategori", ""), 
+                kategori=info.get("kategori", ""),
             )
             self._semua_cards.append(card)
 
@@ -283,6 +282,25 @@ class HalamanPenghitung(QWidget):
             self.keranjang[nama] = {"harga_per_toko": harga_per_toko, "qty": qty}
         self._refresh_tabel_keranjang()
 
+    def _ubah_qty_keranjang(self, nama: str, delta: int):
+        """Ubah qty item di keranjang (+1 atau -1) dari tombol di tabel."""
+        if nama not in self.keranjang:
+            return
+        info = self.keranjang[nama]
+        qty_baru = max(0, info["qty"] + delta)
+
+        # Sinkronisasi ke CalculatorCard yang sesuai agar angka di card & tabel selalu sinkron
+        for card in self._semua_cards:
+            if card.nama == nama:
+                card.qty = qty_baru
+                # Update tampilan input_qty di card jika ada
+                if hasattr(card, "input_qty"):
+                    card.input_qty.setText(str(qty_baru))
+                break
+
+        # Update keranjang (hapus jika qty = 0)
+        self._update_keranjang(nama, info["harga_per_toko"], qty_baru)
+
     def _buat_item_readonly(self, text: str, align: Qt.AlignmentFlag | None = None):
         item = QTableWidgetItem(text)
         item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
@@ -300,27 +318,56 @@ class HalamanPenghitung(QWidget):
             subtot = harga * qty
 
             self.tabel_keranjang.insertRow(baris)
-            self.tabel_keranjang.setRowHeight(baris, 48)
+            self.tabel_keranjang.setRowHeight(baris, 52)
             self.tabel_keranjang.setItem(baris, 0, self._buat_item_readonly(nama))
-            
-            # Kolom jumlah — widget +/- langsung di tabel
+
+            # ── Kolom Jumlah: widget +/− dengan label qty yang terlihat jelas ──
             qty_widget = QWidget()
+            qty_widget.setStyleSheet("background: transparent;")
             qty_row = QHBoxLayout(qty_widget)
-            qty_row.setContentsMargins(4, 4, 4, 4)
-            qty_row.setSpacing(4)
-            btn_m = QPushButton("−"); btn_p = QPushButton("+")
+            qty_row.setContentsMargins(6, 4, 6, 4)
+            qty_row.setSpacing(6)
+            qty_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            btn_m = QPushButton("−")
+            btn_p = QPushButton("+")
+
+            # Label angka quantity — font besar dan warna kontras agar terlihat
             lbl_q = QLabel(str(qty))
             lbl_q.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl_q.setFixedWidth(28)
+            lbl_q.setFixedWidth(32)
+            lbl_q.setFixedHeight(28)
+            lbl_q.setStyleSheet(
+                "color: #333333;"
+                "font-size: 14px;"
+                "font-weight: bold;"
+                "background: #f0f0f0;"
+                "border: 1px solid #d0d0d0;"
+                "border-radius: 4px;"
+            )
+
             for b in (btn_m, btn_p):
-                b.setFixedSize(24, 24)
+                b.setFixedSize(28, 28)
                 b.setStyleSheet(
-                    "background:#6B8E23;color:white;border-radius:12px;"
-                    "font-weight:bold;font-size:13px;border:none;"
+                    "QPushButton {"
+                    "  background: #6B8E23;"
+                    "  color: white;"
+                    "  border-radius: 14px;"
+                    "  font-weight: bold;"
+                    "  font-size: 16px;"
+                    "  border: none;"
+                    "  padding: 0;"
+                    "}"
+                    "QPushButton:hover { background: #5a7a1c; }"
+                    "QPushButton:pressed { background: #4a6616; }"
                 )
+
             btn_m.clicked.connect(lambda _, n=nama: self._ubah_qty_keranjang(n, -1))
             btn_p.clicked.connect(lambda _, n=nama: self._ubah_qty_keranjang(n, +1))
-            qty_row.addWidget(btn_m); qty_row.addWidget(lbl_q); qty_row.addWidget(btn_p)
+
+            qty_row.addWidget(btn_m)
+            qty_row.addWidget(lbl_q)
+            qty_row.addWidget(btn_p)
             self.tabel_keranjang.setCellWidget(baris, 1, qty_widget)
 
             self.tabel_keranjang.setItem(
