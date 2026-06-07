@@ -64,7 +64,6 @@ C = {
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Hapus class RoleButton, ganti dengan ini:
 
 class RoleButton(QFrame):
     clicked = pyqtSignal()
@@ -82,14 +81,12 @@ class RoleButton(QFrame):
         layout.setSpacing(6)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Label ikon
         self.lbl_icon = QLabel()
         self.lbl_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_icon.setFixedSize(56, 56)
         self.lbl_icon.setStyleSheet("background: transparent;")
         layout.addWidget(self.lbl_icon)
 
-        # Label teks
         self.lbl_text = QLabel(label)
         self.lbl_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_text.setStyleSheet("background: transparent; font-size: 13px; font-weight: 600;")
@@ -111,8 +108,7 @@ class RoleButton(QFrame):
 
         icon_path = _asset(f"{self._icon_type}_{suffix}.png")
         if os.path.exists(icon_path):
-            pix = QPixmap(icon_path)
-            pix = QPixmap(icon_path).scaled (
+            pix = QPixmap(icon_path).scaled(
                 56, 56,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation
@@ -149,6 +145,7 @@ class RoleButton(QFrame):
         self.clicked.emit()
         super().mousePressEvent(event)
 
+
 # ══════════════════════════════════════════════════════════════════════════════
 class GoogleButton(QPushButton):
     """Tombol login Google dengan logo G dari file gambar."""
@@ -177,7 +174,6 @@ class GoogleButton(QPushButton):
             }}
         """)
 
-        # Set ikon Google dari file gambar
         google_logo_path = _asset("google_logo.png")
         if os.path.exists(google_logo_path):
             icon = QIcon(google_logo_path)
@@ -215,7 +211,6 @@ class AnimatedStack(QStackedWidget):
 
         def on_out_done():
             current_widget.setGraphicsEffect(None)
-
             self.setCurrentIndex(index)
             new_widget = self.currentWidget()
 
@@ -242,14 +237,6 @@ class AnimatedStack(QStackedWidget):
 
 # ══════════════════════════════════════════════════════════════════════════════
 class HalamanLogin(QDialog):
-    """
-    Dialog login fullscreen — desain mengikuti screenshot Figma:
-    • Panel kiri: maroon gelap + logo + nama app
-    • Panel kanan: latar PUTIH + kartu form melayang
-    • Pemilih peran Admin / User
-    • Animasi fade antar form Login ↔ Daftar
-    """
-
     login_berhasil = pyqtSignal(dict)
 
     def __init__(self, parent=None):
@@ -301,7 +288,6 @@ class HalamanLogin(QDialog):
 
         layout.addStretch(2)
 
-        # Logo — gunakan logo_app.png yang dikirim user
         logo_path = _asset("logo_app.png")
         lbl_logo = QLabel()
         lbl_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -319,7 +305,6 @@ class HalamanLogin(QDialog):
             lbl_logo.setStyleSheet("font-size: 90px; background: transparent;")
 
         layout.addWidget(lbl_logo, alignment=Qt.AlignmentFlag.AlignCenter)
-
         layout.addSpacing(4)
 
         lbl_nama = QLabel("Pokoknya.Bdg")
@@ -332,7 +317,6 @@ class HalamanLogin(QDialog):
             letter-spacing: 1px;
         """)
         layout.addWidget(lbl_nama)
-
         layout.addSpacing(5)
 
         lbl_tagline = QLabel("Perbandingan Harga\nBahan Pokok Kota Bandung")
@@ -344,7 +328,6 @@ class HalamanLogin(QDialog):
             background: transparent;
         """)
         layout.addWidget(lbl_tagline)
-
         layout.addStretch(3)
 
         lbl_credit = QLabel("© 2025 POLBAN Informatika")
@@ -366,7 +349,20 @@ class HalamanLogin(QDialog):
 
         outer = QVBoxLayout(panel)
         outer.setContentsMargins(0, 0, 0, 0)
-        outer.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        outer.setSpacing(0)
+
+        # ScrollArea agar form registrasi yang lebih panjang tidak terpotong
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet("background: #FFFFFF; border: none;")
+
+        scroll_content = QWidget()
+        scroll_content.setStyleSheet("background: #FFFFFF;")
+        scroll_layout = QVBoxLayout(scroll_content)
+        scroll_layout.setContentsMargins(40, 30, 40, 30)
+        scroll_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         # Kartu tengah
         card = QFrame()
@@ -386,18 +382,19 @@ class HalamanLogin(QDialog):
         card_layout.setContentsMargins(44, 40, 44, 44)
         card_layout.setSpacing(0)
 
-        # ── PENTING: Buat _form_daftar() DULU agar self.btn_admin_daftar
-        #    dan self.btn_user_daftar sudah ada sebelum _form_login() dipakai.
+        # PENTING: Buat _form_daftar() DULU
         form_daftar = self._form_daftar()
         form_login  = self._form_login()
 
-        # Stack: login (index 0) + daftar (index 1)
         self.stack = AnimatedStack()
         self.stack.addWidget(form_login)
         self.stack.addWidget(form_daftar)
         card_layout.addWidget(self.stack)
 
-        outer.addWidget(card, alignment=Qt.AlignmentFlag.AlignCenter)
+        scroll_layout.addWidget(card, alignment=Qt.AlignmentFlag.AlignCenter)
+        scroll.setWidget(scroll_content)
+
+        outer.addWidget(scroll)
         return panel
 
     # ── Form Login ────────────────────────────────────────────────────────────
@@ -409,7 +406,6 @@ class HalamanLogin(QDialog):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Judul
         lbl_judul = QLabel("Selamat Datang")
         lbl_judul.setStyleSheet(f"""
             color: {C["text_dark"]};
@@ -428,7 +424,6 @@ class HalamanLogin(QDialog):
         layout.addWidget(lbl_sub)
         layout.addSpacing(24)
 
-        # Email
         layout.addWidget(self._label_field("Alamat Email"))
         layout.addSpacing(6)
         self.inp_email_login = self._input_field("you@example.com", icon="✉")
@@ -436,15 +431,13 @@ class HalamanLogin(QDialog):
         layout.addWidget(self.inp_email_login)
         layout.addSpacing(14)
 
-        # Password
         layout.addWidget(self._label_field("Kata Sandi"))
         layout.addSpacing(6)
         self.inp_pass_login = self._input_field("Masukkan kata sandi", icon="🔒", password=True)
-        layout.addWidget(self.inp_pass_login)
         self.inp_pass_login.returnPressed.connect(self._aksi_login)
+        layout.addWidget(self.inp_pass_login)
         layout.addSpacing(20)
 
-        # Pilih kategori
         layout.addWidget(self._label_field("Pilih kategori akun anda"))
         layout.addSpacing(8)
         role_row = QHBoxLayout()
@@ -452,8 +445,6 @@ class HalamanLogin(QDialog):
         self.btn_admin_login = RoleButton("Admin", "admin")
         self.btn_user_login  = RoleButton("User",  "user")
         self.btn_user_login.setChecked(True)
-
-        # FIX: connect hanya untuk form "login" — tidak ada referensi ke btn_daftar di sini
         self.btn_admin_login.clicked.connect(lambda: self._pilih_peran("admin", "login"))
         self.btn_user_login.clicked.connect(lambda: self._pilih_peran("user",  "login"))
         role_row.addWidget(self.btn_admin_login)
@@ -461,20 +452,17 @@ class HalamanLogin(QDialog):
         layout.addLayout(role_row)
         layout.addSpacing(6)
 
-        # Error
         self.lbl_login_error = QLabel("")
         self.lbl_login_error.setStyleSheet(f"color: {C['error']}; font-size: 12px; background: transparent;")
         self.lbl_login_error.setWordWrap(True)
         layout.addWidget(self.lbl_login_error)
         layout.addSpacing(16)
 
-        # Tombol Masuk
         btn_masuk = self._btn_utama("Masuk")
         btn_masuk.clicked.connect(self._aksi_login)
         layout.addWidget(btn_masuk)
         layout.addSpacing(12)
 
-        # Tombol Buat Akun Baru
         btn_daftar = self._btn_sekunder("Buat Akun Baru")
         btn_daftar.clicked.connect(lambda: self.stack.slide_to(1))
         btn_daftar.clicked.connect(lambda: self._pilih_peran("user", "daftar"))
@@ -493,7 +481,6 @@ class HalamanLogin(QDialog):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Judul
         lbl_judul = QLabel("Buat akun kamu")
         lbl_judul.setStyleSheet(f"""
             color: {C["gold"]};
@@ -512,14 +499,21 @@ class HalamanLogin(QDialog):
         layout.addWidget(lbl_sub)
         layout.addSpacing(22)
 
-        # Email
+        # ── Nama Lengkap (BARU) ──────────────────────────────────────────
+        layout.addWidget(self._label_field("Nama Lengkap"))
+        layout.addSpacing(6)
+        self.inp_nama_daftar = self._input_field("Masukkan nama lengkap Anda", icon="👤")
+        layout.addWidget(self.inp_nama_daftar)
+        layout.addSpacing(14)
+
+        # ── Email ────────────────────────────────────────────────────────
         layout.addWidget(self._label_field("Alamat Email"))
         layout.addSpacing(6)
         self.inp_email_daftar = self._input_field("you@example.com", icon="✉")
         layout.addWidget(self.inp_email_daftar)
         layout.addSpacing(14)
 
-        # Password
+        # ── Password ─────────────────────────────────────────────────────
         layout.addWidget(self._label_field("Kata Sandi"))
         layout.addSpacing(6)
         self.inp_pass_daftar = self._input_field("Masukkan kata sandi", icon="🔒", password=True)
@@ -527,7 +521,6 @@ class HalamanLogin(QDialog):
         layout.addWidget(self.inp_pass_daftar)
         layout.addSpacing(20)
 
-        # Pilih kategori
         layout.addWidget(self._label_field("Pilih kategori akun anda"))
         layout.addSpacing(8)
         role_row2 = QHBoxLayout()
@@ -542,7 +535,6 @@ class HalamanLogin(QDialog):
         layout.addLayout(role_row2)
         layout.addSpacing(6)
 
-        # Error / Sukses
         self.lbl_daftar_error  = QLabel("")
         self.lbl_daftar_sukses = QLabel("")
         self.lbl_daftar_error.setStyleSheet(f"color: {C['error']}; font-size: 12px; background: transparent;")
@@ -553,13 +545,11 @@ class HalamanLogin(QDialog):
         layout.addWidget(self.lbl_daftar_sukses)
         layout.addSpacing(16)
 
-        # Tombol submit daftar
         btn_buat = self._btn_utama("Buat Akun")
         btn_buat.clicked.connect(self._aksi_daftar)
         layout.addWidget(btn_buat)
         layout.addSpacing(12)
 
-        # Tombol kembali ke login
         btn_kembali = self._btn_sekunder("Sudah punya akun? Masuk")
         btn_kembali.clicked.connect(lambda: self.stack.slide_to(0))
         btn_kembali.clicked.connect(lambda: self._pilih_peran("user", "login"))
@@ -572,10 +562,8 @@ class HalamanLogin(QDialog):
     # ── Aksi ─────────────────────────────────────────────────────────────────
 
     def _pilih_peran(self, peran: str, form: str):
-        # Pastikan 'peran' yang masuk berupa string murni, bukan boolean dari PyQt
         if isinstance(peran, bool):
             return
-
         self._peran_dipilih = peran
         if form == "login":
             self.btn_admin_login.setChecked(peran == "admin")
@@ -585,7 +573,6 @@ class HalamanLogin(QDialog):
             self.btn_user_daftar.setChecked(peran == "user")
 
     def _aksi_login(self):
-        """Login menggunakan email sebagai username (ambil bagian sebelum @)."""
         email    = self.inp_email_login.text().strip()
         password = self.inp_pass_login.text()
         self.lbl_login_error.setText("")
@@ -593,13 +580,12 @@ class HalamanLogin(QDialog):
         if not email or not password:
             self.lbl_login_error.setText("⚠ Email dan kata sandi tidak boleh kosong.")
             return
-        
+
         pola_email = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         if not re.match(pola_email, email):
             self.lbl_login_error.setText("❌ Format email tidak valid (harus menyertakan domain, cth: .com).")
             return
 
-        # Derive username dari email (sama seperti saat registrasi)
         username = email.split("@")[0].replace(".", "_") if "@" in email else email
 
         user = self.auth.login(username, password)
@@ -616,15 +602,19 @@ class HalamanLogin(QDialog):
             self.lbl_login_error.setText("❌ Email atau kata sandi salah.")
 
     def _aksi_daftar(self):
+        nama     = self.inp_nama_daftar.text().strip()
         email    = self.inp_email_daftar.text().strip()
         password = self.inp_pass_daftar.text()
         self.lbl_daftar_error.setText("")
         self.lbl_daftar_sukses.setText("")
 
+        if not nama:
+            self.lbl_daftar_error.setText("⚠ Nama lengkap tidak boleh kosong.")
+            return
+
         if not email or not password:
             self.lbl_daftar_error.setText("⚠ Email dan kata sandi tidak boleh kosong.")
             return
-        
 
         pola_email = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         if not re.match(pola_email, email):
@@ -633,13 +623,12 @@ class HalamanLogin(QDialog):
 
         username = email.split("@")[0].replace(".", "_")
 
-        # FIX: teruskan self._peran_dipilih sebagai role
         berhasil, pesan = self.auth.register(
             username=username,
             password=password,
             email=email,
-            display_name=username,
-            role=self._peran_dipilih   
+            display_name=nama,       # ← nama yang diinput pengguna
+            role=self._peran_dipilih
         )
         if berhasil:
             self.lbl_daftar_sukses.setText(
@@ -650,7 +639,6 @@ class HalamanLogin(QDialog):
                 self.inp_pass_login.clear()
                 self._pilih_peran(self._peran_dipilih, "login")
                 self.stack.slide_to(0)
-
             QTimer.singleShot(1200, _ke_login)
         else:
             self.lbl_daftar_error.setText(f"❌ {pesan}")
@@ -701,7 +689,7 @@ class HalamanLogin(QDialog):
         if password:
             inp.setEchoMode(QLineEdit.EchoMode.Password)
 
-        padding_left = "38px" if icon else "14px"
+        padding_left  = "38px" if icon else "14px"
         padding_right = "44px" if password else "14px"
 
         inp.setStyleSheet(f"""
@@ -731,21 +719,17 @@ class HalamanLogin(QDialog):
         if password:
             btn_eye = QPushButton("👁", inp)
             btn_eye.setFixedSize(32, 32)
-            btn_eye.setStyleSheet(
-                "border:none; background:transparent; font-size:14px; cursor:pointer;"
-            )
+            btn_eye.setStyleSheet("border:none; background:transparent; font-size:14px; cursor:pointer;")
             btn_eye.setCheckable(True)
             def _toggle(checked, field=inp):
                 field.setEchoMode(
                     QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password
                 )
             btn_eye.toggled.connect(_toggle)
-            # Posisi tombol mata di kanan dalam input
             inp.setTextMargins(0, 0, 36, 0)
 
             def _reposition_eye(event=None, b=btn_eye, f=inp):
                 b.move(f.width() - 38, (f.height() - 32) // 2)
-
             inp.resizeEvent = _reposition_eye
 
         return inp
@@ -764,12 +748,8 @@ class HalamanLogin(QDialog):
                 font-weight: 700;
                 letter-spacing: 0.5px;
             }}
-            QPushButton:hover {{
-                background: {C["gold_hover"]};
-            }}
-            QPushButton:pressed {{
-                background: {C["gold_press"]};
-            }}
+            QPushButton:hover {{ background: {C["gold_hover"]}; }}
+            QPushButton:pressed {{ background: {C["gold_press"]}; }}
         """)
         return btn
 
@@ -791,9 +771,7 @@ class HalamanLogin(QDialog):
                 border-color: {C["maroon"]};
                 color: {C["maroon"]};
             }}
-            QPushButton:pressed {{
-                background: #E8E0D4;
-            }}
+            QPushButton:pressed {{ background: #E8E0D4; }}
         """)
         return btn
 
@@ -811,11 +789,7 @@ class HalamanLogin(QDialog):
             return f
 
         lbl = QLabel("Atau lanjut dengan")
-        lbl.setStyleSheet(f"""
-            color: {C["text_light"]};
-            font-size: 12px;
-            background: transparent;
-        """)
+        lbl.setStyleSheet(f"color: {C['text_light']}; font-size: 12px; background: transparent;")
         row.addWidget(garis(), 1)
         row.addWidget(lbl)
         row.addWidget(garis(), 1)
