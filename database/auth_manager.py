@@ -1,3 +1,7 @@
+"""
+database/auth_manager.py — Autentikasi: login, register, Google OAuth, role user/admin.
+"""
+
 import sqlite3
 import hashlib
 import os
@@ -102,7 +106,12 @@ class AuthManager:
 
     def login_or_register_google(self, google_id: str, email: str,
                                 display_name: str) -> dict:
+        """
+        Login dengan Google. Jika belum terdaftar, buat akun baru otomatis.
+        Return dict user.
+        """
         with self._connect() as conn:
+            # Cek sudah ada belum
             row = conn.execute(
                 "SELECT id, username, role, display_name FROM users WHERE google_id = ?",
                 (google_id,)
@@ -110,6 +119,8 @@ class AuthManager:
             if row:
                 return dict(row)
 
+            # Belum ada — buat akun baru
+            # Buat username unik dari email
             base_username = email.split("@")[0].replace(".", "_")
             username = base_username
             counter = 1
@@ -161,56 +172,7 @@ class AuthManager:
         with self._connect() as conn:
             conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
         return True
-
-    # ── [BARU] Update Profil Lengkap ─────────────────────────────────────────
-
-    def update_profil_lengkap(
-        self,
-        user_id: int,
-        display_name: str,
-        new_password: Optional[str] = None,
-    ) -> tuple[bool, str]:
-        """
-        [BARU] Update display_name dan (opsional) password sekaligus.
-
-        Ini adalah method utama yang dipanggil oleh _DialogEditProfil.
-        Password di-update TANPA memerlukan verifikasi password lama,
-        karena user sudah terautentikasi melalui sesi login.
-
-        Args:
-            user_id      : ID user di database.
-            display_name : Nama tampilan baru.
-            new_password : Password baru. Jika None / kosong, password tidak diubah.
-
-        Returns:
-            (True, "") jika berhasil, (False, pesan_error) jika gagal.
-        """
-        if not display_name or not display_name.strip():
-            return False, "Nama tampilan tidak boleh kosong."
-
-        if new_password is not None and new_password.strip():
-            if len(new_password) < 6:
-                return False, "Password minimal 6 karakter."
-
-        try:
-            with self._connect() as conn:
-                # Selalu update display_name
-                conn.execute(
-                    "UPDATE users SET display_name = ? WHERE id = ?",
-                    (display_name.strip(), user_id)
-                )
-                # [FIX] Jika ada password baru, langsung update tanpa verifikasi lama
-                if new_password and new_password.strip():
-                    conn.execute(
-                        "UPDATE users SET password = ? WHERE id = ?",
-                        (self._hash_password(new_password), user_id)
-                    )
-            return True, ""
-        except Exception as e:
-            return False, f"Gagal menyimpan: {str(e)}"
-
-    # ── Update Profil (username + display_name) ──────────────────────────────
-
+    
     def update_profil(self, user_id: int, display_name: str, username: str) -> tuple[bool, str]:
         """Update nama tampilan dan username."""
         if not username or len(username) < 3:
@@ -225,55 +187,23 @@ class AuthManager:
         except sqlite3.IntegrityError:
             return False, "Username sudah digunakan."
 
-    # ── [FIX] Ubah Password ──────────────────────────────────────────────────
-
-    def ubah_password(
-        self,
-        user_id: int,
-        password_lama: str,
-        password_baru: str,
-        force_update: bool = False,
-    ) -> tuple[bool, str]:
-        """
-        Ubah password.
-
-        Args:
-            force_update: Jika True, skip verifikasi password lama.
-                          Dipakai oleh panel Edit Profil (user sudah login).
-        """
-        if len(password_baru) < 6:
-            return False, "Password baru minimal 6 karakter."
-
+    def ubah_password(self, user_id: int, password_lama: str, password_baru: str) -> tuple[bool, str]:
+        """Ubah password dengan verifikasi password lama."""
+        hashed_lama = self._hash_password(password_lama)
         with self._connect() as conn:
-            if not force_update:
-                # Verifikasi password lama (untuk fitur ganti password dengan konfirmasi)
-                hashed_lama = self._hash_password(password_lama)
-                row = conn.execute(
-                    "SELECT id FROM users WHERE id = ? AND password = ?",
-                    (user_id, hashed_lama)
-                ).fetchone()
-                if not row:
-                    return False, "Password lama salah."
-
+            row = conn.execute(
+                "SELECT id FROM users WHERE id = ? AND password = ?",
+                (user_id, hashed_lama)
+            ).fetchone()
+            if not row:
+                return False, "Password lama salah."
+            if len(password_baru) < 6:
+                return False, "Password baru minimal 6 karakter."
             conn.execute(
                 "UPDATE users SET password=? WHERE id=?",
                 (self._hash_password(password_baru), user_id)
             )
         return True, ""
-
-    # ── [BARU] Set Password Langsung ────────────────────────────────────────
-
-    def set_password(self, user_id: int, password_baru: str) -> tuple[bool, str]:
-        """
-        [BARU] Set password langsung tanpa verifikasi password lama.
-        Alias dari ubah_password(..., force_update=True).
-        """
-        return self.ubah_password(
-            user_id=user_id,
-            password_lama="",
-            password_baru=password_baru,
-            force_update=True,
-        )
 
     def _seed_default_accounts(self):
         """Tambahkan akun admin dan user default jika belum ada."""

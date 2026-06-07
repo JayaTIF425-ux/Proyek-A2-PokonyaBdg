@@ -1,11 +1,12 @@
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QFrame, QLabel, QPushButton, QStackedWidget, QSizePolicy,
-    QDialog, QLineEdit, QGridLayout, QGraphicsDropShadowEffect,
+    QDialog, QLineEdit, QGridLayout,
 )
-from PyQt6.QtCore import Qt, QByteArray, pyqtSignal, QSize, QTimer, QPropertyAnimation, QEasingCurve
-from PyQt6.QtGui import QFont, QIcon, QPixmap, QPainter, QBrush, QColor
+from PyQt6.QtCore import Qt, QByteArray, pyqtSignal, QSize, QTimer
+from PyQt6.QtGui import QFont, QIcon, QPixmap, QPainter
 from PyQt6.QtSvg import QSvgRenderer
+from PyQt6.QtGui import QPainter
 import os
 
 from gui.pages.halaman_beranda import HalamanBeranda
@@ -16,14 +17,8 @@ from gui.pages.halaman_tentang import HalamanTentang
 from gui.pages.halaman_admin import HalamanAdmin
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# SVG Helper
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _svg_to_icon(svg_str: str, size: int = 20, color: str = "white") -> QIcon:
-    """Render SVG string menjadi QIcon berukuran size×size px."""
-    svg_colored = svg_str.replace("currentColor", color)
-    renderer = QSvgRenderer(QByteArray(svg_colored.encode()))
+def _svg_to_icon(svg_str: str, size: int = 20) -> QIcon:
+    renderer = QSvgRenderer(QByteArray(svg_str.encode()))
     pixmap = QPixmap(size, size)
     pixmap.fill(Qt.GlobalColor.transparent)
     painter = QPainter(pixmap)
@@ -32,58 +27,43 @@ def _svg_to_icon(svg_str: str, size: int = 20, color: str = "white") -> QIcon:
     return QIcon(pixmap)
 
 
-def _svg_to_pixmap(svg_str: str, size: int, color: str = "white") -> QPixmap:
-    """Render SVG string menjadi QPixmap."""
-    svg_colored = svg_str.replace("currentColor", color)
-    renderer = QSvgRenderer(QByteArray(svg_colored.encode()))
-    pixmap = QPixmap(size, size)
-    pixmap.fill(Qt.GlobalColor.transparent)
-    painter = QPainter(pixmap)
-    renderer.render(painter)
-    painter.end()
-    return pixmap
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# [UBAH] Koleksi ikon SVG — semua vektor, tidak ada emoji
-# ─────────────────────────────────────────────────────────────────────────────
-
 _IKON = {
     "beranda": """
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+     stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/>
   <path d="M9 21V12h6v9"/>
 </svg>""",
 
     "pencarian": """
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+     stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <circle cx="10" cy="10" r="6"/>
   <line x1="14.5" y1="14.5" x2="21" y2="21"/>
-  <text x="7" y="13.5" font-size="7" fill="currentColor" stroke="none"
+  <text x="7" y="13.5" font-size="7" fill="white" stroke="none"
         font-family="sans-serif" font-weight="bold">Rp</text>
 </svg>""",
 
-    # [FIX] Ikon keranjang belanja — proporsional dan jelas
     "penghitung": """
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M6 2H3L2 7h20l-1.7 9H5.7L4 7"/>
-  <circle cx="9" cy="20" r="1.5" fill="currentColor" stroke="none"/>
-  <circle cx="17" cy="20" r="1.5" fill="currentColor" stroke="none"/>
+     stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M6 2h12a1 1 0 0 1 1 1v3H5V3a1 1 0 0 1 1-1z"/>
+  <path d="M5 6h14l-1.5 14H6.5L5 6z"/>
+  <line x1="9" y1="11" x2="9" y2="16"/>
+  <line x1="12" y1="11" x2="12" y2="16"/>
+  <line x1="15" y1="11" x2="15" y2="16"/>
 </svg>""",
 
     "tutorial": """
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+     stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <rect x="3" y="3" width="18" height="18" rx="2"/>
-  <polygon points="9,8 17,12 9,16" fill="currentColor" stroke="none"/>
+  <polygon points="9,8 17,12 9,16" fill="white" stroke="none"/>
 </svg>""",
 
     "tentang": """
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+     stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <circle cx="12" cy="12" r="9"/>
   <line x1="12" y1="8" x2="12" y2="8.5" stroke-width="2.5"/>
   <line x1="12" y1="11" x2="12" y2="17"/>
@@ -91,149 +71,21 @@ _IKON = {
 
     "admin": """
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+     stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <circle cx="12" cy="8" r="4"/>
   <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
   <path d="M17 13l1.5 1.5L21 12" stroke="#F1C40F" stroke-width="2.5"/>
 </svg>""",
 
-    # [FIX] Ikon logout — tetap menggunakan ikon pintu panah keluar (bukan emoji)
     "logout": """
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+     stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
   <polyline points="16 17 21 12 16 7"/>
   <line x1="21" y1="12" x2="9" y2="12"/>
 </svg>""",
-
-    "tema_gelap": """
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-</svg>""",
-
-    "tema_terang": """
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <circle cx="12" cy="12" r="5"/>
-  <line x1="12" y1="1" x2="12" y2="3"/>
-  <line x1="12" y1="21" x2="12" y2="23"/>
-  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-  <line x1="1" y1="12" x2="3" y2="12"/>
-  <line x1="21" y1="12" x2="23" y2="12"/>
-  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-</svg>""",
-
-    # [BARU] Ikon user & role (vektor, menggantikan emoji 👤 dan 🔑)
-    "user": """
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <circle cx="12" cy="8" r="4"/>
-  <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-</svg>""",
-
-    "kunci": """
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-</svg>""",
-
-    # [BARU] Ikon edit profil (vektor, menggantikan ✏)
-    "edit": """
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-</svg>""",
-
-    # [BARU] Ikon mata (untuk toggle lihat password)
-    "mata_buka": """
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-  <circle cx="12" cy="12" r="3"/>
-</svg>""",
-
-    "mata_tutup": """
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-  <line x1="1" y1="1" x2="23" y2="23"/>
-</svg>""",
-
-    # [BARU] Ikon pintu (menggantikan emoji 🚪 di dialog logout)
-    "pintu": """
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M13 3h-2a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h2"/>
-  <rect x="3" y="3" width="10" height="18" rx="1"/>
-  <polyline points="17 15 21 12 17 9"/>
-  <line x1="21" y1="12" x2="11" y2="12"/>
-</svg>""",
 }
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# [BARU] Widget Toggle Switch (menggantikan tombol dark mode biasa)
-# ─────────────────────────────────────────────────────────────────────────────
-
-class ToggleSwitch(QWidget):
-    """
-    [BARU] Komponen toggle switch modern (seperti iOS toggle).
-    Menggantikan tombol teks biasa untuk dark mode.
-    """
-
-    toggled = pyqtSignal(bool)  # True = aktif (dark mode on)
-
-    # Warna track & knob
-    _COLOR_ON_TRACK  = "#F1C40F"   # kuning keemasan — dark mode aktif
-    _COLOR_OFF_TRACK = "rgba(255,255,255,0.25)"
-    _COLOR_KNOB      = "#FFFFFF"
-
-    def __init__(self, checked: bool = False, parent=None):
-        super().__init__(parent)
-        self._checked = checked
-        self.setFixedSize(44, 24)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-
-    def isChecked(self) -> bool:
-        return self._checked
-
-    def setChecked(self, state: bool):
-        self._checked = state
-        self.update()
-
-    def mousePressEvent(self, event):
-        self._checked = not self._checked
-        self.toggled.emit(self._checked)
-        self.update()
-        super().mousePressEvent(event)
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        # Track
-        track_color = QColor(self._COLOR_ON_TRACK if self._checked else "#666688")
-        painter.setBrush(QBrush(track_color))
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.drawRoundedRect(0, 4, 44, 16, 8, 8)
-
-        # Knob
-        knob_x = 24 if self._checked else 4
-        painter.setBrush(QBrush(QColor(self._COLOR_KNOB)))
-        painter.drawEllipse(knob_x, 2, 20, 20)
-
-        painter.end()
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# MainWindow
-# ─────────────────────────────────────────────────────────────────────────────
 
 class MainWindow(QMainWindow):
     """Jendela utama dengan sidebar collapsible + konten stacked."""
@@ -301,7 +153,6 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 20)
         layout.setSpacing(4)
 
-        # Baris brand + tombol collapse
         brand_row = QHBoxLayout()
         brand_row.setContentsMargins(12, 16, 8, 0)
 
@@ -322,7 +173,6 @@ class MainWindow(QMainWindow):
         """)
         self.btn_collapse.clicked.connect(self._toggle_sidebar)
 
-        # Logo bulat
         BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         logo_path = os.path.join(BASE_DIR, "gui", "assets", "images", "logo_app.png")
         self.lbl_logo = QLabel()
@@ -334,6 +184,7 @@ class MainWindow(QMainWindow):
             rounded.fill(Qt.GlobalColor.transparent)
             painter = QPainter(rounded)
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            from PyQt6.QtGui import QBrush
             from PyQt6.QtCore import QRect
             painter.setBrush(QBrush(pixmap))
             painter.setPen(Qt.PenStyle.NoPen)
@@ -342,113 +193,77 @@ class MainWindow(QMainWindow):
             self.lbl_logo.setPixmap(rounded)
         self.lbl_logo.setFixedSize(48, 48)
 
-        # Teks brand
-        brand_teks = QVBoxLayout()
-        brand_teks.setSpacing(0)
         self.lbl_brand = QLabel("PokokNya.Bdg")
-        self.lbl_brand.setStyleSheet(
-            "color: #6B8E23; font-size: 16px; font-weight: bold;"
-        )
-        brand_teks.addWidget(self.lbl_brand)
+        self.lbl_brand.setStyleSheet("color: #8B9B3A; font-size: 15px; font-weight: bold;")
 
         brand_row.addWidget(self.lbl_logo)
         brand_row.addSpacing(6)
-        brand_row.addLayout(brand_teks)
+        brand_row.addWidget(self.lbl_brand)
         brand_row.addStretch()
         brand_row.addWidget(self.btn_collapse)
         layout.addLayout(brand_row)
-        layout.addSpacing(8)
+        layout.addSpacing(10)
 
-        # ── [FIX] Info user — "User/Admin" + username dalam SATU baris horizontal ──
-        username = self.current_user.get("username", "guest")
-        role     = self.current_user.get("role", "user")
-        display  = self.current_user.get("display_name") or username
-        # [FIX] Ikon vektor user/admin menggantikan emoji 👤/🔑
-        role_ikon_svg = _IKON["kunci"] if role == "admin" else _IKON["user"]
+        username    = self.current_user.get("display_name") or self.current_user.get("username", "guest")
+        role        = self.current_user.get("role", "user")
+        badge_teks  = "Admin" if role == "admin" else "User"
+        badge_color = "#F1C40F" if role == "admin" else "#90CAF9"
 
-        self.user_info_frame = QFrame()
-        self.user_info_frame.setStyleSheet(f"""
-            QFrame {{
-                background: rgba(255,255,255,0.08);
-                border-radius: 8px;
-                margin: 0 10px 6px 10px;
-            }}
+        user_frame = QFrame()
+        user_frame.setStyleSheet("""
+            background: rgba(255,255,255,0.09);
+            border-radius: 8px;
+            margin: 0 10px 6px 10px;
         """)
-        user_info_layout = QHBoxLayout(self.user_info_frame)
-        user_info_layout.setContentsMargins(10, 8, 10, 8)
-        user_info_layout.setSpacing(8)
+        user_row = QHBoxLayout(user_frame)
+        user_row.setContentsMargins(10, 6, 10, 6)
+        user_row.setSpacing(6)
 
-        # Ikon vektor user
-        self.lbl_user_icon = QLabel()
-        self.lbl_user_icon.setFixedSize(18, 18)
-        self.lbl_user_icon.setPixmap(
-            _svg_to_pixmap(role_ikon_svg, 18, self.WARNA_AKSEN)
-        )
-        self.lbl_user_icon.setStyleSheet("background: transparent; border: none;")
-
-        # [FIX] Badge role dan username dalam satu baris
-        role_label = "Admin" if role == "admin" else "User"
-        self.lbl_user_role = QLabel(role_label)
-        self.lbl_user_role.setStyleSheet(f"""
-            color: {self.WARNA_AKSEN};
-            font-size: 11px;
-            font-weight: 700;
-            background: transparent;
-            border: none;
+        self.lbl_badge = QLabel(badge_teks)
+        self.lbl_badge.setStyleSheet(f"""
+            background: {badge_color};
+            color: #1A0A0E;
+            font-size: 10px; font-weight: 700;
+            border-radius: 4px; padding: 1px 5px;
         """)
-
-        # Garis pemisah tipis
-        sep_vline = QFrame()
-        sep_vline.setFrameShape(QFrame.Shape.VLine)
-        sep_vline.setStyleSheet(f"color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.2); max-width: 1px; border: none;")
-        sep_vline.setFixedHeight(14)
-
-        self.lbl_username = QLabel(display)
-        self.lbl_username.setStyleSheet("""
-            color: rgba(255,255,255,0.85);
-            font-size: 12px;
-            font-weight: 400;
-            background: transparent;
-            border: none;
-        """)
+        self.lbl_username = QLabel(username)
+        self.lbl_username.setStyleSheet("color: white; font-size: 12px; background: transparent;")
         self.lbl_username.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 
-        user_info_layout.addWidget(self.lbl_user_icon)
-        user_info_layout.addWidget(self.lbl_user_role)
-        user_info_layout.addWidget(sep_vline)
-        user_info_layout.addWidget(self.lbl_username)
+        user_row.addWidget(self.lbl_badge)
+        user_row.addWidget(self.lbl_username)
 
-        layout.addWidget(self.user_info_frame)
+        _SVG_EDIT = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+            stroke="rgba(255,255,255,0.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>"""
+        renderer = QSvgRenderer(QByteArray(_SVG_EDIT.encode()))
+        pix_edit = QPixmap(16, 16)
+        pix_edit.fill(Qt.GlobalColor.transparent)
+        pp = QPainter(pix_edit)
+        renderer.render(pp)
+        pp.end()
 
-        # [FIX] Tombol Edit Profil dengan ikon SVG vektor (menggantikan ✏ emoji)
         self.btn_edit_profil = QPushButton()
-        self.btn_edit_profil.setText("  Edit Profil")
-        self.btn_edit_profil.setIcon(_svg_to_icon(_IKON["edit"], size=14, color="rgba(255,255,255,0.65)"))
-        self.btn_edit_profil.setIconSize(QSize(14, 14))
+        self.btn_edit_profil.setIcon(QIcon(pix_edit))
+        self.btn_edit_profil.setIconSize(QPixmap(16, 16).size())
+        self.btn_edit_profil.setFixedSize(24, 24)
+        self.btn_edit_profil.setToolTip("Edit Profil")
         self.btn_edit_profil.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_edit_profil.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                color: rgba(255,255,255,0.65);
-                border: 1px solid rgba(255,255,255,0.2);
-                border-radius: 6px;
-                font-size: 11px;
-                padding: 5px 12px;
-                margin: 0 12px 8px 12px;
-                text-align: left;
-            }}
-            QPushButton:hover {{
-                background-color: rgba(255,255,255,0.12);
-                color: {self.WARNA_AKSEN};
-                border-color: {self.WARNA_AKSEN};
-            }}
+        self.btn_edit_profil.setStyleSheet("""
+            QPushButton { background: transparent; border: none; border-radius: 4px; }
+            QPushButton:hover { background: rgba(255,255,255,0.15); }
         """)
         self.btn_edit_profil.clicked.connect(self._buka_edit_profil)
-        layout.addWidget(self.btn_edit_profil)
+        user_row.addWidget(self.btn_edit_profil)
+
+        self.lbl_user_info = user_frame
+        layout.addWidget(user_frame)
 
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
-        sep.setStyleSheet(f"color: {self.WARNA_AKTIF}; border: none; border-top: 1px solid {self.WARNA_AKTIF};")
+        sep.setStyleSheet(f"color: {self.WARNA_AKTIF};")
         layout.addWidget(sep)
         layout.addSpacing(8)
 
@@ -484,63 +299,17 @@ class MainWindow(QMainWindow):
             self.menu_buttons.append(btn_admin)
             layout.addWidget(btn_admin)
 
-        sep_bawah = QFrame()
-        sep_bawah.setFrameShape(QFrame.Shape.HLine)
-        sep_bawah.setStyleSheet(f"color: {self.WARNA_AKTIF}; margin: 4px 0;")
-        layout.addWidget(sep_bawah)
-
-        # ── [UBAH] Tombol Toggle Dark Mode → Switch modern ────────────────────
-        try:
-            from gui.theme_manager import ThemeManager
-            tema_skrg = ThemeManager.get_theme()
-            is_dark   = tema_skrg == "dark"
-
-            tema_row = QWidget()
-            tema_row.setStyleSheet("background: transparent;")
-            tema_hl = QHBoxLayout(tema_row)
-            tema_hl.setContentsMargins(20, 8, 16, 8)
-            tema_hl.setSpacing(10)
-
-            # Ikon tema (SVG)
-            self._lbl_tema_ikon = QLabel()
-            self._lbl_tema_ikon.setFixedSize(18, 18)
-            ikon_key = "tema_terang" if is_dark else "tema_gelap"
-            self._lbl_tema_ikon.setPixmap(
-                _svg_to_pixmap(_IKON[ikon_key], 18, "rgba(255,255,255,0.75)")
-            )
-            self._lbl_tema_ikon.setStyleSheet("background: transparent; border: none;")
-
-            # Label teks
-            self.lbl_tema_teks = QLabel("Mode Terang" if is_dark else "Mode Gelap")
-            self.lbl_tema_teks.setStyleSheet(
-                "color: rgba(255,255,255,0.75); font-size: 13px; background: transparent; border: none;"
-            )
-
-            # [BARU] Toggle switch widget
-            self.toggle_tema = ToggleSwitch(checked=is_dark)
-            self.toggle_tema.toggled.connect(self._toggle_tema)
-
-            tema_hl.addWidget(self._lbl_tema_ikon)
-            tema_hl.addWidget(self.lbl_tema_teks)
-            tema_hl.addStretch()
-            tema_hl.addWidget(self.toggle_tema)
-
-            layout.addWidget(tema_row)
-            self.btn_tema = tema_row      # simpan referensi agar _toggle_sidebar bisa hide/show
-        except ImportError:
-            self.btn_tema = None
-
         sep_logout = QFrame()
         sep_logout.setFrameShape(QFrame.Shape.HLine)
         sep_logout.setStyleSheet(f"color: {self.WARNA_AKTIF}; margin: 4px 0;")
         layout.addWidget(sep_logout)
 
-        self.btn_logout = QPushButton("  Keluar")
+        self.btn_logout = QPushButton("Keluar")
         self.btn_logout.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_logout.setToolTip("Logout")
         if "logout" in _IKON:
             self.btn_logout.setIcon(_svg_to_icon(_IKON["logout"], size=20))
-            self.btn_logout.setIconSize(QSize(20, 20))
+            self.btn_logout.setIconSize(QPixmap(20, 20).size())
         self.btn_logout.setStyleSheet(f"""
             QPushButton {{
                 background-color: transparent;
@@ -563,13 +332,13 @@ class MainWindow(QMainWindow):
 
     def _tombol_menu(self, teks: str, index: int, ikon_key: str,
                      aksen: bool = False) -> QPushButton:
-        btn = QPushButton(f"  {teks}")
+        btn = QPushButton(teks)
         btn.setCheckable(True)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         if ikon_key in _IKON:
             btn.setIcon(_svg_to_icon(_IKON[ikon_key], size=20))
-            btn.setIconSize(QSize(20, 20))
+            btn.setIconSize(QPixmap(20, 20).size())
 
         warna_teks = self.WARNA_AKSEN if aksen else self.WARNA_TEKS
         btn.setStyleSheet(f"""
@@ -600,12 +369,11 @@ class MainWindow(QMainWindow):
         for i, btn in enumerate(self.menu_buttons):
             btn.setChecked(i == index)
 
-    # ── Collapsible sidebar ───────────────────────────────────────────────────
+    # ── Collapsible Sidebar ───────────────────────────────────────────────────
 
     def _toggle_sidebar(self):
         self._sidebar_expanded = not self._sidebar_expanded
-        _teks_menu = ["Beranda", "Pencarian", "Penghitung Belanja",
-                      "Tutorial", "Tentang Kami"]
+        _teks_menu = ["Beranda", "Pencarian", "Penghitung Belanja", "Tutorial", "Tentang Kami"]
         if self.is_admin:
             _teks_menu.append("Panel Admin")
 
@@ -613,20 +381,18 @@ class MainWindow(QMainWindow):
             self.sidebar.setFixedWidth(self.LEBAR_EXPANDED)
             self.lbl_logo.setVisible(True)
             self.lbl_brand.setVisible(True)
-            self.user_info_frame.setVisible(True)
+            self.lbl_user_info.setVisible(True)
             self.btn_edit_profil.setVisible(True)
             self.btn_collapse.setText("◀")
             self.btn_collapse.setToolTip("Sembunyikan sidebar")
             for btn, teks in zip(self.menu_buttons, _teks_menu):
-                btn.setText(f"  {teks}")
-            self.btn_logout.setText("  Keluar")
-            if self.btn_tema:
-                self.btn_tema.setVisible(True)
+                btn.setText(teks)
+            self.btn_logout.setText("Keluar")
         else:
             self.sidebar.setFixedWidth(self.LEBAR_COLLAPSED)
             self.lbl_logo.setVisible(False)
             self.lbl_brand.setVisible(False)
-            self.user_info_frame.setVisible(False)
+            self.lbl_user_info.setVisible(False)
             self.btn_edit_profil.setVisible(False)
             self.btn_collapse.setText("▶")
             self.btn_collapse.setToolTip("Tampilkan sidebar")
@@ -635,38 +401,6 @@ class MainWindow(QMainWindow):
                 btn.setText("")
             self.btn_logout.setText("")
             self.btn_logout.setToolTip("Keluar")
-            if self.btn_tema:
-                self.btn_tema.setVisible(False)
-
-    # ── Dark mode toggle ──────────────────────────────────────────────────────
-
-    def _toggle_tema(self, is_dark: bool = None):
-        """
-        [UBAH] Dipanggil oleh ToggleSwitch.toggled signal.
-        Sinkronisasi state switch dan perbarui tampilan.
-        """
-        try:
-            from PyQt6.QtWidgets import QApplication
-            from gui.theme_manager import ThemeManager
-            tema_baru = ThemeManager.toggle()
-            ThemeManager.apply_to_app(QApplication.instance())
-
-            # Update ikon dan teks
-            ikon_key = "tema_terang" if tema_baru == "dark" else "tema_gelap"
-            teks     = "Mode Terang" if tema_baru == "dark" else "Mode Gelap"
-
-            if hasattr(self, '_lbl_tema_ikon'):
-                self._lbl_tema_ikon.setPixmap(
-                    _svg_to_pixmap(_IKON[ikon_key], 18, "rgba(255,255,255,0.75)")
-                )
-            if hasattr(self, 'lbl_tema_teks'):
-                self.lbl_tema_teks.setText(teks)
-            if hasattr(self, 'toggle_tema'):
-                self.toggle_tema.setChecked(tema_baru == "dark")
-        except ImportError:
-            pass
-
-    # ── Navigasi ──────────────────────────────────────────────────────────────
 
     def navigasi_ke_pencarian(self, keyword: str):
         self.halaman_pencarian.set_keyword_dan_cari(keyword)
@@ -692,24 +426,19 @@ class MainWindow(QMainWindow):
         if dialog.exec():
             updated = dialog.get_updated_user()
             self.current_user.update(updated)
-            # Update label sidebar
             display = self.current_user.get("display_name") or self.current_user.get("username", "guest")
             self.lbl_username.setText(display)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# [UBAH] Dialog Konfirmasi Logout — ikon vektor, tidak ada emoji
-# ─────────────────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# Dialog Konfirmasi Logout
+# ══════════════════════════════════════════════════════════════════════════════
 
 class _DialogLogout(QDialog):
-    """Pop-up konfirmasi logout yang rapi dengan ikon vektor (bukan emoji)."""
-
     def __init__(self, username: str, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Konfirmasi Logout")
-        self.setWindowFlags(
-            Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint
-        )
+        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setFixedWidth(380)
 
@@ -718,45 +447,27 @@ class _DialogLogout(QDialog):
         card.setStyleSheet("""
             #LogoutCard {
                 background: #FFFFFF;
-                border-radius: 20px;
+                border-radius: 16px;
                 border: 1px solid #E8E0D4;
             }
         """)
-
-        # Shadow
-        shadow = QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(30)
-        shadow.setOffset(0, 8)
-        shadow.setColor(QColor(0, 0, 0, 60))
-        card.setGraphicsEffect(shadow)
-
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(16, 16, 16, 16)  # padding untuk shadow
+        outer.setContentsMargins(0, 0, 0, 0)
         outer.addWidget(card)
 
         lay = QVBoxLayout(card)
-        lay.setContentsMargins(32, 28, 32, 28)
+        lay.setContentsMargins(28, 24, 28, 24)
         lay.setSpacing(0)
 
-        # [FIX] Ikon pintu SVG vektor (menggantikan emoji 🚪)
-        ikon_container = QLabel()
-        ikon_container.setFixedSize(56, 56)
-        ikon_container.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        ikon_pix = _svg_to_pixmap(_IKON["pintu"], 40, "#C0392B")
-        ikon_container.setPixmap(ikon_pix)
-        ikon_container.setStyleSheet("""
-            background: #FDECEA;
-            border-radius: 28px;
-            border: none;
-        """)
-        lay.addWidget(ikon_container, alignment=Qt.AlignmentFlag.AlignCenter)
-        lay.addSpacing(16)
+        ikon = QLabel("🚪")
+        ikon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ikon.setStyleSheet("font-size: 40px; background: transparent;")
+        lay.addWidget(ikon)
+        lay.addSpacing(12)
 
         judul = QLabel("Keluar dari Akun?")
         judul.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        judul.setStyleSheet(
-            "font-size: 18px; font-weight: 700; color: #1A0A0E; background: transparent;"
-        )
+        judul.setStyleSheet("font-size: 18px; font-weight: 700; color: #1A0A0E; background: transparent;")
         lay.addWidget(judul)
         lay.addSpacing(8)
 
@@ -764,11 +475,9 @@ class _DialogLogout(QDialog):
         sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
         sub.setTextFormat(Qt.TextFormat.RichText)
         sub.setWordWrap(True)
-        sub.setStyleSheet(
-            "font-size: 13px; color: #6B5B61; background: transparent;"
-        )
+        sub.setStyleSheet("font-size: 13px; color: #6B5B61; background: transparent;")
         lay.addWidget(sub)
-        lay.addSpacing(28)
+        lay.addSpacing(24)
 
         row = QHBoxLayout()
         row.setSpacing(12)
@@ -778,17 +487,11 @@ class _DialogLogout(QDialog):
         btn_batal.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_batal.setStyleSheet("""
             QPushButton {
-                background: transparent;
-                color: #44101A;
-                border: 1.5px solid #E2D9CC;
-                border-radius: 10px;
-                font-size: 14px;
-                font-weight: 500;
+                background: transparent; color: #44101A;
+                border: 1.5px solid #E2D9CC; border-radius: 10px;
+                font-size: 14px; font-weight: 500;
             }
-            QPushButton:hover {
-                background: #F4F0EA;
-                border-color: #44101A;
-            }
+            QPushButton:hover { background: #F4F0EA; border-color: #44101A; }
         """)
         btn_batal.clicked.connect(self.reject)
 
@@ -797,12 +500,9 @@ class _DialogLogout(QDialog):
         btn_keluar.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_keluar.setStyleSheet("""
             QPushButton {
-                background: #C0392B;
-                color: white;
-                border: none;
-                border-radius: 10px;
-                font-size: 14px;
-                font-weight: 700;
+                background: #C0392B; color: white;
+                border: none; border-radius: 10px;
+                font-size: 14px; font-weight: 700;
             }
             QPushButton:hover { background: #A93226; }
             QPushButton:pressed { background: #922B21; }
@@ -814,19 +514,22 @@ class _DialogLogout(QDialog):
         lay.addLayout(row)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# [UBAH] Dialog Edit Profil — redesain UI + FIX logika simpan password
-# ─────────────────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# Dialog Edit Profil
+# ══════════════════════════════════════════════════════════════════════════════
 
 class _DialogEditProfil(QDialog):
-    """
-    Dialog untuk mengubah display name dan password.
-
-    PERUBAHAN:
-    - [FIX] Password baru kini benar-benar tersimpan ke DB
-    - [BARU] Toggle "Lihat Password" dengan ikon mata SVG vektor
-    - [UBAH] Redesain UI: shadow, rounded corners, padding rapi, warna senada app
-    """
+    _SVG_EYE_OPEN = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+      stroke="#A89BA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>"""
+    _SVG_EYE_OFF = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+      stroke="#A89BA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>"""
 
     def __init__(self, user: dict, auth_manager, parent=None):
         super().__init__(parent)
@@ -835,121 +538,94 @@ class _DialogEditProfil(QDialog):
         self._updated: dict = {}
 
         self.setWindowTitle("Edit Profil")
-        self.setWindowFlags(
-            Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint
-        )
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint)
         self.setFixedWidth(440)
+        self.setStyleSheet("background: #F8F6F2;")
 
-        # Card utama
-        card = QFrame(self)
-        card.setObjectName("EditProfilCard")
-        card.setStyleSheet("""
-            #EditProfilCard {
-                background: #FFFFFF;
-                border-radius: 20px;
-                border: 1px solid #E8E0D4;
-            }
-        """)
-
-        shadow = QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(40)
-        shadow.setOffset(0, 10)
-        shadow.setColor(QColor(0, 0, 0, 70))
-        card.setGraphicsEffect(shadow)
-
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(16, 16, 16, 16)
-        outer.addWidget(card)
-
-        lay = QVBoxLayout(card)
-        lay.setContentsMargins(32, 28, 32, 28)
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
 
         # Header
-        header_row = QHBoxLayout()
-        header_row.setSpacing(12)
+        header = QFrame()
+        header.setStyleSheet("background: #5C1A28; border-radius: 0px;")
+        header.setFixedHeight(72)
+        h_lay = QHBoxLayout(header)
+        h_lay.setContentsMargins(24, 0, 24, 0)
+        lbl_h = QLabel("Edit Profil")
+        lbl_h.setStyleSheet("color: white; font-size: 18px; font-weight: 700; background: transparent;")
+        lbl_sub = QLabel(f"@{user.get('username', '')}")
+        lbl_sub.setStyleSheet("color: rgba(255,255,255,0.6); font-size: 12px; background: transparent;")
+        hv = QVBoxLayout()
+        hv.setSpacing(2)
+        hv.addWidget(lbl_h)
+        hv.addWidget(lbl_sub)
+        h_lay.addLayout(hv)
+        lay.addWidget(header)
 
-        # Ikon user vektor
-        lbl_header_ikon = QLabel()
-        lbl_header_ikon.setFixedSize(40, 40)
-        lbl_header_ikon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_header_ikon.setPixmap(_svg_to_pixmap(_IKON["user"], 24, "#44101A"))
-        lbl_header_ikon.setStyleSheet("""
-            background: #FDF0F3;
-            border-radius: 20px;
-            border: none;
-        """)
-        header_row.addWidget(lbl_header_ikon)
+        # Body
+        body = QFrame()
+        body.setStyleSheet("background: #F8F6F2;")
+        b_lay = QVBoxLayout(body)
+        b_lay.setContentsMargins(28, 24, 28, 24)
+        b_lay.setSpacing(0)
 
-        header_teks = QVBoxLayout()
-        header_teks.setSpacing(2)
-        judul = QLabel("Edit Profil")
-        judul.setStyleSheet(
-            "font-size: 18px; font-weight: 700; color: #44101A; background: transparent;"
+        # Nama Tampilan
+        b_lay.addWidget(self._lbl("Nama Tampilan"))
+        b_lay.addSpacing(4)
+        lbl_nama_hint = QLabel("Nama ini yang akan ditampilkan di aplikasi")
+        lbl_nama_hint.setStyleSheet("font-size: 11px; color: #A89BA0;")
+        b_lay.addWidget(lbl_nama_hint)
+        b_lay.addSpacing(6)
+        self.inp_display = self._mk_input(
+            user.get("display_name") or user.get("username", ""),
+            "Nama yang ditampilkan"
         )
-        sub = QLabel(f"Akun: {user.get('username', '')}")
-        sub.setStyleSheet("font-size: 12px; color: #A89BA0; background: transparent;")
-        header_teks.addWidget(judul)
-        header_teks.addWidget(sub)
-        header_row.addLayout(header_teks)
-        header_row.addStretch()
+        b_lay.addWidget(self.inp_display)
+        b_lay.addSpacing(18)
 
-        lay.addLayout(header_row)
-        lay.addSpacing(24)
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setStyleSheet("color: #E2D9CC;")
+        b_lay.addWidget(sep)
+        b_lay.addSpacing(14)
 
-        # Garis pemisah
-        garis = QFrame()
-        garis.setFrameShape(QFrame.Shape.HLine)
-        garis.setStyleSheet("color: #F0EBE3; border: none; border-top: 1px solid #F0EBE3;")
-        lay.addWidget(garis)
-        lay.addSpacing(20)
+        lbl_pass_sec = QLabel("Ubah Password")
+        lbl_pass_sec.setStyleSheet("font-size: 13px; font-weight: 600; color: #5C1A28;")
+        b_lay.addWidget(lbl_pass_sec)
+        b_lay.addSpacing(4)
+        lbl_hint = QLabel("Kosongkan jika tidak ingin mengubah password")
+        lbl_hint.setStyleSheet("font-size: 11px; color: #A89BA0;")
+        b_lay.addWidget(lbl_hint)
+        b_lay.addSpacing(10)
 
-        # Display name
-        lay.addWidget(self._lbl("Nama Tampilan"))
-        lay.addSpacing(6)
-        self.inp_display = QLineEdit()
-        self.inp_display.setText(user.get("display_name") or user.get("username", ""))
-        self.inp_display.setPlaceholderText("Nama yang ditampilkan")
-        self._style_input(self.inp_display)
-        lay.addWidget(self.inp_display)
-        lay.addSpacing(20)
+        b_lay.addWidget(self._lbl("Password Lama"))
+        b_lay.addSpacing(5)
+        self.inp_pass_lama = self._mk_input("", "••••••••", password=True)
+        b_lay.addWidget(self.inp_pass_lama)
+        b_lay.addSpacing(10)
 
-        # Password baru (dengan toggle lihat password)
-        lay.addWidget(self._lbl("Password Baru"))
-        lay.addWidget(self._lbl_hint("Kosongkan jika tidak ingin mengubah password"))
-        lay.addSpacing(6)
-        self.inp_pass = self._input_password("Masukkan password baru")
-        lay.addWidget(self.inp_pass)
-        lay.addSpacing(12)
+        b_lay.addWidget(self._lbl("Password Baru"))
+        b_lay.addSpacing(5)
+        self.inp_pass_baru = self._mk_input("", "••••••••", password=True)
+        b_lay.addWidget(self.inp_pass_baru)
+        b_lay.addSpacing(10)
 
-        # Konfirmasi password
-        lay.addWidget(self._lbl("Konfirmasi Password Baru"))
-        lay.addSpacing(6)
-        self.inp_pass_confirm = self._input_password("Ulangi password baru")
-        lay.addWidget(self.inp_pass_confirm)
-        lay.addSpacing(12)
+        b_lay.addWidget(self._lbl("Konfirmasi Password Baru"))
+        b_lay.addSpacing(5)
+        self.inp_pass_confirm = self._mk_input("", "Ulangi password baru", password=True)
+        b_lay.addWidget(self.inp_pass_confirm)
+        b_lay.addSpacing(10)
 
-        # Error label
         self.lbl_error = QLabel("")
-        self.lbl_error.setStyleSheet(
-            "color: #C0392B; font-size: 12px; background: #FEF0F0; "
-            "border-radius: 6px; padding: 6px 10px; border: none;"
-        )
+        self.lbl_error.setStyleSheet("color: #C0392B; font-size: 12px;")
         self.lbl_error.setWordWrap(True)
-        self.lbl_error.setVisible(False)
-        lay.addWidget(self.lbl_error)
-
+        b_lay.addWidget(self.lbl_error)
         self.lbl_sukses = QLabel("")
-        self.lbl_sukses.setStyleSheet(
-            "color: #27AE60; font-size: 12px; background: #F0FEF4; "
-            "border-radius: 6px; padding: 6px 10px; border: none;"
-        )
-        self.lbl_sukses.setVisible(False)
-        lay.addWidget(self.lbl_sukses)
-        lay.addSpacing(20)
+        self.lbl_sukses.setStyleSheet("color: #27AE60; font-size: 12px;")
+        b_lay.addWidget(self.lbl_sukses)
+        b_lay.addSpacing(20)
 
-        # Tombol aksi
         row = QHBoxLayout()
         row.setSpacing(12)
 
@@ -957,12 +633,9 @@ class _DialogEditProfil(QDialog):
         btn_batal.setFixedHeight(46)
         btn_batal.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_batal.setStyleSheet("""
-            QPushButton {
-                background: transparent; color: #44101A;
-                border: 1.5px solid #E2D9CC; border-radius: 12px;
-                font-size: 14px; font-weight: 500;
-            }
-            QPushButton:hover { background: #F4F0EA; border-color: #44101A; }
+            QPushButton { background:transparent; color:#5C1A28;
+                border:1.5px solid #E2D9CC; border-radius:10px; font-size:14px; }
+            QPushButton:hover { background:#F4F0EA; border-color:#5C1A28; }
         """)
         btn_batal.clicked.connect(self.reject)
 
@@ -970,130 +643,120 @@ class _DialogEditProfil(QDialog):
         btn_simpan.setFixedHeight(46)
         btn_simpan.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_simpan.setStyleSheet("""
-            QPushButton {
-                background: #44101A; color: white;
-                border: none; border-radius: 12px;
-                font-size: 14px; font-weight: 700;
-            }
-            QPushButton:hover { background: #6B1525; }
-            QPushButton:pressed { background: #3A0E16; }
+            QPushButton { background:#5C1A28; color:white;
+                border:none; border-radius:10px; font-size:14px; font-weight:700; }
+            QPushButton:hover { background:#7A2236; }
+            QPushButton:pressed { background:#3D0F1A; }
         """)
         btn_simpan.clicked.connect(self._simpan)
 
         row.addWidget(btn_batal)
         row.addWidget(btn_simpan)
-        lay.addLayout(row)
+        b_lay.addLayout(row)
+        lay.addWidget(body)
 
     def _lbl(self, teks: str) -> QLabel:
         l = QLabel(teks)
-        l.setStyleSheet("font-size: 13px; font-weight: 600; color: #1A0A0E; background: transparent;")
+        l.setStyleSheet("font-size: 13px; font-weight: 500; color: #1A0A0E;")
         return l
 
-    def _lbl_hint(self, teks: str) -> QLabel:
-        l = QLabel(teks)
-        l.setStyleSheet("font-size: 11px; color: #A89BA0; background: transparent; margin-top: 2px;")
-        return l
+    def _mk_input(self, value: str = "", placeholder: str = "",
+                  password: bool = False) -> QLineEdit:
+        inp = QLineEdit()
+        inp.setText(value)
+        inp.setPlaceholderText(placeholder)
+        inp.setFixedHeight(46)
+        if password:
+            inp.setEchoMode(QLineEdit.EchoMode.Password)
 
-    def _style_input(self, w: QLineEdit):
-        w.setFixedHeight(46)
-        w.setStyleSheet("""
-            QLineEdit {
-                background: #FAFAF8; border: 1.5px solid #E2D9CC;
-                border-radius: 12px; padding: 10px 14px;
-                font-size: 13px; color: #1A0A0E;
-            }
-            QLineEdit:focus { border: 2px solid #44101A; background: #FFFFFF; }
+        pr = "44px" if password else "14px"
+        inp.setStyleSheet(f"""
+            QLineEdit {{
+                background:#FAFAF8; border:1.5px solid #E2D9CC;
+                border-radius:10px; padding:10px {pr} 10px 14px;
+                font-size:13px; color:#1A0A0E;
+            }}
+            QLineEdit:focus {{ border:2px solid #5C1A28; background:#FFFFFF; }}
+            QLineEdit::placeholder {{ color:#A89BA0; }}
         """)
 
-    def _input_password(self, placeholder: str) -> QLineEdit:
-        """
-        [BARU] Buat input password dengan tombol toggle lihat/sembunyikan
-        menggunakan ikon mata SVG vektor (bukan emoji 👁).
-        """
-        container = QLineEdit()
-        container.setPlaceholderText(placeholder)
-        container.setEchoMode(QLineEdit.EchoMode.Password)
-        container.setFixedHeight(46)
-        container.setStyleSheet("""
-            QLineEdit {
-                background: #FAFAF8; border: 1.5px solid #E2D9CC;
-                border-radius: 12px; padding: 10px 44px 10px 14px;
-                font-size: 13px; color: #1A0A0E;
-            }
-            QLineEdit:focus { border: 2px solid #44101A; background: #FFFFFF; }
-        """)
+        if password:
+            from PyQt6.QtCore import QByteArray
+            from PyQt6.QtSvg import QSvgRenderer
 
-        # [BARU] Tombol mata SVG vektor di dalam input
-        btn_eye = QPushButton(container)
-        btn_eye.setFixedSize(32, 32)
-        btn_eye.setStyleSheet(
-            "border: none; background: transparent; padding: 0;"
-        )
-        btn_eye.setCheckable(True)
-        btn_eye.setCursor(Qt.CursorShape.PointingHandCursor)
+            def _mk_pix(svg_str):
+                r = QSvgRenderer(QByteArray(svg_str.encode()))
+                px = QPixmap(20, 20)
+                px.fill(Qt.GlobalColor.transparent)
+                pp = QPainter(px)
+                r.render(pp)
+                pp.end()
+                return px
 
-        # Set ikon mata tutup (default: password tersembunyi)
-        btn_eye.setIcon(_svg_to_icon(_IKON["mata_tutup"], 18, "#A89BA0"))
-        btn_eye.setIconSize(QSize(18, 18))
+            pix_open = _mk_pix(self._SVG_EYE_OPEN)
+            pix_off  = _mk_pix(self._SVG_EYE_OFF)
 
-        def _toggle(checked, field=container, b=btn_eye):
-            if checked:
-                field.setEchoMode(QLineEdit.EchoMode.Normal)
-                b.setIcon(_svg_to_icon(_IKON["mata_buka"], 18, "#44101A"))
-            else:
-                field.setEchoMode(QLineEdit.EchoMode.Password)
-                b.setIcon(_svg_to_icon(_IKON["mata_tutup"], 18, "#A89BA0"))
+            btn_eye = QPushButton(inp)
+            btn_eye.setFixedSize(32, 32)
+            btn_eye.setCheckable(True)
+            btn_eye.setStyleSheet("border:none; background:transparent; padding:0;")
+            btn_eye.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_eye.setIcon(QIcon(pix_open))
+            btn_eye.setIconSize(QSize(20, 20))
 
-        btn_eye.toggled.connect(_toggle)
+            def _toggle(checked, b=btn_eye, f=inp):
+                f.setEchoMode(QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password)
+                b.setIcon(QIcon(pix_off if checked else pix_open))
+            btn_eye.toggled.connect(_toggle)
+            inp.setTextMargins(0, 0, 36, 0)
 
-        def _reposition(event=None, b=btn_eye, f=container):
-            b.move(f.width() - 38, (f.height() - 32) // 2)
+            def _repos(ev=None, b=btn_eye, f=inp):
+                b.move(f.width() - 38, (f.height() - 32) // 2)
+            inp.resizeEvent = _repos
 
-        container.resizeEvent = _reposition
-
-        return container
+        return inp
 
     def _simpan(self):
-        self.lbl_error.setVisible(False)
-        self.lbl_sukses.setVisible(False)
-
-        display  = self.inp_display.text().strip()
-        new_pass = self.inp_pass.text()
-        confirm  = self.inp_pass_confirm.text()
+        self.lbl_error.setText("")
+        self.lbl_sukses.setText("")
+        display   = self.inp_display.text().strip()
+        pass_lama = self.inp_pass_lama.text()
+        pass_baru = self.inp_pass_baru.text()
+        pass_conf = self.inp_pass_confirm.text()
 
         if not display:
             self.lbl_error.setText("⚠ Nama tampilan tidak boleh kosong.")
-            self.lbl_error.setVisible(True)
             return
 
-        if new_pass:
-            if len(new_pass) < 6:
-                self.lbl_error.setText("⚠ Password minimal 6 karakter.")
-                self.lbl_error.setVisible(True)
-                return
-            if new_pass != confirm:
-                self.lbl_error.setText("⚠ Konfirmasi password tidak cocok.")
-                self.lbl_error.setVisible(True)
-                return
+        user_id = self._user.get("id")
 
-        # [FIX] Gunakan update_profil_lengkap() yang sekaligus update
-        # display_name DAN password dalam satu transaksi.
-        # Bug sebelumnya: password tidak tersimpan karena method ubah_password()
-        # memerlukan verifikasi password lama yang tidak diisi.
-        uid = self._user.get("id")
-        berhasil, pesan = self._auth.update_profil_lengkap(
-            user_id=uid,
+        ok, pesan = self._auth.update_profil(
+            user_id=user_id,
             display_name=display,
-            new_password=new_pass if new_pass else None,
+            username=self._user.get("username", display),
         )
-
-        if not berhasil:
+        if not ok:
             self.lbl_error.setText(f"❌ {pesan}")
-            self.lbl_error.setVisible(True)
             return
+
+        if pass_baru:
+            if not pass_lama:
+                self.lbl_error.setText("⚠ Masukkan password lama untuk mengubah password.")
+                return
+            if len(pass_baru) < 6:
+                self.lbl_error.setText("⚠ Password baru minimal 6 karakter.")
+                return
+            if pass_baru != pass_conf:
+                self.lbl_error.setText("⚠ Konfirmasi password tidak cocok.")
+                return
+            ok2, pesan2 = self._auth.ubah_password(user_id, pass_lama, pass_baru)
+            if not ok2:
+                self.lbl_error.setText(f"❌ {pesan2}")
+                return
 
         self._updated = {"display_name": display}
-        self.accept()
+        self.lbl_sukses.setText("✅ Profil berhasil diperbarui!")
+        QTimer.singleShot(800, self.accept)
 
     def get_updated_user(self) -> dict:
         return self._updated
