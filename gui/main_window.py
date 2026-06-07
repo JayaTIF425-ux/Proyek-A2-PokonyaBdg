@@ -422,15 +422,12 @@ class MainWindow(QMainWindow):
 
     def _buka_edit_profil(self):
         from database.auth_manager import AuthManager
-        from database.session_manager import SessionManager
         dialog = _DialogEditProfil(self.current_user, AuthManager(), parent=self)
         if dialog.exec():
             updated = dialog.get_updated_user()
             self.current_user.update(updated)
             display = self.current_user.get("display_name") or self.current_user.get("username", "guest")
             self.lbl_username.setText(display)
-            # Perbarui sesi tersimpan agar nama baru muncul setelah restart
-            SessionManager.simpan_sesi(self.current_user)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -733,8 +730,11 @@ class _DialogEditProfil(QDialog):
 
         user_id = self._user.get("id")
 
-        # Update hanya display_name; username tidak diubah agar login tetap berfungsi
-        ok, pesan = self._auth.update_display_name(user_id=user_id, display_name=display)
+        ok, pesan = self._auth.update_profil(
+            user_id=user_id,
+            display_name=display,
+            username=self._user.get("username", display),
+        )
         if not ok:
             self.lbl_error.setText(f"❌ {pesan}")
             return

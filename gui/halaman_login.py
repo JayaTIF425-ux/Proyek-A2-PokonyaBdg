@@ -351,6 +351,7 @@ class HalamanLogin(QDialog):
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
 
+        # ScrollArea agar form registrasi yang lebih panjang tidak terpotong
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
@@ -363,6 +364,7 @@ class HalamanLogin(QDialog):
         scroll_layout.setContentsMargins(40, 30, 40, 30)
         scroll_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
+        # Kartu tengah
         card = QFrame()
         card.setObjectName("LoginCard")
         card.setStyleSheet(f"""
@@ -380,6 +382,7 @@ class HalamanLogin(QDialog):
         card_layout.setContentsMargins(44, 40, 44, 44)
         card_layout.setSpacing(0)
 
+        # PENTING: Buat _form_daftar() DULU
         form_daftar = self._form_daftar()
         form_login  = self._form_login()
 
@@ -496,7 +499,7 @@ class HalamanLogin(QDialog):
         layout.addWidget(lbl_sub)
         layout.addSpacing(22)
 
-        # ── Nama Lengkap ──────────────────────────────────────────
+        # ── Nama Lengkap (BARU) ──────────────────────────────────────────
         layout.addWidget(self._label_field("Nama Lengkap"))
         layout.addSpacing(6)
         self.inp_nama_daftar = self._input_field("Masukkan nama lengkap Anda", icon="👤")
@@ -583,14 +586,9 @@ class HalamanLogin(QDialog):
             self.lbl_login_error.setText("❌ Format email tidak valid (harus menyertakan domain, cth: .com).")
             return
 
-        # Coba login via email langsung (untuk akun yang didaftarkan via form)
-        user = self.auth.login_by_email(email, password)
+        username = email.split("@")[0].replace(".", "_") if "@" in email else email
 
-        # Fallback: coba via username (untuk akun lama / akun default)
-        if not user:
-            username = email.split("@")[0].replace(".", "_") if "@" in email else email
-            user = self.auth.login(username, password)
-
+        user = self.auth.login(username, password)
         if user:
             if user["role"] != self._peran_dipilih:
                 role_seharusnya = "Admin" if user["role"] == "admin" else "User"

@@ -58,36 +58,15 @@ class AuthManager:
     # ── Login ────────────────────────────────────────────────────────────────
 
     def login(self, username: str, password: str) -> Optional[dict]:
-        """Login dengan username. Kembalikan dict user termasuk display_name."""
         hashed = self._hash_password(password)
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT id, username, role, display_name, email FROM users "
+                "SELECT id, username, role, display_name FROM users "
                 "WHERE username = ? AND password = ?",
                 (username, hashed)
             ).fetchone()
         if row:
-            data = dict(row)
-            # Pastikan display_name selalu terisi (fallback ke username)
-            if not data.get("display_name"):
-                data["display_name"] = data["username"]
-            return data
-        return None
-
-    def login_by_email(self, email: str, password: str) -> Optional[dict]:
-        """Login dengan email langsung. Kembalikan dict user termasuk display_name."""
-        hashed = self._hash_password(password)
-        with self._connect() as conn:
-            row = conn.execute(
-                "SELECT id, username, role, display_name, email FROM users "
-                "WHERE email = ? AND password = ?",
-                (email, hashed)
-            ).fetchone()
-        if row:
-            data = dict(row)
-            if not data.get("display_name"):
-                data["display_name"] = data["username"]
-            return data
+            return dict(row)
         return None
 
     # ── Registrasi User Baru ─────────────────────────────────────────────────
@@ -107,16 +86,13 @@ class AuthManager:
         if role not in ("user", "admin"):
             role = "user"
 
-        # display_name wajib diisi; fallback ke username jika kosong
-        final_display = display_name.strip() if display_name.strip() else username
-
         try:
             with self._connect() as conn:
                 conn.execute(
                     "INSERT INTO users (username, password, role, email, display_name) "
                     "VALUES (?, ?, ?, ?, ?)",
                     (username, self._hash_password(password), role,
-                     email or None, final_display)
+                     email or None, display_name or username)
                 )
             return True, ""
         except sqlite3.IntegrityError as e:
@@ -141,12 +117,10 @@ class AuthManager:
                 (google_id,)
             ).fetchone()
             if row:
-                data = dict(row)
-                if not data.get("display_name"):
-                    data["display_name"] = display_name or data["username"]
-                return data
+                return dict(row)
 
             # Belum ada — buat akun baru
+            # Buat username unik dari email
             base_username = email.split("@")[0].replace(".", "_")
             username = base_username
             counter = 1
@@ -156,12 +130,10 @@ class AuthManager:
                 username = f"{base_username}{counter}"
                 counter += 1
 
-            final_display = display_name.strip() if display_name.strip() else username
-
             conn.execute(
                 "INSERT INTO users (username, google_id, email, role, display_name) "
                 "VALUES (?, ?, ?, 'user', ?)",
-                (username, google_id, email, final_display)
+                (username, google_id, email, display_name)
             )
             row = conn.execute(
                 "SELECT id, username, role, display_name FROM users WHERE google_id = ?",
@@ -189,8 +161,8 @@ class AuthManager:
         try:
             with self._connect() as conn:
                 conn.execute(
-                    "INSERT INTO users (username, password, role, display_name) VALUES (?, ?, ?, ?)",
-                    (username, self._hash_password(password), role, username)
+                    "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+                    (username, self._hash_password(password), role)
                 )
             return True
         except sqlite3.IntegrityError:
@@ -200,27 +172,9 @@ class AuthManager:
         with self._connect() as conn:
             conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
         return True
-
-    def update_display_name(self, user_id: int, display_name: str) -> tuple[bool, str]:
-        """Update hanya nama tampilan pengguna."""
-        display_name = display_name.strip()
-        if not display_name:
-            return False, "Nama tampilan tidak boleh kosong."
-        try:
-            with self._connect() as conn:
-                conn.execute(
-                    "UPDATE users SET display_name=? WHERE id=?",
-                    (display_name, user_id)
-                )
-            return True, ""
-        except Exception as e:
-            return False, str(e)
-
+    
     def update_profil(self, user_id: int, display_name: str, username: str) -> tuple[bool, str]:
         """Update nama tampilan dan username."""
-        display_name = display_name.strip()
-        if not display_name:
-            return False, "Nama tampilan tidak boleh kosong."
         if not username or len(username) < 3:
             return False, "Username minimal 3 karakter."
         try:
@@ -251,20 +205,6 @@ class AuthManager:
             )
         return True, ""
 
-    def get_user_by_id(self, user_id: int) -> Optional[dict]:
-        """Ambil data user terbaru berdasarkan ID."""
-        with self._connect() as conn:
-            row = conn.execute(
-                "SELECT id, username, role, display_name, email FROM users WHERE id = ?",
-                (user_id,)
-            ).fetchone()
-        if row:
-            data = dict(row)
-            if not data.get("display_name"):
-                data["display_name"] = data["username"]
-            return data
-        return None
-
     def _seed_default_accounts(self):
         """Tambahkan akun admin dan user default jika belum ada."""
         akun_default = [
@@ -278,8 +218,8 @@ class AuthManager:
                 ).fetchone()
                 if not existing:
                     conn.execute(
-                        "INSERT INTO users (username, password, role, display_name) VALUES (?, ?, ?, ?)",
-                        (username, self._hash_password(password), role, display_name)
+                        "INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+                        (username, self._hash_password(password), role)
                     )
 
     def update_profil_email(self, user_id: int, display_name: str, email: str) -> bool:
