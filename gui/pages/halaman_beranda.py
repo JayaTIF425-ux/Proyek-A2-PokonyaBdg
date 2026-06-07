@@ -3,32 +3,12 @@ from PyQt6.QtWidgets import (
     QScrollArea, QGridLayout, QFrame, QComboBox
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QPixmap, QPainter
 
 from database.db_manager import DBManager
 from gui.components.product_card import ProductCard
 from gui.widgets.loading_widget import LoadingWidget
 from gui.widgets.refresh_widget import RefreshWidget
 
-_SVG_CART_STR = """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-viewBox="0 0 24 24" fill="none" stroke="{warna}" stroke-width="2"
-stroke-linecap="round" stroke-linejoin="round">
-<circle cx="8" cy="21" r="1"/>
-<circle cx="19" cy="21" r="1"/>
-<path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0
-1.95-1.57l1.65-7.43H5.12"/></svg>"""
-
-def _render_svg_cart(warna: str, ukuran: int = 22) -> QPixmap:
-    from PyQt6.QtSvg import QSvgRenderer
-    from PyQt6.QtCore import QByteArray
-    svg = _SVG_CART_STR.replace("{warna}", warna)
-    r = QSvgRenderer(QByteArray(svg.encode()))
-    px = QPixmap(ukuran, ukuran)
-    px.fill(Qt.GlobalColor.transparent)
-    p = QPainter(px)
-    r.render(p)
-    p.end()
-    return px
 
 class DataWorker(QThread):
     selesai = pyqtSignal(list, list)   # (data_tradisional, data_modern)
@@ -51,27 +31,6 @@ class DataWorker(QThread):
 
 
 # ── Widget Statistik Ringkasan Beranda ────────────────────────────────────────
-_SVG_STAT_BERANDA = {
-    "produk": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-        fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round"
-        stroke-linejoin="round">
-        <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8
-        a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
-        <path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>""",
-
-    "harga": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-        fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round"
-        stroke-linejoin="round">
-        <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3
-        a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/>
-        <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>""",
-
-    "waktu": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-        fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round"
-        stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/>
-        <path d="M12 6v6l4 2"/></svg>""",
-}
 
 class StatistikBeranda(QFrame):
     """Tiga kotak statistik ringkasan di bagian atas Beranda."""
@@ -86,93 +45,44 @@ class StatistikBeranda(QFrame):
                 border-radius: 10px;
             }
         """)
-        self.setMinimumHeight(65)
-        self.setMaximumHeight(85)
+        self.setMinimumHeight(80)
+        self.setMaximumHeight(100)
 
-        # Tetap gunakan variabel layout bawaan kodemu (tanpa _)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(20, 12, 20, 12)
         layout.setSpacing(0)
 
-        self.lbl_produk     = self._buat_stat("Produk", "–")
+        self.lbl_produk    = self._buat_stat("📦 Produk Terpantau", "–")
         layout.addWidget(self._separator())
-        self.lbl_terendah   = self._buat_stat("Harga", "–")
+        self.lbl_terendah  = self._buat_stat("💰 Harga Terendah", "–")
         layout.addWidget(self._separator())
-        self.lbl_diperbarui = self._buat_stat("Diperbarui", "–")
+        self.lbl_diperbarui = self._buat_stat("🕐 Terakhir Diperbarui", "–")
 
         self.perbarui()
 
-    def _buat_stat(self, label: str, nilai: str, satuan: str = "") -> QLabel:
+    def _buat_stat(self, label: str, nilai: str) -> QLabel:
         container = QFrame()
         container.setStyleSheet("border: none; background: transparent;")
-        
-        # Layout utama HORIZONTAL (Ikon di kiri, teks di kanan)
-        main_layout = QHBoxLayout(container)
-        main_layout.setContentsMargins(12, 0, 12, 0)
-        main_layout.setSpacing(8)  # Jarak rapat antara ikon dan tulisan
-        main_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        v = QVBoxLayout(container)
+        v.setContentsMargins(16, 0, 16, 0)
+        v.setSpacing(2)
+        v.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # 1. Identifikasi kunci ikon berdasarkan string label asli
-        ikon_key = ""
-        teks_judul = label 
-        
-        if "Produk" in label:
-            ikon_key = "produk"
-            teks_judul = "Total Produk"
-        elif "Harga" in label:
-            ikon_key = "harga"
-            teks_judul = "Rata-Rata Harga"
-        elif "Diperbarui" in label:
-            ikon_key = "waktu"
-            teks_judul = "Terakhir Diperbarui"
-
-        # Render Ikon SVG di Sebelah Kiri (Menggunakan _SVG_STAT_BERANDA)
-        if ikon_key and ikon_key in _SVG_STAT_BERANDA: 
-            from PyQt6.QtSvg import QSvgRenderer
-            from PyQt6.QtCore import QByteArray
-            
-            svg = _SVG_STAT_BERANDA[ikon_key]  
-            r = QSvgRenderer(QByteArray(svg.encode()))
-            px = QPixmap(16, 16)  # Ukuran ikon pas dan kecil
-            px.fill(Qt.GlobalColor.transparent)
-            p = QPainter(px)
-            r.render(p)
-            p.end()
-
-            lbl_ikon = QLabel()
-            lbl_ikon.setPixmap(px)
-            lbl_ikon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl_ikon.setStyleSheet("border: none; background: transparent;")
-            main_layout.addWidget(lbl_ikon)
-
-        # 2. Layout VERTIKAL untuk Teks (Hanya 2 Baris)
-        v_text_layout = QVBoxLayout()
-        v_text_layout.setSpacing(2)
-        v_text_layout.setContentsMargins(0, 0, 0, 0)
-        v_text_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-
-        # Baris 1: Judul Kategori
-        lbl_label = QLabel(teks_judul) 
+        lbl_label = QLabel(label)
+        lbl_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_label.setStyleSheet(
             "font-size: 11px; color: #8B7B6B; border: none; background: transparent;"
         )
 
-        # Baris 2: Nilai Angka / Teks
-        teks_tampil = f"{nilai} {satuan}".strip() if satuan else nilai
-        lbl_nilai = QLabel(teks_tampil)
-        lbl_nilai.setAlignment(Qt.AlignmentFlag.AlignCenter)  # Set rata tengah
+        lbl_nilai = QLabel(nilai)
+        lbl_nilai.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_nilai.setStyleSheet(
-            "font-size: 13px; font-weight: bold; color: #5C1A28; "
+            "font-size: 15px; font-weight: bold; color: #5C1A28; "
             "border: none; background: transparent;"
         )
 
-        v_text_layout.addWidget(lbl_label)
-        v_text_layout.addWidget(lbl_nilai)
-
-        # Gabungkan layout teks ke sebelah kanan ikon
-        main_layout.addLayout(v_text_layout)
-        
-        # Masukkan ke layout horizontal utama StatistikBar (Tanpa tanda kurung)
+        v.addWidget(lbl_label)
+        v.addWidget(lbl_nilai)
         self.layout().addWidget(container)
         return lbl_nilai
 
@@ -254,11 +164,9 @@ class SectionHeader(QFrame):
         lay.setContentsMargins(14, 6, 14, 6)
         lay.setSpacing(10)
 
-        lbl_icon = QLabel()
-        lbl_icon.setFixedSize(28, 28)
-        lbl_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_icon.setStyleSheet("border: none; background: transparent;")
-        lbl_icon.setPixmap(_render_svg_cart(st["border"], ukuran=22))
+        lbl_icon = QLabel(st["icon"])
+        lbl_icon.setStyleSheet("font-size: 22px; border: none; background: transparent;")
+
         col = QVBoxLayout()
         col.setSpacing(1)
         lbl_judul = QLabel(f"<b>{st['label']}</b>  <span style='font-size:11px;color:#666;font-weight:normal;'>— {jumlah} komoditas</span>")

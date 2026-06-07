@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import (
     QFrame, QLabel, QPushButton, QStackedWidget, QSizePolicy,
     QDialog, QLineEdit, QGridLayout,
 )
-from PyQt6.QtCore import Qt, QByteArray, pyqtSignal, QSize, QTimer, QRectF
+from PyQt6.QtCore import Qt, QByteArray, pyqtSignal, QSize, QTimer
 from PyQt6.QtGui import QFont, QIcon, QPixmap, QPainter
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtGui import QPainter
@@ -18,30 +18,25 @@ from gui.pages.halaman_admin import HalamanAdmin
 
 
 def _svg_to_icon(svg_str: str, size: int = 20) -> QIcon:
-    ba = QByteArray(svg_str.strip().encode('utf-8'))
-    renderer = QSvgRenderer(ba)
-
-    ukuran_master = 64
+    renderer = QSvgRenderer(QByteArray(svg_str.encode()))
     pixmap = QPixmap(size, size)
     pixmap.fill(Qt.GlobalColor.transparent)
     painter = QPainter(pixmap)
-    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-    painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-    renderer.render(painter, QRectF(0, 0, size, size))
+    renderer.render(painter)
     painter.end()
     return QIcon(pixmap)
 
 
 _IKON = {
     "beranda": """
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
      stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/>
   <path d="M9 21V12h6v9"/>
 </svg>""",
 
     "pencarian": """
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
      stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <circle cx="10" cy="10" r="6"/>
   <line x1="14.5" y1="14.5" x2="21" y2="21"/>
@@ -50,7 +45,7 @@ _IKON = {
 </svg>""",
 
     "penghitung": """
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
      stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <path d="M6 2h12a1 1 0 0 1 1 1v3H5V3a1 1 0 0 1 1-1z"/>
   <path d="M5 6h14l-1.5 14H6.5L5 6z"/>
@@ -60,14 +55,14 @@ _IKON = {
 </svg>""",
 
     "tutorial": """
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
      stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <rect x="3" y="3" width="18" height="18" rx="2"/>
   <polygon points="9,8 17,12 9,16" fill="white" stroke="none"/>
 </svg>""",
 
     "tentang": """
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
      stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <circle cx="12" cy="12" r="9"/>
   <line x1="12" y1="8" x2="12" y2="8.5" stroke-width="2.5"/>
@@ -75,7 +70,7 @@ _IKON = {
 </svg>""",
 
     "admin": """
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
      stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <circle cx="12" cy="8" r="4"/>
   <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
@@ -83,13 +78,14 @@ _IKON = {
 </svg>""",
 
     "logout": """
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
      stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
   <polyline points="16 17 21 12 16 7"/>
   <line x1="21" y1="12" x2="9" y2="12"/>
 </svg>""",
 }
+
 
 class MainWindow(QMainWindow):
     """Jendela utama dengan sidebar collapsible + konten stacked."""
@@ -206,61 +202,36 @@ class MainWindow(QMainWindow):
         brand_row.addStretch()
         brand_row.addWidget(self.btn_collapse)
         layout.addLayout(brand_row)
-        layout.addSpacing(8)
+        layout.addSpacing(10)
 
         username    = self.current_user.get("display_name") or self.current_user.get("username", "guest")
         role        = self.current_user.get("role", "user")
         badge_teks  = "Admin" if role == "admin" else "User"
         badge_color = "#F1C40F" if role == "admin" else "#90CAF9"
 
-        self.user_frame = QFrame()
-        self.user_frame.setStyleSheet("""
+        user_frame = QFrame()
+        user_frame.setStyleSheet("""
             background: rgba(255,255,255,0.09);
-            border-radius: 6px;
+            border-radius: 8px;
+            margin: 0 10px 6px 10px;
         """)
-        user_row = QHBoxLayout(self.user_frame)
+        user_row = QHBoxLayout(user_frame)
         user_row.setContentsMargins(10, 6, 10, 6)
         user_row.setSpacing(6)
 
-        # SVG user icon
-        svg_user = """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#F1C40F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.925 20.056a6 6 0 0 0-11.851.001"/><circle cx="12" cy="11" r="4"/><circle cx="12" cy="12" r="10"/></svg>"""
-        renderer = QSvgRenderer(QByteArray(svg_user.encode()))
-        pm = QPixmap(20, 20)
-        pm.fill(Qt.GlobalColor.transparent)
-        painter = QPainter(pm)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        renderer.render(painter, QRectF(0, 0, 20, 20))
-        painter.end()
-
-        lbl_ikon = QLabel()
-        lbl_ikon.setFixedSize(20, 20)
-        lbl_ikon.setPixmap(pm)
-        lbl_ikon.setScaledContents(True)
-        lbl_ikon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lbl_ikon.setStyleSheet("border: none; background: transparent;")
-        user_row.addWidget(lbl_ikon)
-
-        text_user_layout = QVBoxLayout()
-        text_user_layout.setSpacing(1)
-        text_user_layout.setContentsMargins(4, 0, 0, 0) # Beri jarak aman dari ikon di kirinya
-
         self.lbl_badge = QLabel(badge_teks)
         self.lbl_badge.setStyleSheet(f"""
-            color: {self.WARNA_AKSEN};
-            font-size: 11px;
-            font-weight: bold;
-            border: none;
-            background: transparent;
+            background: {badge_color};
+            color: #1A0A0E;
+            font-size: 10px; font-weight: 700;
+            border-radius: 4px; padding: 1px 5px;
         """)
         self.lbl_username = QLabel(username)
         self.lbl_username.setStyleSheet("color: white; font-size: 12px; background: transparent;")
         self.lbl_username.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        
-        text_user_layout.addWidget(self.lbl_badge)
-        text_user_layout.addWidget(self.lbl_username)
-        
-        # Tambahkan layout teks ke baris utama profil
-        user_row.addLayout(text_user_layout, 1)
+
+        user_row.addWidget(self.lbl_badge)
+        user_row.addWidget(self.lbl_username)
 
         _SVG_EDIT = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
             stroke="rgba(255,255,255,0.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -276,8 +247,8 @@ class MainWindow(QMainWindow):
 
         self.btn_edit_profil = QPushButton()
         self.btn_edit_profil.setIcon(QIcon(pix_edit))
-        self.btn_edit_profil.setIconSize(pix_edit.size())
-        self.btn_edit_profil.setFixedSize(22, 22)
+        self.btn_edit_profil.setIconSize(QPixmap(16, 16).size())
+        self.btn_edit_profil.setFixedSize(24, 24)
         self.btn_edit_profil.setToolTip("Edit Profil")
         self.btn_edit_profil.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_edit_profil.setStyleSheet("""
@@ -287,8 +258,8 @@ class MainWindow(QMainWindow):
         self.btn_edit_profil.clicked.connect(self._buka_edit_profil)
         user_row.addWidget(self.btn_edit_profil)
 
-        self.lbl_user_info = self.user_frame
-        layout.addWidget(self.user_frame)
+        self.lbl_user_info = user_frame
+        layout.addWidget(user_frame)
 
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)

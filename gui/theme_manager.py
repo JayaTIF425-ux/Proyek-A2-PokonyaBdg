@@ -1,10 +1,9 @@
 import os
 import json
 
-_DATA_DIR  = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
-_PREF_FILE = os.path.join(_DATA_DIR, "theme_prefs.json")
+_DATA_DIR   = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
+_PREF_FILE  = os.path.join(_DATA_DIR, "theme_prefs.json")
 
-# ── Light Mode ────────────────────────────────────────────────────────────────
 _QSS_LIGHT = """
 QWidget {
     background-color: #F8F6F2;
@@ -56,63 +55,31 @@ QLabel {
     background: transparent;
     color: #1A0A0E;
 }
-QScrollBar:vertical {
-    background: #F0EDE8;
-    width: 8px;
-    border-radius: 4px;
-}
-QScrollBar::handle:vertical {
-    background: #C0B0A8;
-    border-radius: 4px;
-    min-height: 20px;
-}
-QScrollBar::handle:vertical:hover { background: #44101A; }
 """
 
-# ── Dark Mode ─────────────────────────────────────────────────────────────────
-# Hierarki warna:
-#   Halaman (bg)  : #16213E  (navy gelap)
-#   Card/Panel    : #1E2A45  (navy sedikit lebih terang)
-#   Card elevated : #253354  (untuk hover/focus)
-#   Border        : #2E4070  (biru navy redup)
-#   Teks utama    : #E8EAF0  (putih kebiruan)
-#   Teks sekunder : #A8B4CC  (abu biru)
-#   Aksen sidebar : tetap #44101A maroon
 _QSS_DARK = """
 QWidget {
-    background-color: #16213E;
-    color: #E8EAF0;
+    background-color: #1A1A2E;
+    color: #E8E0CC;
     font-family: 'Segoe UI', Arial, sans-serif;
 }
-QMainWindow, QDialog {
-    background-color: #16213E;
-}
 QFrame {
-    background-color: #1E2A45;
-    color: #E8EAF0;
-}
-QScrollArea {
-    background: transparent;
-    border: none;
-}
-QScrollArea > QWidget > QWidget {
-    background: transparent;
+    background-color: #252535;
 }
 QLineEdit, QComboBox, QDateEdit, QTextEdit {
-    background: #1A2540;
-    border: 1.5px solid #2E4070;
+    background: #2E2E45;
+    border: 1.5px solid #3A3A55;
     border-radius: 8px;
     padding: 6px 10px;
-    color: #E8EAF0;
+    color: #E8E0CC;
 }
 QLineEdit:focus, QComboBox:focus, QDateEdit:focus {
-    border: 2px solid #8B9B3A;
-    background: #1E2A45;
+    border: 2px solid #8B6F7A;
+    background: #333350;
 }
-QLineEdit::placeholder { color: #6B7A99; }
 QPushButton {
     background-color: #44101A;
-    color: #E8EAF0;
+    color: #E8E0CC;
     border: none;
     border-radius: 8px;
     padding: 6px 14px;
@@ -120,88 +87,36 @@ QPushButton {
 }
 QPushButton:hover { background-color: #6B1525; }
 QPushButton:pressed { background-color: #3A0E16; }
-QPushButton:disabled { background-color: #2E3A55; color: #6B7A99; }
-QTableWidget {
-    background-color: #1E2A45;
-    color: #E8EAF0;
-    gridline-color: #2E4070;
+QScrollArea, QScrollArea > QWidget > QWidget {
+    background: transparent;
     border: none;
 }
-QTableWidget::item {
-    color: #E8EAF0;
-    border-bottom: 1px solid #2E4070;
-}
-QTableWidget::item:selected {
-    background-color: #2E4070;
-    color: #E8EAF0;
+QTableWidget {
+    background-color: #252535;
+    color: #E8E0CC;
+    gridline-color: #3A3A55;
 }
 QHeaderView::section {
-    background-color: #162035;
-    color: #A8B4CC;
+    background-color: #1E1E30;
+    color: #E8E0CC;
     border: none;
-    border-bottom: 1px solid #2E4070;
+    border-bottom: 1px solid #3A3A55;
     padding: 6px 10px;
     font-weight: 600;
 }
 QLabel {
     background: transparent;
-    color: #E8EAF0;
+    color: #E8E0CC;
 }
 QScrollBar:vertical {
-    background: #1E2A45;
+    background: #252535;
     width: 8px;
-    border-radius: 4px;
 }
 QScrollBar::handle:vertical {
-    background: #2E4070;
+    background: #44101A;
     border-radius: 4px;
     min-height: 20px;
 }
-QScrollBar::handle:vertical:hover { background: #8B9B3A; }
-QScrollBar:horizontal {
-    background: #1E2A45;
-    height: 8px;
-    border-radius: 4px;
-}
-QScrollBar::handle:horizontal {
-    background: #2E4070;
-    border-radius: 4px;
-}
-QComboBox QAbstractItemView {
-    background-color: #1E2A45;
-    color: #E8EAF0;
-    border: 1px solid #2E4070;
-    selection-background-color: #2E4070;
-    selection-color: #E8EAF0;
-}
-QTabWidget::pane {
-    background-color: #1E2A45;
-    border: 1px solid #2E4070;
-}
-QTabBar::tab {
-    background: #162035;
-    color: #A8B4CC;
-    padding: 8px 16px;
-    border: none;
-}
-QTabBar::tab:selected {
-    background: #1E2A45;
-    color: #E8EAF0;
-    border-bottom: 2px solid #8B9B3A;
-}
-QTabBar::tab:hover { background: #1E2A45; color: #E8EAF0; }
-QProgressBar {
-    background: #1A2540;
-    border: 1px solid #2E4070;
-    border-radius: 6px;
-    color: #E8EAF0;
-}
-QProgressBar::chunk {
-    background-color: #8B9B3A;
-    border-radius: 6px;
-}
-QMessageBox { background-color: #1E2A45; color: #E8EAF0; }
-QMessageBox QLabel { color: #E8EAF0; }
 """
 
 
@@ -239,23 +154,9 @@ class ThemeManager:
         return tema_baru
 
     @staticmethod
-    def is_dark() -> bool:
-        return ThemeManager.get_theme() == "dark"
-
-    @staticmethod
     def get_stylesheet() -> str:
         """Return QSS stylesheet sesuai tema aktif."""
         return _QSS_DARK if ThemeManager.get_theme() == "dark" else _QSS_LIGHT
-
-    @staticmethod
-    def ikon_stroke() -> str:
-        """Warna stroke SVG yang cocok dengan tema aktif."""
-        return "#E8EAF0" if ThemeManager.get_theme() == "dark" else "#5C1A28"
-
-    @staticmethod
-    def ikon_stroke_muted() -> str:
-        """Warna stroke redup/sekunder sesuai tema."""
-        return "#A8B4CC" if ThemeManager.get_theme() == "dark" else "#A89BA0"
 
     @staticmethod
     def apply_to_app(app) -> None:
