@@ -205,6 +205,27 @@ class DBManager:
         with self._connect() as conn:
             return conn.execute(sql, (f"%{komoditas}%", f"-{hari}")).fetchall()
 
+    def fetch_tren_harga_by_pasar(
+        self, komoditas: str, jenis_pasar: str, hari: int = 999
+    ) -> list[sqlite3.Row]:
+        """
+        Ambil tren harga untuk komoditas tertentu, difilter per jenis_pasar
+        ('tradisional' atau 'modern').
+        """
+        sql = """
+            SELECT tanggal, ROUND(AVG(harga), 0) AS harga
+            FROM harga_pangan
+            WHERE komoditas LIKE ?
+              AND jenis_pasar = ?
+              AND tanggal >= date('now', ? || ' days')
+            GROUP BY tanggal
+            ORDER BY tanggal ASC
+        """
+        with self._connect() as conn:
+            return conn.execute(
+                sql, (f"%{komoditas}%", jenis_pasar, f"-{hari}")
+            ).fetchall()
+
     # ── Insert: Dari Scraper ────────────────────────────────────────────
 
     def hapus_data_pihps(self):
