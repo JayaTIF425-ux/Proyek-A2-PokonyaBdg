@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QScrollArea, QGridLayout, QFrame, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView,
-    QLineEdit, QAbstractItemView, QSizePolicy
+    QLineEdit, QAbstractItemView, QSizePolicy, QComboBox
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QColor, QFont
@@ -131,7 +131,7 @@ class HalamanPenghitung(QWidget):
         layout_kanan.setContentsMargins(16, 16, 16, 16)
         layout_kanan.setSpacing(8)
 
-        # ── Baris 1: Judul + input filter ────────────────────────────────
+        # ── Baris 1: Judul + timestamp refresh ───────────────────────────
         baris1 = QHBoxLayout()
         lbl_mau = QLabel("Mau Belanja Apa Hari Ini?")
         lbl_mau.setStyleSheet("font-size: 16px; font-weight: 550; color: #6B8E23")
@@ -150,16 +150,38 @@ class HalamanPenghitung(QWidget):
         baris1.addWidget(self.refresh_bar)
         layout_kanan.addLayout(baris1)
 
-        # ── Baris 2: Filter + Refresh + Update ───────────────────────────
+        # ── Baris 2: Filter teks + Kategori + Refresh + Update ───────────
         baris2 = QHBoxLayout()
         baris2.setSpacing(8)
 
         self.input_filter = QLineEdit()
-        self.input_filter.setPlaceholderText("Cari bahan pangan...")
+        self.input_filter.setPlaceholderText("Cari nama produk...")
         self.input_filter.setStyleSheet(
             "padding: 6px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px;"
         )
         self.input_filter.textChanged.connect(self._filter_produk)
+
+        # Combo filter kategori
+        self.combo_kat = QComboBox()
+        self.combo_kat.addItem("Semua Kategori", userData="")
+        self.combo_kat.setFixedWidth(175)
+        self.combo_kat.setStyleSheet("""
+            QComboBox {
+                padding: 5px 10px;
+                border: 1px solid #ccc;
+                border-radius: 6px;
+                background: white;
+                font-size: 12px;
+                color: #333;
+            }
+            QComboBox QAbstractItemView {
+                background: white;
+                color: #333;
+                selection-background-color: #6B8E23;
+                selection-color: white;
+            }
+        """)
+        self.combo_kat.currentIndexChanged.connect(self._filter_produk_by_keyword)
 
         # Tampilkan ulang tombol refresh & update yang tersembunyi
         btn_refresh2 = self.refresh_bar.btn_refresh
@@ -168,6 +190,7 @@ class HalamanPenghitung(QWidget):
         btn_update2.show()
 
         baris2.addWidget(self.input_filter, 1)
+        baris2.addWidget(self.combo_kat)
         baris2.addWidget(btn_refresh2)
         baris2.addWidget(btn_update2)
         layout_kanan.addLayout(baris2)
@@ -186,7 +209,6 @@ class HalamanPenghitung(QWidget):
         scroll.setWidget(self.grid_container)
         layout_kanan.addWidget(scroll)
 
-        # Panel kiri sama kayak kanan
         root.addWidget(panel_kiri, 5)
         root.addWidget(panel_kanan, 5)
 
@@ -212,20 +234,36 @@ class HalamanPenghitung(QWidget):
                 w.deleteLater()
 
         produk_dict: dict[str, dict] = {}
+        kategori_set: set[str] = set()
+
         for row in data:
-            nama = row[0]
-            kategori = row[1]
-            harga = row[2]
-            toko = row[3]
+            nama       = row[0]
+            kategori   = row[1]
+            harga      = row[2]
+            toko       = row[3]
             gambar_url = row[4] if len(row) > 4 else None
+
+            if kategori:
+                kategori_set.add(str(kategori))
 
             if nama not in produk_dict:
                 produk_dict[nama] = {
-                    "kategori": kategori,
+                    "kategori":  kategori,
                     "harga_toko": {},
                     "gambar_url": gambar_url,
                 }
             produk_dict[nama]["harga_toko"][toko] = harga
+
+        # Isi combo kategori (hanya saat load ulang)
+        kat_sekarang = self.combo_kat.currentData() or ""
+        self.combo_kat.blockSignals(True)
+        self.combo_kat.clear()
+        self.combo_kat.addItem("Semua Kategori", userData="")
+        for kat in sorted(kategori_set):
+            self.combo_kat.addItem(kat, userData=kat)
+        idx = self.combo_kat.findData(kat_sekarang)
+        self.combo_kat.setCurrentIndex(idx if idx >= 0 else 0)
+        self.combo_kat.blockSignals(False)
 
         for nama, info in produk_dict.items():
             harga_min = min(info["harga_toko"].values()) if info["harga_toko"] else 0
@@ -289,16 +327,13 @@ class HalamanPenghitung(QWidget):
         info = self.keranjang[nama]
         qty_baru = max(0, info["qty"] + delta)
 
-        # Sinkronisasi ke CalculatorCard yang sesuai agar angka di card & tabel selalu sinkron
         for card in self._semua_cards:
             if card.nama == nama:
                 card.qty = qty_baru
-                # Update tampilan input_qty di card jika ada
                 if hasattr(card, "input_qty"):
                     card.input_qty.setText(str(qty_baru))
                 break
 
-        # Update keranjang (hapus jika qty = 0)
         self._update_keranjang(nama, info["harga_per_toko"], qty_baru)
 
     def _buat_item_readonly(self, text: str, align: Qt.AlignmentFlag | None = None):
@@ -313,15 +348,14 @@ class HalamanPenghitung(QWidget):
         grand_total = 0
 
         for baris, (nama, info) in enumerate(self.keranjang.items()):
-            qty = info["qty"]
-            harga = min(info["harga_per_toko"].values()) if info["harga_per_toko"] else 0
+            qty    = info["qty"]
+            harga  = min(info["harga_per_toko"].values()) if info["harga_per_toko"] else 0
             subtot = harga * qty
 
             self.tabel_keranjang.insertRow(baris)
             self.tabel_keranjang.setRowHeight(baris, 52)
             self.tabel_keranjang.setItem(baris, 0, self._buat_item_readonly(nama))
 
-            # ── Kolom Jumlah: widget +/− dengan label qty yang terlihat jelas ──
             qty_widget = QWidget()
             qty_widget.setStyleSheet("background: transparent;")
             qty_row = QHBoxLayout(qty_widget)
@@ -332,7 +366,6 @@ class HalamanPenghitung(QWidget):
             btn_m = QPushButton("−")
             btn_p = QPushButton("+")
 
-            # Label angka quantity — font besar dan warna kontras agar terlihat
             lbl_q = QLabel(str(qty))
             lbl_q.setAlignment(Qt.AlignmentFlag.AlignCenter)
             lbl_q.setFixedWidth(32)
@@ -389,11 +422,19 @@ class HalamanPenghitung(QWidget):
 
     # ── Filter ────────────────────────────────────────────────────────────
 
+    def _filter_produk_by_keyword(self):
+        """Dipanggil saat combo kategori berubah."""
+        self._filter_produk(self.input_filter.text())
+
     def _filter_produk(self, keyword: str):
-        kw = keyword.lower().strip()
-        if not kw:
-            hasil = self._semua_cards
-        else:
-            hasil = [card for card in self._semua_cards if kw in card.nama.lower()]
+        kw  = keyword.lower().strip()
+        kat = self.combo_kat.currentData() or ""
+
+        hasil = []
+        for card in self._semua_cards:
+            cocok_nama = (not kw)  or (kw  in card.nama.lower())
+            cocok_kat  = (not kat) or (kat.lower() in str(card.kategori).lower())
+            if cocok_nama and cocok_kat:
+                hasil.append(card)
 
         self._susun_grid_produk(hasil, kolom=2)

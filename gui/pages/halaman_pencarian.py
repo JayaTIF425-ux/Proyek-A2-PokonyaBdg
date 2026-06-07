@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QScrollArea, QGridLayout,
     QFrame, QDialog, QFormLayout, QMessageBox,
-    QFileDialog, QSizePolicy, QDateEdit
+    QFileDialog, QSizePolicy, QDateEdit, QComboBox
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QByteArray, QDate
 from PyQt6.QtGui import QIcon, QPixmap
@@ -28,20 +28,17 @@ def _svg_to_icon(svg_str: str, size: int = 20) -> QIcon:
 
 _IKON_PENCARIAN = {
     "cari": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>""",
-
     "lihat_semua": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>""",
-
     "tambah": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>""",
-
     "ekspor": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><path d="M12 10v6"/><path d="m15 13-3 3-3-3"/></svg>""",
 }
 
 # ── SVG ikon kecil untuk tiap stat ────────────────────────────────────────────
 _SVG_STAT = {
-    "produk":    """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>""",
-    "harga":     """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>""",
-    "toko":      """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>""",
-    "termahal":  """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>""",
+    "produk":   """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>""",
+    "harga":    """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>""",
+    "toko":     """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>""",
+    "termahal": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>""",
 }
 
 
@@ -320,7 +317,6 @@ class StatistikBar(QFrame):
         h.setSpacing(10)
         h.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Ikon SVG kecil
         if ikon_key in _SVG_STAT:
             from PyQt6.QtSvg import QSvgRenderer
             from PyQt6.QtCore import QByteArray
@@ -425,8 +421,8 @@ class HalamanPencarian(QWidget):
             )
             return b
 
-        self.btn_cari  = tombol("Cari",        "#6B8E23", "Cari produk")
-        self.btn_semua = tombol("Lihat Semua", "#8e44ad", "Tampilkan semua data supermarket")
+        self.btn_cari   = tombol("Cari",        "#6B8E23", "Cari produk")
+        self.btn_semua  = tombol("Lihat Semua", "#8e44ad", "Tampilkan semua data supermarket")
         self.btn_ekspor = tombol("Ekspor CSV",  "#16a085", "Ekspor semua data ke CSV")
 
         self.btn_cari.setIcon(_svg_to_icon(_IKON_PENCARIAN["cari"]))
@@ -444,6 +440,81 @@ class HalamanPencarian(QWidget):
 
         bl.addWidget(self.btn_ekspor)
         layout.addWidget(bar)
+
+        # ── Baris filter kategori & sumber ────────────────────────────────
+        filter_bar_widget = QFrame()
+        filter_bar_widget.setStyleSheet(
+            "background: #f0f4f8; border: 1px solid #dde3ea; border-radius: 7px;"
+        )
+        fb_layout = QHBoxLayout(filter_bar_widget)
+        fb_layout.setContentsMargins(12, 6, 12, 6)
+        fb_layout.setSpacing(10)
+
+        lbl_kat = QLabel("🔖 Kategori:")
+        lbl_kat.setStyleSheet("font-size: 12px; color: #555; border: none; background: transparent;")
+
+        self.combo_kategori = QComboBox()
+        self.combo_kategori.addItem("Semua Kategori", userData="")
+        self.combo_kategori.setFixedWidth(195)
+        self.combo_kategori.setStyleSheet("""
+            QComboBox {
+                padding: 4px 10px;
+                border: 1px solid #ccc;
+                border-radius: 5px;
+                background: white;
+                font-size: 12px;
+                color: #333;
+            }
+            QComboBox QAbstractItemView {
+                background: white;
+                color: #333;
+                selection-background-color: #6B8E23;
+                selection-color: white;
+            }
+        """)
+        self.combo_kategori.currentIndexChanged.connect(self._on_filter_kategori)
+        self._isi_combo_kategori()
+
+        sep_line = QFrame()
+        sep_line.setFrameShape(QFrame.Shape.VLine)
+        sep_line.setFixedWidth(1)
+        sep_line.setStyleSheet("background: #ccc; border: none;")
+
+        lbl_src = QLabel("🏬 Sumber:")
+        lbl_src.setStyleSheet("font-size: 12px; color: #555; border: none; background: transparent;")
+
+        self.combo_sumber = QComboBox()
+        self.combo_sumber.addItems(["Semua Sumber", "PIHPS", "Supermarket"])
+        self.combo_sumber.setFixedWidth(150)
+        self.combo_sumber.setStyleSheet("""
+            QComboBox {
+                padding: 4px 10px;
+                border: 1px solid #ccc;
+                border-radius: 5px;
+                background: white;
+                font-size: 12px;
+                color: #333;
+            }
+            QComboBox QAbstractItemView {
+                background: white;
+                color: #333;
+                selection-background-color: #8e44ad;
+                selection-color: white;
+            }
+        """)
+        self.combo_sumber.currentIndexChanged.connect(self._on_filter_kategori)
+
+        self._lbl_count_filter = QLabel("")
+        self._lbl_count_filter.setStyleSheet("font-size: 11px; color: #888; border: none; background: transparent;")
+
+        fb_layout.addWidget(lbl_kat)
+        fb_layout.addWidget(self.combo_kategori)
+        fb_layout.addWidget(sep_line)
+        fb_layout.addWidget(lbl_src)
+        fb_layout.addWidget(self.combo_sumber)
+        fb_layout.addStretch()
+        fb_layout.addWidget(self._lbl_count_filter)
+        layout.addWidget(filter_bar_widget)
 
         self.refresh_bar = RefreshWidget()
         self.refresh_bar.refresh_diminta.connect(self._refresh_tampilan)
@@ -472,6 +543,85 @@ class HalamanPencarian(QWidget):
         self.input_cari.returnPressed.connect(self._cari)
         self.btn_semua.clicked.connect(self._tampilkan_semua)
         self.btn_ekspor.clicked.connect(self._ekspor_csv)
+
+    # ── Filter Kategori & Sumber ───────────────────────────────────────
+
+    def _isi_combo_kategori(self):
+        """Isi combo kategori dari DB (harga_supermarket.kategori)."""
+        try:
+            with DBManager()._connect() as conn:
+                rows = conn.execute(
+                    "SELECT DISTINCT kategori FROM harga_supermarket "
+                    "WHERE kategori IS NOT NULL AND kategori != '' "
+                    "ORDER BY kategori"
+                ).fetchall()
+            for row in rows:
+                kat = row[0]
+                self.combo_kategori.addItem(kat, userData=kat)
+        except Exception:
+            pass
+
+    def _on_filter_kategori(self):
+        """Terapkan filter kategori & sumber ke data yang sudah ditampilkan."""
+        if not self._data_terakhir:
+            return
+        self._terapkan_filter(self._data_terakhir)
+
+    def _terapkan_filter(self, data: list):
+        """Filter data berdasarkan pilihan kategori dan sumber, lalu render ulang."""
+        kat     = self.combo_kategori.currentData() or ""
+        src_idx = self.combo_sumber.currentIndex()   # 0=semua, 1=PIHPS, 2=Super
+
+        hasil = []
+        for row in data:
+            keys = row.keys() if hasattr(row, "keys") else []
+
+            # Filter sumber
+            sumber = row["sumber"] if "sumber" in keys else "supermarket"
+            if src_idx == 1 and sumber != "pihps":
+                continue
+            if src_idx == 2 and sumber == "pihps":
+                continue
+
+            # Filter kategori (hanya berlaku untuk supermarket)
+            if kat:
+                kategori_row = row["kategori"] if "kategori" in keys else ""
+                if not kategori_row or kat.lower() not in str(kategori_row).lower():
+                    continue
+
+            hasil.append(row)
+
+        # Render ulang grid tanpa memanggil worker baru
+        self._bersihkan_grid()
+        if not hasil:
+            lbl = QLabel("Tidak ada produk sesuai filter.")
+            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            lbl.setStyleSheet("color: #999; font-size: 14px; padding: 40px;")
+            self.grid.addWidget(lbl, 0, 0, 1, 2)
+            self._lbl_count_filter.setText("0 hasil")
+            return
+
+        KOLOM = 2
+        for i, row in enumerate(hasil):
+            keys    = row.keys() if hasattr(row, "keys") else []
+            id_p    = row["id"]            if "id"            in keys else -1
+            nama    = row["nama"]          if "nama"          in keys else row[1]
+            harga   = row["harga"]         if "harga"         in keys else row[2]
+            toko    = row["toko"]          if "toko"          in keys else row[3]
+            tanggal = row["tanggal"]       if "tanggal"       in keys else ""
+            thumb   = row["thumbnail_url"] if "thumbnail_url" in keys else ""
+            sumber  = row["sumber"]        if "sumber"        in keys else "supermarket"
+
+            card = SearchCard(
+                nama=nama, harga=harga, toko=toko, tanggal=tanggal or "",
+                thumbnail_url=thumb or "", id_produk=id_p, sumber=sumber,
+                is_admin=self.is_admin,
+            )
+            card.edit_diminta.connect(self._edit_data)
+            card.hapus_diminta.connect(self._hapus_data)
+            self.grid.addWidget(card, i // KOLOM, i % KOLOM)
+
+        self._lbl_count_filter.setText(f"{len(hasil)} dari {len(data)} produk")
 
     # ── Pencarian ──────────────────────────────────────────────────────
 
@@ -503,25 +653,10 @@ class HalamanPencarian(QWidget):
             self._tampilkan_kosong("Belum ada data supermarket. Jalankan scraper dulu.")
             return
 
-        KOLOM = 2
-        for i, row in enumerate(data):
-            keys = row.keys()
-            card = SearchCard(
-                nama          = row["nama"],
-                harga         = row["harga"],
-                toko          = row["toko"],
-                tanggal       = row["tanggal"] or "",
-                thumbnail_url = row["thumbnail_url"] or "" if "thumbnail_url" in keys else "",
-                id_produk     = row["id"],
-                sumber        = "supermarket",
-                kategori      = row["kategori"] or "" if "kategori" in keys else "",
-                satuan        = row["satuan"] or "kg" if "satuan" in keys else "kg",
-                is_admin      = self.is_admin,
-            )
-            card.edit_diminta.connect(self._edit_data)
-            card.hapus_diminta.connect(self._hapus_data)
-            self.grid.addWidget(card, i // KOLOM, i % KOLOM)
-
+        # Reset filter sebelum tampilkan semua
+        self.combo_kategori.setCurrentIndex(0)
+        self.combo_sumber.setCurrentIndex(0)
+        self._terapkan_filter(data)
         self.lbl_info.setText(f"Menampilkan {len(data)} produk supermarket.")
 
     def _tampilkan_hasil(self, data: list):
@@ -532,31 +667,13 @@ class HalamanPencarian(QWidget):
         if not data:
             self._tampilkan_kosong("Tidak ditemukan data untuk kata kunci tersebut.")
             self.lbl_info.setText("0 hasil ditemukan.")
+            self._lbl_count_filter.setText("")
             return
 
-        KOLOM = 2
-        for i, row in enumerate(data):
-            try:
-                keys    = row.keys() if hasattr(row, "keys") else []
-                id_p    = row["id"]            if "id"            in keys else -1
-                nama    = row["nama"]          if "nama"          in keys else row[1]
-                harga   = row["harga"]         if "harga"         in keys else row[2]
-                toko    = row["toko"]          if "toko"          in keys else row[3]
-                tanggal = row["tanggal"]       if "tanggal"       in keys else ""
-                thumb   = row["thumbnail_url"] if "thumbnail_url" in keys else ""
-                sumber  = row["sumber"]        if "sumber"        in keys else "supermarket"
-            except Exception:
-                continue
-
-            card = SearchCard(
-                nama=nama, harga=harga, toko=toko, tanggal=tanggal or "",
-                thumbnail_url=thumb or "", id_produk=id_p, sumber=sumber,
-                is_admin=self.is_admin,
-            )
-            card.edit_diminta.connect(self._edit_data)
-            card.hapus_diminta.connect(self._hapus_data)
-            self.grid.addWidget(card, i // KOLOM, i % KOLOM)
-
+        # Reset filter & terapkan
+        self.combo_kategori.setCurrentIndex(0)
+        self.combo_sumber.setCurrentIndex(0)
+        self._terapkan_filter(data)
         self.lbl_info.setText(f"{len(data)} hasil ditemukan.")
 
     def _tampilkan_kosong(self, pesan: str):

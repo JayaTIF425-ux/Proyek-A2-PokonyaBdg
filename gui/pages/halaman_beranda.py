@@ -11,15 +11,23 @@ from gui.widgets.refresh_widget import RefreshWidget
 
 
 class DataWorker(QThread):
-    selesai = pyqtSignal(list)
+    selesai = pyqtSignal(list, list)   # (data_tradisional, data_modern)
 
     def __init__(self, jenis_pasar: str = "semua"):
         super().__init__()
         self.jenis_pasar = jenis_pasar
 
     def run(self):
-        data = DBManager().fetch_produk_pihps_by_pasar(self.jenis_pasar)
-        self.selesai.emit(list(data))
+        if self.jenis_pasar == "semua":
+            data_t = list(DBManager().fetch_produk_pihps_by_pasar("tradisional"))
+            data_m = list(DBManager().fetch_produk_pihps_by_pasar("modern"))
+            self.selesai.emit(data_t, data_m)
+        elif self.jenis_pasar == "tradisional":
+            data = list(DBManager().fetch_produk_pihps_by_pasar("tradisional"))
+            self.selesai.emit(data, [])
+        else:
+            data = list(DBManager().fetch_produk_pihps_by_pasar("modern"))
+            self.selesai.emit([], data)
 
 
 # ── Widget Statistik Ringkasan Beranda ────────────────────────────────────────
@@ -53,7 +61,6 @@ class StatistikBeranda(QFrame):
         self.perbarui()
 
     def _buat_stat(self, label: str, nilai: str) -> QLabel:
-        """Buat satu kartu stat dan tambahkan ke layout. Return label nilai."""
         container = QFrame()
         container.setStyleSheet("border: none; background: transparent;")
         v = QVBoxLayout(container)
@@ -85,8 +92,7 @@ class StatistikBeranda(QFrame):
         sep.setStyleSheet("color: #E2D9CC; background: #E2D9CC; max-width: 1px;")
         return sep
 
-    def perbarui(self, data: list | None = None):
-        """Perbarui angka-angka statistik. Jika data=None, ambil langsung dari DB."""
+    def perbarui(self, data_t: list | None = None, data_m: list | None = None):
         try:
             db = DBManager()
             stat = db.statistik_harga()
@@ -94,9 +100,10 @@ class StatistikBeranda(QFrame):
             total = stat.get("total", 0)
             self.lbl_produk.setText(str(total) if total else "–")
 
-            if data:
+            all_data = (data_t or []) + (data_m or [])
+            if all_data:
                 harga_list = []
-                for row in data:
+                for row in all_data:
                     h = row["harga"] if hasattr(row, "keys") else row[1]
                     if h and h > 0:
                         harga_list.append(h)
@@ -117,6 +124,61 @@ class StatistikBeranda(QFrame):
             self.lbl_diperbarui.setText(waktu)
         except Exception:
             pass
+
+
+# ── Section Header (pemisah Tradisional / Modern) ─────────────────────────────
+
+class SectionHeader(QFrame):
+    """Header divider dengan label dan aksen warna untuk tiap jenis pasar."""
+
+    STYLE_TRADISIONAL = {
+        "bg":     "#FFF8EC",
+        "border": "#D4A017",
+        "accent": "#8B5E00",
+        "icon":   "🏪",
+        "label":  "Pasar Tradisional",
+        "sub":    "Data harga dari pasar tradisional Bandung (PIHPS)",
+    }
+    STYLE_MODERN = {
+        "bg":     "#EEF4FF",
+        "border": "#3B82F6",
+        "accent": "#1E3A8A",
+        "icon":   "🛒",
+        "label":  "Pasar Modern / Supermarket",
+        "sub":    "Data harga dari pasar modern Bandung (PIHPS)",
+    }
+
+    def __init__(self, jenis: str, jumlah: int = 0, parent=None):
+        super().__init__(parent)
+        st = self.STYLE_TRADISIONAL if jenis == "tradisional" else self.STYLE_MODERN
+        self.setStyleSheet(f"""
+            QFrame {{
+                background: {st['bg']};
+                border-left: 4px solid {st['border']};
+                border-radius: 6px;
+            }}
+        """)
+        self.setFixedHeight(52)
+
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(14, 6, 14, 6)
+        lay.setSpacing(10)
+
+        lbl_icon = QLabel(st["icon"])
+        lbl_icon.setStyleSheet("font-size: 22px; border: none; background: transparent;")
+
+        col = QVBoxLayout()
+        col.setSpacing(1)
+        lbl_judul = QLabel(f"<b>{st['label']}</b>  <span style='font-size:11px;color:#666;font-weight:normal;'>— {jumlah} komoditas</span>")
+        lbl_judul.setStyleSheet(f"font-size: 14px; color: {st['accent']}; border: none; background: transparent;")
+        lbl_sub = QLabel(st["sub"])
+        lbl_sub.setStyleSheet("font-size: 10px; color: #888; border: none; background: transparent;")
+        col.addWidget(lbl_judul)
+        col.addWidget(lbl_sub)
+
+        lay.addWidget(lbl_icon)
+        lay.addLayout(col)
+        lay.addStretch()
 
 
 # ── Halaman Beranda ───────────────────────────────────────────────────────────
@@ -196,8 +258,10 @@ class HalamanBeranda(QWidget):
         self.scroll.setStyleSheet("border: none; background: transparent;")
 
         self.grid_container = QWidget()
-        self.grid = QGridLayout(self.grid_container)
-        self.grid.setSpacing(12)
+        self.grid_container.setStyleSheet("background: transparent;")
+        self.main_layout_grid = QVBoxLayout(self.grid_container)
+        self.main_layout_grid.setSpacing(16)
+        self.main_layout_grid.setContentsMargins(0, 0, 0, 0)
         self.scroll.setWidget(self.grid_container)
 
         layout.addWidget(self.loading)
@@ -209,65 +273,119 @@ class HalamanBeranda(QWidget):
         layout.addWidget(self.lbl_info)
 
     def _get_jenis_pasar(self) -> str:
-        """Konversi pilihan dropdown ke nilai yang dikirim ke DB."""
         idx = self.combo_pasar.currentIndex()
-        mapping = {
-            0: "semua",
-            1: "tradisional",
-            2: "modern",
-        }
+        mapping = {0: "semua", 1: "tradisional", 2: "modern"}
         return mapping.get(idx, "semua")
 
     def _on_filter_pasar_berubah(self):
-        """Dipanggil setiap dropdown berubah — reload data sesuai filter."""
         self._muat_data()
 
     def _muat_data(self):
         self.loading.show()
         self.scroll.hide()
-
         self.worker = DataWorker(jenis_pasar=self._get_jenis_pasar())
         self.worker.selesai.connect(self._tampilkan_data)
         self.worker.start()
 
-    def _tampilkan_data(self, data: list):
+    def _tampilkan_data(self, data_t: list, data_m: list):
         self.loading.hide()
         self.scroll.show()
 
-        # Bersihkan grid lama
-        for i in reversed(range(self.grid.count())):
-            w = self.grid.itemAt(i).widget()
+        # Bersihkan layout lama
+        while self.main_layout_grid.count():
+            item = self.main_layout_grid.takeAt(0)
+            w = item.widget()
             if w:
                 w.setParent(None)
+            sub = item.layout()
+            if sub:
+                while sub.count():
+                    it2 = sub.takeAt(0)
+                    w2 = it2.widget()
+                    if w2:
+                        w2.setParent(None)
 
-        # Perbarui statistik ringkasan dengan data terbaru
-        self.stat_beranda.perbarui(data)
+        # Perbarui statistik
+        self.stat_beranda.perbarui(data_t, data_m)
 
-        if not data:
+        jenis = self._get_jenis_pasar()
+        total = 0
+
+        if not data_t and not data_m:
             lbl = QLabel("Belum ada data. Jalankan scraper terlebih dahulu.")
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             lbl.setStyleSheet("color: #999; font-size: 14px; padding: 40px;")
-            self.grid.addWidget(lbl, 0, 0)
+            self.main_layout_grid.addWidget(lbl)
+            self.lbl_info.setText("Tidak ada data.")
             return
 
-        jenis = self._get_jenis_pasar()
-        sumber = {
-            "semua":       "PIHPS Bandung — Pasar Tradisional & Modern",
-            "tradisional": "PIHPS Bandung — Pasar Tradisional",
-            "modern":      "PIHPS Bandung — Pasar Modern",
-        }.get(jenis, "PIHPS Bandung")
-
         KOLOM = 3
-        for i, row in enumerate(data):
-            card = ProductCard(
-                nama=row["komoditas"] if hasattr(row, "keys") else row[0],
-                harga=row["harga"]    if hasattr(row, "keys") else row[1],
-                toko=row["toko"]      if hasattr(row, "keys") else row[3],
-                tanggal=row["tanggal"] if hasattr(row, "keys") else row[4],
-            )
-            card.lihat_pencarian.connect(self.navigasi_pencarian)
-            self.grid.addWidget(card, i // KOLOM, i % KOLOM)
 
-        self.lbl_info.setText(
-            f"Menampilkan {len(data)} komoditas · Sumber: {sumber}"
-        )
+        def _buat_grid_section(data: list, warna_header: str, warna_hover: str) -> QWidget:
+            """Buat widget grid kartu dengan warna aksen berbeda."""
+            container = QWidget()
+            container.setStyleSheet("background: transparent;")
+            grid = QGridLayout(container)
+            grid.setSpacing(12)
+            for i, row in enumerate(data):
+                card = ProductCard(
+                    nama    = row["komoditas"] if hasattr(row, "keys") else row[0],
+                    harga   = row["harga"]     if hasattr(row, "keys") else row[1],
+                    toko    = row["toko"]      if hasattr(row, "keys") else row[3],
+                    tanggal = row["tanggal"]   if hasattr(row, "keys") else row[4],
+                )
+                # Override warna header & hover card sesuai jenis pasar
+                card.lbl_nama.setStyleSheet(
+                    f"background-color: {warna_header}; color: white; "
+                    "font-weight: bold; font-size: 11px; padding: 4px 8px; "
+                    "border-top-left-radius: 7px; border-top-right-radius: 7px;"
+                )
+                card.footer.setStyleSheet(f"""
+                    QFrame {{
+                        background: #f5f5f5;
+                        border: none;
+                        border-top: 1px solid #e0e0e0;
+                        border-bottom-left-radius: 7px;
+                        border-bottom-right-radius: 7px;
+                    }}
+                    QFrame:hover {{ background: {warna_hover}; }}
+                """)
+                card.lihat_pencarian.connect(self.navigasi_pencarian)
+                grid.addWidget(card, i // KOLOM, i % KOLOM)
+            return container
+
+        # ── Tampilkan berdasarkan filter ──────────────────────────────────
+        if jenis == "semua":
+            if data_t:
+                self.main_layout_grid.addWidget(SectionHeader("tradisional", len(data_t)))
+                self.main_layout_grid.addWidget(
+                    _buat_grid_section(data_t, "#8B5E00", "#FFF3CC")
+                )
+            if data_m:
+                self.main_layout_grid.addWidget(SectionHeader("modern", len(data_m)))
+                self.main_layout_grid.addWidget(
+                    _buat_grid_section(data_m, "#1E3A8A", "#DBEAFE")
+                )
+            total = len(data_t) + len(data_m)
+            sumber = "PIHPS Bandung — Tradisional & Modern (ditampilkan terpisah)"
+
+        elif jenis == "tradisional":
+            if data_t:
+                self.main_layout_grid.addWidget(SectionHeader("tradisional", len(data_t)))
+                self.main_layout_grid.addWidget(
+                    _buat_grid_section(data_t, "#8B5E00", "#FFF3CC")
+                )
+            total = len(data_t)
+            sumber = "PIHPS Bandung — Pasar Tradisional"
+
+        else:  # modern
+            if data_m:
+                self.main_layout_grid.addWidget(SectionHeader("modern", len(data_m)))
+                self.main_layout_grid.addWidget(
+                    _buat_grid_section(data_m, "#1E3A8A", "#DBEAFE")
+                )
+            total = len(data_m)
+            sumber = "PIHPS Bandung — Pasar Modern"
+
+        self.main_layout_grid.addStretch()
+        self.lbl_info.setText(f"Menampilkan {total} komoditas · Sumber: {sumber}")
