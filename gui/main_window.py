@@ -6,7 +6,6 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QByteArray, pyqtSignal, QSize, QTimer
 from PyQt6.QtGui import QFont, QIcon, QPixmap, QPainter
 from PyQt6.QtSvg import QSvgRenderer
-from PyQt6.QtGui import QPainter
 import os
 
 from gui.pages.halaman_beranda import HalamanBeranda
@@ -180,18 +179,10 @@ class MainWindow(QMainWindow):
         if not pixmap.isNull():
             pixmap = pixmap.scaled(48, 48, Qt.AspectRatioMode.KeepAspectRatio,
                                 Qt.TransformationMode.SmoothTransformation)
-            rounded = QPixmap(48, 48)
-            rounded.fill(Qt.GlobalColor.transparent)
-            painter = QPainter(rounded)
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-            from PyQt6.QtGui import QBrush
-            from PyQt6.QtCore import QRect
-            painter.setBrush(QBrush(pixmap))
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawEllipse(QRect(0, 0, 48, 48))
-            painter.end()
-            self.lbl_logo.setPixmap(rounded)
+            self.lbl_logo.setPixmap(pixmap)
         self.lbl_logo.setFixedSize(48, 48)
+        self.lbl_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_logo.setStyleSheet("background: transparent;")
 
         self.lbl_brand = QLabel("PokokNya.Bdg")
         self.lbl_brand.setStyleSheet("color: #8B9B3A; font-size: 15px; font-weight: bold;")
@@ -570,7 +561,6 @@ class _DialogEditProfil(QDialog):
         b_lay.setContentsMargins(28, 24, 28, 24)
         b_lay.setSpacing(0)
 
-        # Nama Tampilan
         b_lay.addWidget(self._lbl("Nama Tampilan"))
         b_lay.addSpacing(4)
         lbl_nama_hint = QLabel("Nama ini yang akan ditampilkan di aplikasi")
@@ -681,9 +671,6 @@ class _DialogEditProfil(QDialog):
         """)
 
         if password:
-            from PyQt6.QtCore import QByteArray
-            from PyQt6.QtSvg import QSvgRenderer
-
             def _mk_pix(svg_str):
                 r = QSvgRenderer(QByteArray(svg_str.encode()))
                 px = QPixmap(20, 20)
