@@ -6,12 +6,36 @@ Tombol Edit & Hapus hanya tampil jika is_admin=True.
 from PyQt6.QtWidgets import (
     QFrame, QHBoxLayout, QVBoxLayout, QLabel, QSizePolicy, QPushButton
 )
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtCore import Qt, pyqtSignal, QByteArray as _B
+from PyQt6.QtGui import QPixmap, QPainter
+from PyQt6.QtSvg import QSvgRenderer as _R
 from gui.components.icon_helper import apply_icon_to_label
 import urllib.request
 import os
 
+_SVG_MAP_STR = """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+viewBox="0 0 24 24" fill="none" stroke="#7f8c8d" stroke-width="2"
+stroke-linecap="round" stroke-linejoin="round">
+<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0
+C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
+<circle cx="12" cy="10" r="3"/></svg>"""
+
+_SVG_DATE_STR = """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+viewBox="0 0 24 24" fill="none" stroke="#7f8c8d" stroke-width="2"
+stroke-linecap="round" stroke-linejoin="round">
+<path d="M16 14v2.2l1.6 1"/><path d="M16 2v4"/>
+<path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"/>
+<path d="M3 10h5"/><path d="M8 2v4"/>
+<circle cx="16" cy="16" r="6"/></svg>"""
+
+def _render_svg(svg_str, ukuran=13):
+    r = _R(_B(svg_str.encode()))
+    px = QPixmap(ukuran, ukuran)
+    px.fill(Qt.GlobalColor.transparent)
+    p = QPainter(px)
+    r.render(p)
+    p.end()
+    return px
 
 class SearchCard(QFrame):
     edit_diminta  = pyqtSignal(object)
@@ -32,6 +56,8 @@ class SearchCard(QFrame):
         self.kategori      = kategori
         self.satuan        = satuan
         self.is_admin      = is_admin      # ← simpan role
+
+        print(f"nama={self.nama}, sumber='{self.sumber}', toko='{self.toko}'")
 
         self.setFixedHeight(110)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
@@ -77,10 +103,18 @@ class SearchCard(QFrame):
         info_layout.setContentsMargins(14, 10, 0, 10)
         info_layout.setSpacing(3)
 
-        badge_warna = "#27AE60" if self.sumber == "pihps" else "#2980b9"
-        badge_teks  = "Pasar Tradisional" if self.sumber == "pihps" else "Supermarket"
+        badge_warna = "#2980b9"
+
+        if self.toko.lower() == "pasar tradisional":
+            badge_teks  = "Pasar Tradisional"
+            teks_toko   = "PIHPS Nasional"
+        else:
+            badge_teks  = "Supermarket"
+            teks_toko   = self.toko
+        
         lbl_badge = QLabel(badge_teks)
-        lbl_badge.setFixedWidth(90)
+        lbl_badge.setFixedWidth(110)
+        lbl_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_badge.setStyleSheet(
             f"font-size: 9px; font-weight: bold; color: white; "
             f"background-color: {badge_warna}; border-radius: 3px; "
@@ -96,13 +130,38 @@ class SearchCard(QFrame):
         lbl_harga = QLabel(harga_fmt)
         lbl_harga.setStyleSheet("font-size: 16px; font-weight: bold; color: #c0392b; border: none;")
 
-        lbl_toko = QLabel(f"📍 {self.toko}  ·  🗓 {self.tanggal or '-'}")
-        lbl_toko.setStyleSheet("font-size: 10px; color: #7f8c8d; border: none;")
+        # Baris toko
+        toko_row = QHBoxLayout()
+        toko_row.setSpacing(4)
+        toko_row.setContentsMargins(0, 0, 0, 0)
+        lbl_map_ikon = QLabel()
+        lbl_map_ikon.setPixmap(_render_svg(_SVG_MAP_STR))
+        lbl_map_ikon.setStyleSheet("border: none; background: transparent;")
+
+        lbl_map_teks = QLabel(teks_toko)
+        lbl_map_teks.setStyleSheet("font-size: 10px; color: #7f8c8d; border: none;")
+        toko_row.addWidget(lbl_map_ikon)
+        toko_row.addWidget(lbl_map_teks)
+        toko_row.addStretch()
+
+        # Baris tanggal
+        date_row = QHBoxLayout()
+        date_row.setSpacing(4)
+        date_row.setContentsMargins(0, 0, 0, 0)
+        lbl_date_ikon = QLabel()
+        lbl_date_ikon.setPixmap(_render_svg(_SVG_DATE_STR))
+        lbl_date_ikon.setStyleSheet("border: none; background: transparent;")
+        lbl_date_teks = QLabel(self.tanggal or "-")
+        lbl_date_teks.setStyleSheet("font-size: 10px; color: #7f8c8d; border: none;")
+        date_row.addWidget(lbl_date_ikon)
+        date_row.addWidget(lbl_date_teks)
+        date_row.addStretch()
 
         info_layout.addWidget(lbl_badge)
         info_layout.addWidget(lbl_nama)
         info_layout.addWidget(lbl_harga)
-        info_layout.addWidget(lbl_toko)
+        info_layout.addLayout(toko_row)
+        info_layout.addLayout(date_row)
         info_layout.addStretch()
         layout.addLayout(info_layout, 1)
 

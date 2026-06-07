@@ -95,7 +95,7 @@ class HalamanTentang(QWidget):
         # ── Deskripsi ─────────────────────────────────────────────────────
         deskripsi = QLabel(
             "Kami membantu warga Kota Bandung membandingkan harga bahan pokok dari "
-            "pasar tradisional dan modern.\n— Semua dalam satu aplikasi, gratis."
+            "pasar tradisional dan modern. Semua dalam satu aplikasi, gratis."
         )
         deskripsi.setWordWrap(True)
         deskripsi.setStyleSheet("font-size: 14px; color: #555;")

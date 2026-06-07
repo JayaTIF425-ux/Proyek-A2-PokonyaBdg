@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import (
     Qt, pyqtSignal, QSize, QPropertyAnimation,
-    QEasingCurve, QTimer, QRect, QPoint
+    QEasingCurve, QTimer, QRect, QPoint, QByteArray
 )
 from PyQt6.QtGui import (
     QPixmap, QIcon, QFont, QColor, QPainter,
@@ -27,6 +27,44 @@ from PyQt6.QtGui import (
 
 from database.auth_manager import AuthManager
 
+_SVG_ICONS = {
+    "email": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+        viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/>
+        <rect x="2" y="4" width="20" height="16" rx="2"/></svg>""",
+
+    "key": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+        viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="16" r="1"/>
+        <rect x="3" y="10" width="18" height="12" rx="2"/>
+        <path d="M7 10V7a5 5 0 0 1 10 0v3"/></svg>""",
+
+    "nama": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+        viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <line x1="19" x2="19" y1="8" y2="14"/>
+        <line x1="22" x2="16" y1="11" y2="11"/></svg>""",
+
+    "eye_open": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+        viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0
+        1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>
+        <circle cx="12" cy="12" r="3"/></svg>""",
+
+    "eye_closed": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+        viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="m15 18-.722-3.25"/>
+        <path d="M2 8a10.645 10.645 0 0 0 20 0"/>
+        <path d="m20 15-1.726-2.05"/>
+        <path d="m4 15 1.726-2.05"/>
+        <path d="m9 18 .722-3.25"/></svg>""",
+}
 
 # ── Path helper ───────────────────────────────────────────────────────────────
 
@@ -426,14 +464,14 @@ class HalamanLogin(QDialog):
 
         layout.addWidget(self._label_field("Alamat Email"))
         layout.addSpacing(6)
-        self.inp_email_login = self._input_field("you@example.com", icon="✉")
+        self.inp_email_login = self._input_field("you@example.com", icon="email")
         self.inp_email_login.returnPressed.connect(self._aksi_login)
         layout.addWidget(self.inp_email_login)
         layout.addSpacing(14)
 
         layout.addWidget(self._label_field("Kata Sandi"))
         layout.addSpacing(6)
-        self.inp_pass_login = self._input_field("Masukkan kata sandi", icon="🔒", password=True)
+        self.inp_pass_login = self._input_field("Masukkan kata sandi", icon="key", password=True)
         self.inp_pass_login.returnPressed.connect(self._aksi_login)
         layout.addWidget(self.inp_pass_login)
         layout.addSpacing(20)
@@ -483,7 +521,7 @@ class HalamanLogin(QDialog):
 
         lbl_judul = QLabel("Buat akun kamu")
         lbl_judul.setStyleSheet(f"""
-            color: {C["gold"]};
+            color: {C["text_dark"]};
             font-size: 24px;
             font-weight: 700;
             background: transparent;
@@ -502,21 +540,21 @@ class HalamanLogin(QDialog):
         # ── Nama Lengkap (BARU) ──────────────────────────────────────────
         layout.addWidget(self._label_field("Nama Lengkap"))
         layout.addSpacing(6)
-        self.inp_nama_daftar = self._input_field("Masukkan nama lengkap Anda", icon="👤")
+        self.inp_nama_daftar = self._input_field("Masukkan nama lengkap Anda", icon="nama")
         layout.addWidget(self.inp_nama_daftar)
         layout.addSpacing(14)
 
         # ── Email ────────────────────────────────────────────────────────
         layout.addWidget(self._label_field("Alamat Email"))
         layout.addSpacing(6)
-        self.inp_email_daftar = self._input_field("you@example.com", icon="✉")
+        self.inp_email_daftar = self._input_field("you@example.com", icon="email")
         layout.addWidget(self.inp_email_daftar)
         layout.addSpacing(14)
 
         # ── Password ─────────────────────────────────────────────────────
         layout.addWidget(self._label_field("Kata Sandi"))
         layout.addSpacing(6)
-        self.inp_pass_daftar = self._input_field("Masukkan kata sandi", icon="🔒", password=True)
+        self.inp_pass_daftar = self._input_field("Masukkan kata sandi", icon="key", password=True)
         self.inp_pass_daftar.returnPressed.connect(self._aksi_daftar)
         layout.addWidget(self.inp_pass_daftar)
         layout.addSpacing(20)
@@ -711,20 +749,62 @@ class HalamanLogin(QDialog):
         """)
 
         if icon:
-            icon_lbl = QLabel(icon, inp)
-            icon_lbl.setStyleSheet("background: transparent; font-size: 14px;")
-            icon_lbl.setGeometry(10, 14, 20, 20)
-            icon_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+            svg_str = _SVG_ICONS.get(icon)
+            if svg_str:
+                # Render SVG
+                from PyQt6.QtSvg import QSvgRenderer
+                renderer = QSvgRenderer(QByteArray(svg_str.encode()))
+                pixmap   = QPixmap(18, 18)
+                pixmap.fill(Qt.GlobalColor.transparent)
+                painter  = QPainter(pixmap)
+                renderer.render(painter)
+                painter.end()
+                icon_lbl = QLabel(inp)
+                icon_lbl.setPixmap(pixmap)
+                icon_lbl.setStyleSheet("background: transparent;")
+                icon_lbl.setGeometry(12, 15, 18, 18)
+                icon_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+            else:
+                # Fallback emoji lama
+                icon_lbl = QLabel(icon, inp)
+                icon_lbl.setStyleSheet("background: transparent; font-size: 14px;")
+                icon_lbl.setGeometry(10, 14, 20, 20)
+                icon_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
 
         if password:
-            btn_eye = QPushButton("👁", inp)
+            from PyQt6.QtSvg import QSvgRenderer
+
+            def _buat_eye_pixmap(svg_key: str) -> QPixmap:
+                svg = _SVG_ICONS[svg_key]
+                renderer = QSvgRenderer(QByteArray(svg.encode()))
+                px = QPixmap(18, 18)
+                px.fill(Qt.GlobalColor.transparent)
+                p = QPainter(px)
+                renderer.render(p)
+                p.end()
+                return px
+
+            px_open   = _buat_eye_pixmap("eye_open")
+            px_closed = _buat_eye_pixmap("eye_closed")
+
+            btn_eye = QPushButton(inp)
             btn_eye.setFixedSize(32, 32)
-            btn_eye.setStyleSheet("border:none; background:transparent; font-size:14px; cursor:pointer;")
+            btn_eye.setIcon(QIcon(px_closed))
+            btn_eye.setIconSize(QSize(18, 18))
+            btn_eye.setStyleSheet(
+                "border: none; background: transparent; padding: 0;"
+            )
+            btn_eye.setCursor(Qt.CursorShape.PointingHandCursor)
             btn_eye.setCheckable(True)
-            def _toggle(checked, field=inp):
+
+            def _toggle(checked, field=inp, b=btn_eye,
+                        po=px_open, pc=px_closed):
                 field.setEchoMode(
-                    QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password
+                    QLineEdit.EchoMode.Normal if checked
+                    else QLineEdit.EchoMode.Password
                 )
+                b.setIcon(QIcon(po) if checked else QIcon(pc))
+
             btn_eye.toggled.connect(_toggle)
             inp.setTextMargins(0, 0, 36, 0)
 
