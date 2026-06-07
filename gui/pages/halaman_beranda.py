@@ -321,35 +321,20 @@ class HalamanBeranda(QWidget):
 
         KOLOM = 3
 
-        def _buat_grid_section(data: list, warna_header: str, warna_hover: str) -> QWidget:
-            """Buat widget grid kartu dengan warna aksen berbeda."""
+        def _buat_grid_section(data: list, jenis_pasar: str) -> QWidget:
+            """Buat widget grid kartu dengan jenis_pasar terpisah."""
             container = QWidget()
             container.setStyleSheet("background: transparent;")
             grid = QGridLayout(container)
             grid.setSpacing(12)
             for i, row in enumerate(data):
                 card = ProductCard(
-                    nama    = row["komoditas"] if hasattr(row, "keys") else row[0],
-                    harga   = row["harga"]     if hasattr(row, "keys") else row[1],
-                    toko    = row["toko"]      if hasattr(row, "keys") else row[3],
-                    tanggal = row["tanggal"]   if hasattr(row, "keys") else row[4],
+                    nama        = row["komoditas"] if hasattr(row, "keys") else row[0],
+                    harga       = row["harga"]     if hasattr(row, "keys") else row[1],
+                    toko        = row["toko"]      if hasattr(row, "keys") else row[3],
+                    tanggal     = row["tanggal"]   if hasattr(row, "keys") else row[4],
+                    jenis_pasar = jenis_pasar,
                 )
-                # Override warna header & hover card sesuai jenis pasar
-                card.lbl_nama.setStyleSheet(
-                    f"background-color: {warna_header}; color: white; "
-                    "font-weight: bold; font-size: 11px; padding: 4px 8px; "
-                    "border-top-left-radius: 7px; border-top-right-radius: 7px;"
-                )
-                card.footer.setStyleSheet(f"""
-                    QFrame {{
-                        background: #f5f5f5;
-                        border: none;
-                        border-top: 1px solid #e0e0e0;
-                        border-bottom-left-radius: 7px;
-                        border-bottom-right-radius: 7px;
-                    }}
-                    QFrame:hover {{ background: {warna_hover}; }}
-                """)
                 card.lihat_pencarian.connect(self.navigasi_pencarian)
                 grid.addWidget(card, i // KOLOM, i % KOLOM)
             return container
@@ -359,12 +344,12 @@ class HalamanBeranda(QWidget):
             if data_t:
                 self.main_layout_grid.addWidget(SectionHeader("tradisional", len(data_t)))
                 self.main_layout_grid.addWidget(
-                    _buat_grid_section(data_t, "#8B5E00", "#FFF3CC")
+                    _buat_grid_section(data_t, "tradisional")
                 )
             if data_m:
                 self.main_layout_grid.addWidget(SectionHeader("modern", len(data_m)))
                 self.main_layout_grid.addWidget(
-                    _buat_grid_section(data_m, "#1E3A8A", "#DBEAFE")
+                    _buat_grid_section(data_m, "modern")
                 )
             total = len(data_t) + len(data_m)
             sumber = "PIHPS Bandung — Tradisional & Modern (ditampilkan terpisah)"
@@ -373,7 +358,7 @@ class HalamanBeranda(QWidget):
             if data_t:
                 self.main_layout_grid.addWidget(SectionHeader("tradisional", len(data_t)))
                 self.main_layout_grid.addWidget(
-                    _buat_grid_section(data_t, "#8B5E00", "#FFF3CC")
+                    _buat_grid_section(data_t, "tradisional")
                 )
             total = len(data_t)
             sumber = "PIHPS Bandung — Pasar Tradisional"
@@ -382,7 +367,7 @@ class HalamanBeranda(QWidget):
             if data_m:
                 self.main_layout_grid.addWidget(SectionHeader("modern", len(data_m)))
                 self.main_layout_grid.addWidget(
-                    _buat_grid_section(data_m, "#1E3A8A", "#DBEAFE")
+                    _buat_grid_section(data_m, "modern")
                 )
             total = len(data_m)
             sumber = "PIHPS Bandung — Pasar Modern"
