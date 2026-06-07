@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import (
     QFrame, QLabel, QPushButton, QStackedWidget, QSizePolicy,
     QDialog, QLineEdit, QGridLayout,
 )
-from PyQt6.QtCore import Qt, QByteArray, pyqtSignal
+from PyQt6.QtCore import Qt, QByteArray, pyqtSignal, QSize, QTimer
 from PyQt6.QtGui import QFont, QIcon, QPixmap, QPainter
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtGui import QPainter
