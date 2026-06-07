@@ -344,8 +344,8 @@ class HalamanTutorial(QWidget):
 
         for nama, ket, warna_ikon, warna_bg in [
             ("PIHPS",  "Pasar Tradisional & Modern\nBank Indonesia", "#3B6D11", "#EAF3DE"),
-            ("Borma",  "Supermarket Bandung",           "#185FA5", "#E6F1FB"),
-            ("Yogya",  "Supermarket Bandung",       "#854F0B", "#FAEEDA"),
+            ("Borma",  "Supermarket Bandung\n",           "#185FA5", "#E6F1FB"),
+            ("Yogya",  "Supermarket Bandung\n",       "#854F0B", "#FAEEDA"),
         ]:
             sumber_layout.addWidget(_buat_sumber(
                 svg_template=_SVG_CART,
