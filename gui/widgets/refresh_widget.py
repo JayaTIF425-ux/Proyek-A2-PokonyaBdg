@@ -1,12 +1,3 @@
-"""
-gui/widgets/refresh_widget.py — Widget tombol Refresh + Update Data.
-
-Terdiri dari dua aksi:
-  1. Refresh  : reload data dari database (cepat, tanpa scraping)
-  2. Update   : jalankan semua scraper lalu reload (bisa makan waktu beberapa menit)
-
-Dipakai di semua halaman sebagai toolbar bersama.
-"""
 import subprocess
 import sys
 import os
@@ -32,7 +23,9 @@ def _svg_to_icon(svg_str: str, size: int = 18) -> QIcon:
 
 _IKON_REFRESH = {
     "refresh": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>""",
-    "update": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 0 1 7.38 16.75"/><path d="m16 12-4-4-4 4"/><path d="M12 16V8"/><path d="M2.5 8.875a10 10 0 0 0-.5 3"/><path d="M2.83 16a10 10 0 0 0 2.43 3.4"/><path d="M4.636 5.235a10 10 0 0 1 .891-.857"/><path d="M8.644 21.42a10 10 0 0 0 7.631-.38"/></svg>""",
+
+    # Ikon jam pasir (hourglass) — lebih intuitif untuk "sedang memproses/menunggu"
+    "update": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></svg>""",
 }
 
 
