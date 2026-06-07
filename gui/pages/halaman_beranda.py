@@ -2,63 +2,36 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QScrollArea, QGridLayout, QFrame, QComboBox
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QByteArray
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QPixmap, QPainter
-from PyQt6.QtSvg import QSvgRenderer
 
 from database.db_manager import DBManager
 from gui.components.product_card import ProductCard
 from gui.widgets.loading_widget import LoadingWidget
 from gui.widgets.refresh_widget import RefreshWidget
 
+_SVG_CART_STR = """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+viewBox="0 0 24 24" fill="none" stroke="{warna}" stroke-width="2"
+stroke-linecap="round" stroke-linejoin="round">
+<circle cx="8" cy="21" r="1"/>
+<circle cx="19" cy="21" r="1"/>
+<path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0
+1.95-1.57l1.65-7.43H5.12"/></svg>"""
 
-def _svg_pix(svg: str, w: int, h: int) -> QPixmap:
-    renderer = QSvgRenderer(QByteArray(svg.encode()))
-    pix = QPixmap(w, h)
-    pix.fill(Qt.GlobalColor.transparent)
-    p = QPainter(pix)
-    renderer.render(p)
+def _render_svg_cart(warna: str, ukuran: int = 22) -> QPixmap:
+    from PyQt6.QtSvg import QSvgRenderer
+    from PyQt6.QtCore import QByteArray
+    svg = _SVG_CART_STR.replace("{warna}", warna)
+    r = QSvgRenderer(QByteArray(svg.encode()))
+    px = QPixmap(ukuran, ukuran)
+    px.fill(Qt.GlobalColor.transparent)
+    p = QPainter(px)
+    r.render(p)
     p.end()
-    return pix
-
-
-# ── SVG ikon untuk StatistikBeranda ──────────────────────────────────────────
-_SVG_PRODUK = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-  stroke="#5C1A28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-  <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-  <line x1="12" y1="22.08" x2="12" y2="12"/>
-</svg>"""
-
-_SVG_HARGA = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-  stroke="#27AE60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <line x1="12" y1="1" x2="12" y2="23"/>
-  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-</svg>"""
-
-_SVG_WAKTU = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-  stroke="#5C1A28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <circle cx="12" cy="12" r="10"/>
-  <polyline points="12 6 12 12 16 14"/>
-</svg>"""
-
-# SVG untuk SectionHeader (ganti emoji 🏪 dan 🛒)
-_SVG_PASAR_TRADISIONAL = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-  stroke="#8B5E00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-  <polyline points="9 22 9 12 15 12 15 22"/>
-</svg>"""
-
-_SVG_PASAR_MODERN = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-  stroke="#1E3A8A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <circle cx="9" cy="21" r="1"/>
-  <circle cx="20" cy="21" r="1"/>
-  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-</svg>"""
-
+    return px
 
 class DataWorker(QThread):
-    selesai = pyqtSignal(list, list)
+    selesai = pyqtSignal(list, list)   # (data_tradisional, data_modern)
 
     def __init__(self, jenis_pasar: str = "semua"):
         super().__init__()
@@ -77,10 +50,31 @@ class DataWorker(QThread):
             self.selesai.emit([], data)
 
 
-# ── Widget Statistik Ringkasan ────────────────────────────────────────────────
+# ── Widget Statistik Ringkasan Beranda ────────────────────────────────────────
+_SVG_STAT_BERANDA = {
+    "produk": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+        fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round">
+        <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8
+        a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+        <path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>""",
+
+    "harga": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+        fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round">
+        <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3
+        a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/>
+        <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>""",
+
+    "waktu": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+        fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 6v6l4 2"/></svg>""",
+}
 
 class StatistikBeranda(QFrame):
-    """Tiga kotak statistik di atas Beranda — semua ikon SVG vektor."""
+    """Tiga kotak statistik ringkasan di bagian atas Beranda."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -92,72 +86,117 @@ class StatistikBeranda(QFrame):
                 border-radius: 10px;
             }
         """)
-        self.setFixedHeight(90)
+        self.setMinimumHeight(65)
+        self.setMaximumHeight(85)
 
+        # Tetap gunakan variabel layout bawaan kodemu (tanpa _)
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(20, 12, 20, 12)
         layout.setSpacing(0)
 
-        self.lbl_produk     = self._buat_kartu(_SVG_PRODUK, "Produk Terpantau", "–",  "#5C1A28")
-        layout.addWidget(self._sep())
-        self.lbl_terendah   = self._buat_kartu(_SVG_HARGA,  "Harga Terendah",   "–",  "#27AE60")
-        layout.addWidget(self._sep())
-        self.lbl_diperbarui = self._buat_kartu(_SVG_WAKTU,  "Diperbarui",       "–",  "#5C1A28")
+        self.lbl_produk     = self._buat_stat("Produk", "–")
+        layout.addWidget(self._separator())
+        self.lbl_terendah   = self._buat_stat("Harga", "–")
+        layout.addWidget(self._separator())
+        self.lbl_diperbarui = self._buat_stat("Diperbarui", "–")
 
         self.perbarui()
 
-    def _sep(self) -> QFrame:
-        s = QFrame()
-        s.setFrameShape(QFrame.Shape.VLine)
-        s.setStyleSheet("background: #E2D9CC; border: none; max-width: 1px;")
-        return s
-
-    def _buat_kartu(self, svg: str, label: str, nilai: str, warna: str) -> QLabel:
-        """Buat satu kartu statistik, return ref ke QLabel nilai."""
+    def _buat_stat(self, label: str, nilai: str, satuan: str = "") -> QLabel:
         container = QFrame()
         container.setStyleSheet("border: none; background: transparent;")
-        h = QHBoxLayout(container)
-        h.setContentsMargins(18, 0, 18, 0)
-        h.setSpacing(12)
-        h.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        
+        # Layout utama HORIZONTAL (Ikon di kiri, teks di kanan)
+        main_layout = QHBoxLayout(container)
+        main_layout.setContentsMargins(12, 0, 12, 0)
+        main_layout.setSpacing(8)  # Jarak rapat antara ikon dan tulisan
+        main_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        lbl_ikon = QLabel()
-        lbl_ikon.setPixmap(_svg_pix(svg, 26, 26))
-        lbl_ikon.setFixedSize(26, 26)
-        lbl_ikon.setStyleSheet("background: transparent;")
-        h.addWidget(lbl_ikon)
+        # 1. Identifikasi kunci ikon berdasarkan string label asli
+        ikon_key = ""
+        teks_judul = label 
+        
+        if "Produk" in label:
+            ikon_key = "produk"
+            teks_judul = "Total Produk"
+        elif "Harga" in label:
+            ikon_key = "harga"
+            teks_judul = "Rata-Rata Harga"
+        elif "Diperbarui" in label:
+            ikon_key = "waktu"
+            teks_judul = "Terakhir Diperbarui"
 
-        col = QVBoxLayout()
-        col.setSpacing(2)
-        lbl_l = QLabel(label)
-        lbl_l.setStyleSheet("font-size: 11px; color: #8B7B6B; background: transparent;")
-        lbl_v = QLabel(nilai)
-        lbl_v.setStyleSheet(
-            f"font-size: 16px; font-weight: bold; color: {warna}; background: transparent;"
+        # Render Ikon SVG di Sebelah Kiri (Menggunakan _SVG_STAT_BERANDA)
+        if ikon_key and ikon_key in _SVG_STAT_BERANDA: 
+            from PyQt6.QtSvg import QSvgRenderer
+            from PyQt6.QtCore import QByteArray
+            
+            svg = _SVG_STAT_BERANDA[ikon_key]  
+            r = QSvgRenderer(QByteArray(svg.encode()))
+            px = QPixmap(16, 16)  # Ukuran ikon pas dan kecil
+            px.fill(Qt.GlobalColor.transparent)
+            p = QPainter(px)
+            r.render(p)
+            p.end()
+
+            lbl_ikon = QLabel()
+            lbl_ikon.setPixmap(px)
+            lbl_ikon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            lbl_ikon.setStyleSheet("border: none; background: transparent;")
+            main_layout.addWidget(lbl_ikon)
+
+        # 2. Layout VERTIKAL untuk Teks (Hanya 2 Baris)
+        v_text_layout = QVBoxLayout()
+        v_text_layout.setSpacing(2)
+        v_text_layout.setContentsMargins(0, 0, 0, 0)
+        v_text_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+
+        # Baris 1: Judul Kategori
+        lbl_label = QLabel(teks_judul) 
+        lbl_label.setStyleSheet(
+            "font-size: 11px; color: #8B7B6B; border: none; background: transparent;"
         )
-        col.addWidget(lbl_l)
-        col.addWidget(lbl_v)
-        h.addLayout(col)
-        h.addStretch()
 
-        self.layout().addWidget(container, 1)
-        return lbl_v
+        # Baris 2: Nilai Angka / Teks
+        teks_tampil = f"{nilai} {satuan}".strip() if satuan else nilai
+        lbl_nilai = QLabel(teks_tampil)
+        lbl_nilai.setAlignment(Qt.AlignmentFlag.AlignCenter)  # Set rata tengah
+        lbl_nilai.setStyleSheet(
+            "font-size: 13px; font-weight: bold; color: #5C1A28; "
+            "border: none; background: transparent;"
+        )
+
+        v_text_layout.addWidget(lbl_label)
+        v_text_layout.addWidget(lbl_nilai)
+
+        # Gabungkan layout teks ke sebelah kanan ikon
+        main_layout.addLayout(v_text_layout)
+        
+        # Masukkan ke layout horizontal utama StatistikBar (Tanpa tanda kurung)
+        self.layout().addWidget(container)
+        return lbl_nilai
+
+    def _separator(self) -> QFrame:
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.VLine)
+        sep.setStyleSheet("color: #E2D9CC; background: #E2D9CC; max-width: 1px;")
+        return sep
 
     def perbarui(self, data_t: list | None = None, data_m: list | None = None):
         try:
-            stat = DBManager().statistik_harga()
+            db = DBManager()
+            stat = db.statistik_harga()
 
             total = stat.get("total", 0)
             self.lbl_produk.setText(str(total) if total else "–")
 
             all_data = (data_t or []) + (data_m or [])
             if all_data:
-                harga_list = [
-                    (row["harga"] if hasattr(row, "keys") else row[1])
-                    for row in all_data
-                    if (row["harga"] if hasattr(row, "keys") else row[1]) and
-                       (row["harga"] if hasattr(row, "keys") else row[1]) > 0
-                ]
+                harga_list = []
+                for row in all_data:
+                    h = row["harga"] if hasattr(row, "keys") else row[1]
+                    if h and h > 0:
+                        harga_list.append(h)
                 if harga_list:
                     terendah = min(harga_list)
                     self.lbl_terendah.setText(f"Rp {terendah:,.0f}".replace(",", "."))
@@ -165,31 +204,38 @@ class StatistikBeranda(QFrame):
                     self.lbl_terendah.setText("–")
             else:
                 avg = stat.get("avg", 0)
-                self.lbl_terendah.setText(
-                    f"Rp {avg:,.0f}".replace(",", ".") if avg else "–"
-                )
+                if avg:
+                    self.lbl_terendah.setText(f"Rp {avg:,.0f}".replace(",", "."))
+                else:
+                    self.lbl_terendah.setText("–")
 
             from datetime import datetime
-            self.lbl_diperbarui.setText(datetime.now().strftime("%d %b, %H:%M"))
-
+            waktu = datetime.now().strftime("%d %b %Y, %H:%M")
+            self.lbl_diperbarui.setText(waktu)
         except Exception:
             pass
 
 
-# ── Section Header — ikon SVG (ganti emoji 🏪/🛒) ────────────────────────────
+# ── Section Header (pemisah Tradisional / Modern) ─────────────────────────────
 
 class SectionHeader(QFrame):
+    """Header divider dengan label dan aksen warna untuk tiap jenis pasar."""
+
     STYLE_TRADISIONAL = {
-        "bg": "#FFF8EC", "border": "#D4A017", "accent": "#8B5E00",
-        "svg": _SVG_PASAR_TRADISIONAL,
-        "label": "Pasar Tradisional",
-        "sub": "Data harga dari pasar tradisional Bandung (PIHPS)",
+        "bg":     "#FFF8EC",
+        "border": "#D4A017",
+        "accent": "#8B5E00",
+        "icon":   "🏪",
+        "label":  "Pasar Tradisional",
+        "sub":    "Data harga dari pasar tradisional Bandung (PIHPS)",
     }
     STYLE_MODERN = {
-        "bg": "#EEF4FF", "border": "#3B82F6", "accent": "#1E3A8A",
-        "svg": _SVG_PASAR_MODERN,
-        "label": "Pasar Modern / Supermarket",
-        "sub": "Data harga dari pasar modern Bandung (PIHPS)",
+        "bg":     "#EEF4FF",
+        "border": "#3B82F6",
+        "accent": "#1E3A8A",
+        "icon":   "🛒",
+        "label":  "Pasar Modern / Supermarket",
+        "sub":    "Data harga dari pasar modern Bandung (PIHPS)",
     }
 
     def __init__(self, jenis: str, jumlah: int = 0, parent=None):
@@ -208,22 +254,15 @@ class SectionHeader(QFrame):
         lay.setContentsMargins(14, 6, 14, 6)
         lay.setSpacing(10)
 
-        # Ikon SVG vektor (ganti emoji)
         lbl_icon = QLabel()
-        lbl_icon.setPixmap(_svg_pix(st["svg"], 22, 22))
-        lbl_icon.setFixedSize(22, 22)
-        lbl_icon.setStyleSheet("background: transparent; border: none;")
-
+        lbl_icon.setFixedSize(28, 28)
+        lbl_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_icon.setStyleSheet("border: none; background: transparent;")
+        lbl_icon.setPixmap(_render_svg_cart(st["border"], ukuran=22))
         col = QVBoxLayout()
         col.setSpacing(1)
-        lbl_judul = QLabel(
-            f"<b>{st['label']}</b>"
-            f"  <span style='font-size:11px;color:#666;font-weight:normal;'>"
-            f"— {jumlah} komoditas</span>"
-        )
-        lbl_judul.setStyleSheet(
-            f"font-size: 14px; color: {st['accent']}; border: none; background: transparent;"
-        )
+        lbl_judul = QLabel(f"<b>{st['label']}</b>  <span style='font-size:11px;color:#666;font-weight:normal;'>— {jumlah} komoditas</span>")
+        lbl_judul.setStyleSheet(f"font-size: 14px; color: {st['accent']}; border: none; background: transparent;")
         lbl_sub = QLabel(st["sub"])
         lbl_sub.setStyleSheet("font-size: 10px; color: #888; border: none; background: transparent;")
         col.addWidget(lbl_judul)
@@ -298,12 +337,12 @@ class HalamanBeranda(QWidget):
         self.refresh_bar.refresh_diminta.connect(self._muat_data)
         self.refresh_bar.update_selesai.connect(
             lambda ok: self.lbl_info.setText(
-                "Data berhasil diperbarui!" if ok else "Update gagal."
+                "✓ Data berhasil diperbarui!" if ok else "✗ Update gagal."
             )
         )
         layout.addWidget(self.refresh_bar)
 
-        # ── Grid ──────────────────────────────────────────────────────────
+        # ── Grid kartu komoditas ──────────────────────────────────────────
         self.loading = LoadingWidget("Memuat data harga...")
 
         self.scroll = QScrollArea()
@@ -326,9 +365,9 @@ class HalamanBeranda(QWidget):
         layout.addWidget(self.lbl_info)
 
     def _get_jenis_pasar(self) -> str:
-        return {0: "semua", 1: "tradisional", 2: "modern"}.get(
-            self.combo_pasar.currentIndex(), "semua"
-        )
+        idx = self.combo_pasar.currentIndex()
+        mapping = {0: "semua", 1: "tradisional", 2: "modern"}
+        return mapping.get(idx, "semua")
 
     def _on_filter_pasar_berubah(self):
         self._muat_data()
@@ -344,12 +383,21 @@ class HalamanBeranda(QWidget):
         self.loading.hide()
         self.scroll.show()
 
+        # Bersihkan layout lama
         while self.main_layout_grid.count():
             item = self.main_layout_grid.takeAt(0)
             w = item.widget()
             if w:
                 w.setParent(None)
+            sub = item.layout()
+            if sub:
+                while sub.count():
+                    it2 = sub.takeAt(0)
+                    w2 = it2.widget()
+                    if w2:
+                        w2.setParent(None)
 
+        # Perbarui statistik
         self.stat_beranda.perbarui(data_t, data_m)
 
         jenis = self._get_jenis_pasar()
@@ -366,6 +414,7 @@ class HalamanBeranda(QWidget):
         KOLOM = 3
 
         def _buat_grid_section(data: list, jenis_pasar: str) -> QWidget:
+            """Buat widget grid kartu dengan jenis_pasar terpisah."""
             container = QWidget()
             container.setStyleSheet("background: transparent;")
             grid = QGridLayout(container)
@@ -382,28 +431,37 @@ class HalamanBeranda(QWidget):
                 grid.addWidget(card, i // KOLOM, i % KOLOM)
             return container
 
+        # ── Tampilkan berdasarkan filter ──────────────────────────────────
         if jenis == "semua":
             if data_t:
                 self.main_layout_grid.addWidget(SectionHeader("tradisional", len(data_t)))
-                self.main_layout_grid.addWidget(_buat_grid_section(data_t, "tradisional"))
+                self.main_layout_grid.addWidget(
+                    _buat_grid_section(data_t, "tradisional")
+                )
             if data_m:
                 self.main_layout_grid.addWidget(SectionHeader("modern", len(data_m)))
-                self.main_layout_grid.addWidget(_buat_grid_section(data_m, "modern"))
-            total  = len(data_t) + len(data_m)
-            sumber = "PIHPS Bandung — Tradisional & Modern"
+                self.main_layout_grid.addWidget(
+                    _buat_grid_section(data_m, "modern")
+                )
+            total = len(data_t) + len(data_m)
+            sumber = "PIHPS Bandung — Tradisional & Modern (ditampilkan terpisah)"
 
         elif jenis == "tradisional":
             if data_t:
                 self.main_layout_grid.addWidget(SectionHeader("tradisional", len(data_t)))
-                self.main_layout_grid.addWidget(_buat_grid_section(data_t, "tradisional"))
-            total  = len(data_t)
+                self.main_layout_grid.addWidget(
+                    _buat_grid_section(data_t, "tradisional")
+                )
+            total = len(data_t)
             sumber = "PIHPS Bandung — Pasar Tradisional"
 
-        else:
+        else:  # modern
             if data_m:
                 self.main_layout_grid.addWidget(SectionHeader("modern", len(data_m)))
-                self.main_layout_grid.addWidget(_buat_grid_section(data_m, "modern"))
-            total  = len(data_m)
+                self.main_layout_grid.addWidget(
+                    _buat_grid_section(data_m, "modern")
+                )
+            total = len(data_m)
             sumber = "PIHPS Bandung — Pasar Modern"
 
         self.main_layout_grid.addStretch()

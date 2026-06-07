@@ -1,3 +1,8 @@
+"""
+gui/halaman_login.py — Dialog login + registrasi untuk PokokNya.Bdg.
+dengan kartu form, pemilih peran Admin/User.
+"""
+
 import os
 import sys
 import hashlib
@@ -8,7 +13,7 @@ from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QFrame, QMessageBox,
     QStackedWidget, QWidget, QApplication, QGraphicsOpacityEffect,
-    QScrollArea, QSizePolicy, QCheckBox,
+    QScrollArea, QSizePolicy
 )
 from PyQt6.QtCore import (
     Qt, pyqtSignal, QSize, QPropertyAnimation,
@@ -19,67 +24,53 @@ from PyQt6.QtGui import (
     QPainterPath, QLinearGradient, QBrush, QPen,
     QFontDatabase
 )
-from PyQt6.QtSvg import QSvgRenderer
 
 from database.auth_manager import AuthManager
 
+_SVG_ICONS = {
+    "email": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+        viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"/>
+        <rect x="2" y="4" width="20" height="16" rx="2"/></svg>""",
+
+    "key": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+        viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="16" r="1"/>
+        <rect x="3" y="10" width="18" height="12" rx="2"/>
+        <path d="M7 10V7a5 5 0 0 1 10 0v3"/></svg>""",
+
+    "nama": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+        viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <line x1="19" x2="19" y1="8" y2="14"/>
+        <line x1="22" x2="16" y1="11" y2="11"/></svg>""",
+
+    "eye_open": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+        viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0
+        1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/>
+        <circle cx="12" cy="12" r="3"/></svg>""",
+
+    "eye_closed": """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+        viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="m15 18-.722-3.25"/>
+        <path d="M2 8a10.645 10.645 0 0 0 20 0"/>
+        <path d="m20 15-1.726-2.05"/>
+        <path d="m4 15 1.726-2.05"/>
+        <path d="m9 18 .722-3.25"/></svg>""",
+}
 
 # ── Path helper ───────────────────────────────────────────────────────────────
 
 def _asset(nama: str) -> str:
     base = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base, "assets", "images", nama)
-
-
-# ── SVG helper (lokal, agar tidak perlu import main_window) ──────────────────
-
-def _svg_pixmap(svg_str: str, size: int, color: str = "#A89BA0") -> QPixmap:
-    svg_colored = svg_str.replace("currentColor", color)
-    renderer = QSvgRenderer(QByteArray(svg_colored.encode()))
-    pix = QPixmap(size, size)
-    pix.fill(Qt.GlobalColor.transparent)
-    painter = QPainter(pix)
-    renderer.render(painter)
-    painter.end()
-    return pix
-
-
-def _svg_icon(svg_str: str, size: int, color: str = "white") -> QIcon:
-    return QIcon(_svg_pixmap(svg_str, size, color))
-
-
-# ── SVG Ikon ─────────────────────────────────────────────────────────────────
-
-# [FIX] Semua ikon kini SVG vektor, menggantikan emoji ✉ 🔒 👁
-
-_SVG_EMAIL = """
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <rect x="2" y="4" width="20" height="16" rx="2"/>
-  <polyline points="2,4 12,13 22,4"/>
-</svg>"""
-
-_SVG_GEMBOK = """
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-</svg>"""
-
-_SVG_MATA_TUTUP = """
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-  <line x1="1" y1="1" x2="23" y2="23"/>
-</svg>"""
-
-_SVG_MATA_BUKA = """
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-  <circle cx="12" cy="12" r="3"/>
-</svg>"""
 
 
 # ── Konstanta warna ───────────────────────────────────────────────────────────
@@ -107,15 +98,14 @@ C = {
     "role_txt":     "#5C1A28",
     "input_bg":     "#FAFAF8",
     "google_bg":    "#FFFFFF",
-    "check_accent": "#5C1A28",
 }
 
 
-# ── RoleButton ────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
 
 class RoleButton(QFrame):
     clicked = pyqtSignal()
-
+    
     def __init__(self, label: str, icon_type: str, parent=None):
         super().__init__(parent)
         self._label = label
@@ -169,7 +159,7 @@ class RoleButton(QFrame):
             painter.drawPixmap(x, y, pix)
             painter.end()
             self.lbl_icon.setPixmap(canvas)
-
+        
         self.lbl_text.setStyleSheet(f"background: transparent; color: {fg}; font-size: 13px; font-weight: 600;")
         self.setStyleSheet(f"""
             RoleButton {{
@@ -194,8 +184,42 @@ class RoleButton(QFrame):
         super().mousePressEvent(event)
 
 
-# ── AnimatedStack ─────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+class GoogleButton(QPushButton):
+    """Tombol login Google dengan logo G dari file gambar."""
 
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedHeight(48)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setText("Lanjut dengan Google")
+        self.setStyleSheet(f"""
+            QPushButton {{
+                background: {C["google_bg"]};
+                border: 1.5px solid {C["border"]};
+                border-radius: 10px;
+                font-size: 13px;
+                color: {C["text_mid"]};
+                text-align: center;
+                padding-left: 8px;
+            }}
+            QPushButton:hover {{
+                background: #F8F4EE;
+                border-color: #C0A88A;
+            }}
+            QPushButton:pressed {{
+                background: #F0EAE0;
+            }}
+        """)
+
+        google_logo_path = _asset("google_logo.png")
+        if os.path.exists(google_logo_path):
+            icon = QIcon(google_logo_path)
+            self.setIcon(icon)
+            self.setIconSize(QSize(22, 22))
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 class AnimatedStack(QStackedWidget):
     """QStackedWidget dengan animasi fade saat ganti halaman."""
 
@@ -249,18 +273,8 @@ class AnimatedStack(QStackedWidget):
         self._anim_out.start()
 
 
-# ── HalamanLogin ──────────────────────────────────────────────────────────────
-
+# ══════════════════════════════════════════════════════════════════════════════
 class HalamanLogin(QDialog):
-    """
-    Dialog login fullscreen.
-
-    PERUBAHAN:
-    - [BARU] Fitur "Ingat Login" checkbox di form login
-    - [BARU] Checkbox Syarat & Ketentuan (SnK) di form daftar
-    - [FIX] Semua ikon input field menggunakan SVG vektor (bukan emoji)
-    """
-
     login_berhasil = pyqtSignal(dict)
 
     def __init__(self, parent=None):
@@ -269,9 +283,6 @@ class HalamanLogin(QDialog):
         self.auth.init_schema()
         self._current_user: Optional[dict] = None
         self._peran_dipilih = "user"
-
-        # [BARU] Atribut publik untuk dibaca oleh main.py
-        self.ingat_login: bool = False
 
         self.setWindowTitle("PokokNya.Bdg — Masuk")
         self.setWindowFlags(
@@ -292,7 +303,7 @@ class HalamanLogin(QDialog):
         self.setStyleSheet(f"background: {C['bg']};")
         self._build_ui()
 
-    # ── UI Utama ──────────────────────────────────────────────────────────────
+    # ── UI Utama ─────────────────────────────────────────────────────────────
 
     def _build_ui(self):
         root = QHBoxLayout(self)
@@ -319,6 +330,7 @@ class HalamanLogin(QDialog):
         lbl_logo = QLabel()
         lbl_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_logo.setStyleSheet("background: transparent;")
+        lbl_logo.setContentsMargins(0, 0, 0, 0)
         if os.path.exists(logo_path):
             pix = QPixmap(logo_path).scaled(
                 180, 180,
@@ -327,7 +339,6 @@ class HalamanLogin(QDialog):
             )
             lbl_logo.setPixmap(pix)
         else:
-            # [FIX] Fallback bukan emoji, tapi teks ASCII sederhana
             lbl_logo.setText("🥬")
             lbl_logo.setStyleSheet("font-size: 90px; background: transparent;")
 
@@ -355,7 +366,6 @@ class HalamanLogin(QDialog):
             background: transparent;
         """)
         layout.addWidget(lbl_tagline)
-
         layout.addStretch(3)
 
         lbl_credit = QLabel("© 2025 POLBAN Informatika")
@@ -377,8 +387,22 @@ class HalamanLogin(QDialog):
 
         outer = QVBoxLayout(panel)
         outer.setContentsMargins(0, 0, 0, 0)
-        outer.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        outer.setSpacing(0)
 
+        # ScrollArea agar form registrasi yang lebih panjang tidak terpotong
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet("background: #FFFFFF; border: none;")
+
+        scroll_content = QWidget()
+        scroll_content.setStyleSheet("background: #FFFFFF;")
+        scroll_layout = QVBoxLayout(scroll_content)
+        scroll_layout.setContentsMargins(40, 30, 40, 30)
+        scroll_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Kartu tengah
         card = QFrame()
         card.setObjectName("LoginCard")
         card.setStyleSheet(f"""
@@ -396,7 +420,7 @@ class HalamanLogin(QDialog):
         card_layout.setContentsMargins(44, 40, 44, 44)
         card_layout.setSpacing(0)
 
-        # Buat form daftar DULU agar atribut sudah ada saat form login dipakai
+        # PENTING: Buat _form_daftar() DULU
         form_daftar = self._form_daftar()
         form_login  = self._form_login()
 
@@ -405,7 +429,10 @@ class HalamanLogin(QDialog):
         self.stack.addWidget(form_daftar)
         card_layout.addWidget(self.stack)
 
-        outer.addWidget(card, alignment=Qt.AlignmentFlag.AlignCenter)
+        scroll_layout.addWidget(card, alignment=Qt.AlignmentFlag.AlignCenter)
+        scroll.setWidget(scroll_content)
+
+        outer.addWidget(scroll)
         return panel
 
     # ── Form Login ────────────────────────────────────────────────────────────
@@ -420,7 +447,8 @@ class HalamanLogin(QDialog):
         lbl_judul = QLabel("Selamat Datang")
         lbl_judul.setStyleSheet(f"""
             color: {C["text_dark"]};
-            font-size: 24px; font-weight: 700;
+            font-size: 24px;
+            font-weight: 700;
             background: transparent;
         """)
         layout.addWidget(lbl_judul)
@@ -428,34 +456,26 @@ class HalamanLogin(QDialog):
         lbl_sub = QLabel("Masuk untuk melanjutkan ke akun Anda")
         lbl_sub.setStyleSheet(f"""
             color: {C["text_light"]};
-            font-size: 13px; background: transparent;
+            font-size: 13px;
+            background: transparent;
         """)
         layout.addWidget(lbl_sub)
         layout.addSpacing(24)
 
-        # [FIX] Email dengan ikon SVG vektor (bukan emoji ✉)
         layout.addWidget(self._label_field("Alamat Email"))
         layout.addSpacing(6)
-        self.inp_email_login = self._input_field(
-            "you@example.com", icon_svg=_SVG_EMAIL, icon_color="#A89BA0"
-        )
+        self.inp_email_login = self._input_field("you@example.com", icon="email")
         self.inp_email_login.returnPressed.connect(self._aksi_login)
         layout.addWidget(self.inp_email_login)
         layout.addSpacing(14)
 
-        # [FIX] Password dengan ikon gembok SVG vektor (bukan emoji 🔒)
         layout.addWidget(self._label_field("Kata Sandi"))
         layout.addSpacing(6)
-        self.inp_pass_login = self._input_field(
-            "Masukkan kata sandi",
-            icon_svg=_SVG_GEMBOK, icon_color="#A89BA0",
-            password=True
-        )
+        self.inp_pass_login = self._input_field("Masukkan kata sandi", icon="key", password=True)
         self.inp_pass_login.returnPressed.connect(self._aksi_login)
         layout.addWidget(self.inp_pass_login)
         layout.addSpacing(20)
 
-        # Pilih kategori
         layout.addWidget(self._label_field("Pilih kategori akun anda"))
         layout.addSpacing(8)
         role_row = QHBoxLayout()
@@ -468,37 +488,13 @@ class HalamanLogin(QDialog):
         role_row.addWidget(self.btn_admin_login)
         role_row.addWidget(self.btn_user_login)
         layout.addLayout(role_row)
-        layout.addSpacing(14)
+        layout.addSpacing(6)
 
-        # [BARU] Checkbox "Ingat Login"
-        self.chk_ingat = QCheckBox("Ingat Login (tetap masuk)")
-        self.chk_ingat.setStyleSheet(f"""
-            QCheckBox {{
-                color: {C["text_mid"]};
-                font-size: 12px;
-                spacing: 8px;
-                background: transparent;
-            }}
-            QCheckBox::indicator {{
-                width: 16px; height: 16px;
-                border: 2px solid {C["border"]};
-                border-radius: 4px;
-                background: {C["input_bg"]};
-            }}
-            QCheckBox::indicator:checked {{
-                background: {C["check_accent"]};
-                border-color: {C["check_accent"]};
-            }}
-        """)
-        layout.addWidget(self.chk_ingat)
-        layout.addSpacing(8)
-
-        # Error label
         self.lbl_login_error = QLabel("")
         self.lbl_login_error.setStyleSheet(f"color: {C['error']}; font-size: 12px; background: transparent;")
         self.lbl_login_error.setWordWrap(True)
         layout.addWidget(self.lbl_login_error)
-        layout.addSpacing(12)
+        layout.addSpacing(16)
 
         btn_masuk = self._btn_utama("Masuk")
         btn_masuk.clicked.connect(self._aksi_login)
@@ -525,8 +521,9 @@ class HalamanLogin(QDialog):
 
         lbl_judul = QLabel("Buat akun kamu")
         lbl_judul.setStyleSheet(f"""
-            color: {C["gold"]};
-            font-size: 24px; font-weight: 700;
+            color: {C["text_dark"]};
+            font-size: 24px;
+            font-weight: 700;
             background: transparent;
         """)
         layout.addWidget(lbl_judul)
@@ -534,33 +531,34 @@ class HalamanLogin(QDialog):
         lbl_sub = QLabel("Mulai jelajahi harga pangan bersama kami")
         lbl_sub.setStyleSheet(f"""
             color: {C["text_light"]};
-            font-size: 13px; background: transparent;
+            font-size: 13px;
+            background: transparent;
         """)
         layout.addWidget(lbl_sub)
         layout.addSpacing(22)
 
-        # [FIX] Email SVG vektor
+        # ── Nama Lengkap (BARU) ──────────────────────────────────────────
+        layout.addWidget(self._label_field("Nama Lengkap"))
+        layout.addSpacing(6)
+        self.inp_nama_daftar = self._input_field("Masukkan nama lengkap Anda", icon="nama")
+        layout.addWidget(self.inp_nama_daftar)
+        layout.addSpacing(14)
+
+        # ── Email ────────────────────────────────────────────────────────
         layout.addWidget(self._label_field("Alamat Email"))
         layout.addSpacing(6)
-        self.inp_email_daftar = self._input_field(
-            "you@example.com", icon_svg=_SVG_EMAIL, icon_color="#A89BA0"
-        )
+        self.inp_email_daftar = self._input_field("you@example.com", icon="email")
         layout.addWidget(self.inp_email_daftar)
         layout.addSpacing(14)
 
-        # [FIX] Password SVG vektor
+        # ── Password ─────────────────────────────────────────────────────
         layout.addWidget(self._label_field("Kata Sandi"))
         layout.addSpacing(6)
-        self.inp_pass_daftar = self._input_field(
-            "Masukkan kata sandi",
-            icon_svg=_SVG_GEMBOK, icon_color="#A89BA0",
-            password=True
-        )
+        self.inp_pass_daftar = self._input_field("Masukkan kata sandi", icon="key", password=True)
         self.inp_pass_daftar.returnPressed.connect(self._aksi_daftar)
         layout.addWidget(self.inp_pass_daftar)
         layout.addSpacing(20)
 
-        # Pilih kategori
         layout.addWidget(self._label_field("Pilih kategori akun anda"))
         layout.addSpacing(8)
         role_row2 = QHBoxLayout()
@@ -573,30 +571,7 @@ class HalamanLogin(QDialog):
         role_row2.addWidget(self.btn_admin_daftar)
         role_row2.addWidget(self.btn_user_daftar)
         layout.addLayout(role_row2)
-        layout.addSpacing(14)
-
-        # [BARU] Checkbox Syarat & Ketentuan
-        self.chk_snk = QCheckBox("Saya menyetujui Syarat & Ketentuan penggunaan")
-        self.chk_snk.setStyleSheet(f"""
-            QCheckBox {{
-                color: {C["text_mid"]};
-                font-size: 12px;
-                spacing: 8px;
-                background: transparent;
-            }}
-            QCheckBox::indicator {{
-                width: 16px; height: 16px;
-                border: 2px solid {C["border"]};
-                border-radius: 4px;
-                background: {C["input_bg"]};
-            }}
-            QCheckBox::indicator:checked {{
-                background: {C["check_accent"]};
-                border-color: {C["check_accent"]};
-            }}
-        """)
-        layout.addWidget(self.chk_snk)
-        layout.addSpacing(10)
+        layout.addSpacing(6)
 
         self.lbl_daftar_error  = QLabel("")
         self.lbl_daftar_sukses = QLabel("")
@@ -606,7 +581,7 @@ class HalamanLogin(QDialog):
         self.lbl_daftar_sukses.setWordWrap(True)
         layout.addWidget(self.lbl_daftar_error)
         layout.addWidget(self.lbl_daftar_sukses)
-        layout.addSpacing(12)
+        layout.addSpacing(16)
 
         btn_buat = self._btn_utama("Buat Akun")
         btn_buat.clicked.connect(self._aksi_daftar)
@@ -622,7 +597,7 @@ class HalamanLogin(QDialog):
         layout.addStretch()
         return w
 
-    # ── Aksi ──────────────────────────────────────────────────────────────────
+    # ── Aksi ─────────────────────────────────────────────────────────────────
 
     def _pilih_peran(self, peran: str, form: str):
         if isinstance(peran, bool):
@@ -646,30 +621,34 @@ class HalamanLogin(QDialog):
 
         pola_email = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         if not re.match(pola_email, email):
-            self.lbl_login_error.setText("❌ Format email tidak valid.")
+            self.lbl_login_error.setText("❌ Format email tidak valid (harus menyertakan domain, cth: .com).")
             return
 
         username = email.split("@")[0].replace(".", "_") if "@" in email else email
+
         user = self.auth.login(username, password)
         if user:
             if user["role"] != self._peran_dipilih:
                 role_seharusnya = "Admin" if user["role"] == "admin" else "User"
                 self.lbl_login_error.setText(
                     f"❌ Akun ini terdaftar sebagai {role_seharusnya}. "
-                    f"Pilih '{role_seharusnya}' untuk masuk."
+                    f"Pilih kategori '{role_seharusnya}' untuk masuk."
                 )
                 return
-            # [BARU] Simpan status ingat login
-            self.ingat_login = self.chk_ingat.isChecked()
             self._masuk(user)
         else:
             self.lbl_login_error.setText("❌ Email atau kata sandi salah.")
 
     def _aksi_daftar(self):
+        nama     = self.inp_nama_daftar.text().strip()
         email    = self.inp_email_daftar.text().strip()
         password = self.inp_pass_daftar.text()
         self.lbl_daftar_error.setText("")
         self.lbl_daftar_sukses.setText("")
+
+        if not nama:
+            self.lbl_daftar_error.setText("⚠ Nama lengkap tidak boleh kosong.")
+            return
 
         if not email or not password:
             self.lbl_daftar_error.setText("⚠ Email dan kata sandi tidak boleh kosong.")
@@ -677,20 +656,16 @@ class HalamanLogin(QDialog):
 
         pola_email = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         if not re.match(pola_email, email):
-            self.lbl_daftar_error.setText("⚠ Format email tidak valid.")
-            return
-
-        # [BARU] Validasi SnK harus dicentang
-        if not self.chk_snk.isChecked():
-            self.lbl_daftar_error.setText("⚠ Anda harus menyetujui Syarat & Ketentuan untuk mendaftar.")
+            self.lbl_daftar_error.setText("⚠ Format email tidak valid (harus menyertakan domain, cth: .com).")
             return
 
         username = email.split("@")[0].replace(".", "_")
+
         berhasil, pesan = self.auth.register(
             username=username,
             password=password,
             email=email,
-            display_name=username,
+            display_name=nama,       # ← nama yang diinput pengguna
             role=self._peran_dipilih
         )
         if berhasil:
@@ -706,6 +681,28 @@ class HalamanLogin(QDialog):
         else:
             self.lbl_daftar_error.setText(f"❌ {pesan}")
 
+    def _aksi_google(self):
+        from PyQt6.QtWidgets import QInputDialog
+        email, ok = QInputDialog.getText(
+            self, "Masuk dengan Google",
+            "Masukkan email Google Anda:",
+        )
+        if not ok or not email.strip():
+            return
+        email = email.strip().lower()
+        if "@" not in email:
+            QMessageBox.warning(self, "Format Salah", "Email tidak valid.")
+            return
+
+        fake_google_id = "google_" + hashlib.md5(email.encode()).hexdigest()[:12]
+        display_name   = email.split("@")[0].replace(".", " ").title()
+        user = self.auth.login_or_register_google(
+            google_id=fake_google_id,
+            email=email,
+            display_name=display_name
+        )
+        self._masuk(user)
+
     def _masuk(self, user: dict):
         self._current_user = user
         self.login_berhasil.emit(user)
@@ -717,29 +714,20 @@ class HalamanLogin(QDialog):
         lbl = QLabel(teks)
         lbl.setStyleSheet(f"""
             color: {C["text_dark"]};
-            font-size: 13px; font-weight: 500;
+            font-size: 13px;
+            font-weight: 500;
             background: transparent;
         """)
         return lbl
 
-    def _input_field(
-        self,
-        placeholder: str,
-        icon_svg: str = "",
-        icon_color: str = "#A89BA0",
-        password: bool = False,
-    ) -> QLineEdit:
-        """
-        [FIX] Input field dengan ikon SVG vektor (bukan emoji).
-        icon_svg: string SVG lengkap dengan currentColor sebagai placeholder warna.
-        """
+    def _input_field(self, placeholder: str, icon: str = "", password: bool = False) -> QLineEdit:
         inp = QLineEdit()
         inp.setPlaceholderText(placeholder)
         inp.setFixedHeight(48)
         if password:
             inp.setEchoMode(QLineEdit.EchoMode.Password)
 
-        padding_left  = "40px" if icon_svg else "14px"
+        padding_left  = "38px" if icon else "14px"
         padding_right = "44px" if password else "14px"
 
         inp.setStyleSheet(f"""
@@ -760,40 +748,68 @@ class HalamanLogin(QDialog):
             }}
         """)
 
-        # [FIX] Ikon kiri — SVG vektor bukan emoji label
-        if icon_svg:
-            lbl_icon = QLabel(inp)
-            lbl_icon.setFixedSize(20, 20)
-            lbl_icon.setStyleSheet("background: transparent; border: none;")
-            lbl_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            lbl_icon.setPixmap(_svg_pixmap(icon_svg, 16, icon_color))
-            lbl_icon.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-            lbl_icon.move(12, 14)
+        if icon:
+            svg_str = _SVG_ICONS.get(icon)
+            if svg_str:
+                # Render SVG
+                from PyQt6.QtSvg import QSvgRenderer
+                renderer = QSvgRenderer(QByteArray(svg_str.encode()))
+                pixmap   = QPixmap(18, 18)
+                pixmap.fill(Qt.GlobalColor.transparent)
+                painter  = QPainter(pixmap)
+                renderer.render(painter)
+                painter.end()
+                icon_lbl = QLabel(inp)
+                icon_lbl.setPixmap(pixmap)
+                icon_lbl.setStyleSheet("background: transparent;")
+                icon_lbl.setGeometry(12, 15, 18, 18)
+                icon_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+            else:
+                # Fallback emoji lama
+                icon_lbl = QLabel(icon, inp)
+                icon_lbl.setStyleSheet("background: transparent; font-size: 14px;")
+                icon_lbl.setGeometry(10, 14, 20, 20)
+                icon_lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
 
-        # [FIX] Toggle mata — SVG vektor bukan emoji 👁
         if password:
+            from PyQt6.QtSvg import QSvgRenderer
+
+            def _buat_eye_pixmap(svg_key: str) -> QPixmap:
+                svg = _SVG_ICONS[svg_key]
+                renderer = QSvgRenderer(QByteArray(svg.encode()))
+                px = QPixmap(18, 18)
+                px.fill(Qt.GlobalColor.transparent)
+                p = QPainter(px)
+                renderer.render(p)
+                p.end()
+                return px
+
+            px_open   = _buat_eye_pixmap("eye_open")
+            px_closed = _buat_eye_pixmap("eye_closed")
+
             btn_eye = QPushButton(inp)
             btn_eye.setFixedSize(32, 32)
-            btn_eye.setStyleSheet("border: none; background: transparent; padding: 0;")
-            btn_eye.setCheckable(True)
-            btn_eye.setCursor(Qt.CursorShape.PointingHandCursor)
-
-            btn_eye.setIcon(_svg_icon(_SVG_MATA_TUTUP, 18, "#A89BA0"))
+            btn_eye.setIcon(QIcon(px_closed))
             btn_eye.setIconSize(QSize(18, 18))
+            btn_eye.setStyleSheet(
+                "border: none; background: transparent; padding: 0;"
+            )
+            btn_eye.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_eye.setCheckable(True)
 
-            def _toggle(checked, field=inp, b=btn_eye):
-                if checked:
-                    field.setEchoMode(QLineEdit.EchoMode.Normal)
-                    b.setIcon(_svg_icon(_SVG_MATA_BUKA, 18, C["maroon"]))
-                else:
-                    field.setEchoMode(QLineEdit.EchoMode.Password)
-                    b.setIcon(_svg_icon(_SVG_MATA_TUTUP, 18, "#A89BA0"))
+            def _toggle(checked, field=inp, b=btn_eye,
+                        po=px_open, pc=px_closed):
+                field.setEchoMode(
+                    QLineEdit.EchoMode.Normal if checked
+                    else QLineEdit.EchoMode.Password
+                )
+                b.setIcon(QIcon(po) if checked else QIcon(pc))
 
             btn_eye.toggled.connect(_toggle)
+            inp.setTextMargins(0, 0, 36, 0)
 
             def _reposition_eye(event=None, b=btn_eye, f=inp):
                 b.move(f.width() - 38, (f.height() - 32) // 2)
-
             inp.resizeEvent = _reposition_eye
 
         return inp
@@ -838,6 +854,26 @@ class HalamanLogin(QDialog):
             QPushButton:pressed {{ background: #E8E0D4; }}
         """)
         return btn
+
+    def _divider(self) -> QWidget:
+        w = QWidget()
+        w.setStyleSheet("background: transparent;")
+        row = QHBoxLayout(w)
+        row.setContentsMargins(0, 4, 0, 4)
+        row.setSpacing(12)
+
+        def garis():
+            f = QFrame()
+            f.setFrameShape(QFrame.Shape.HLine)
+            f.setStyleSheet(f"color: {C['border']};")
+            return f
+
+        lbl = QLabel("Atau lanjut dengan")
+        lbl.setStyleSheet(f"color: {C['text_light']}; font-size: 12px; background: transparent;")
+        row.addWidget(garis(), 1)
+        row.addWidget(lbl)
+        row.addWidget(garis(), 1)
+        return w
 
     # ── Public ────────────────────────────────────────────────────────────────
 

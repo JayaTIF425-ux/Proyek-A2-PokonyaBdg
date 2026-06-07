@@ -35,10 +35,31 @@ _IKON_PENCARIAN = {
 
 # ── SVG ikon kecil untuk tiap stat ────────────────────────────────────────────
 _SVG_STAT = {
-    "produk":   """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/></svg>""",
-    "harga":    """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>""",
-    "toko":     """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>""",
-    "termahal": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>""",
+    "produk": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+        fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round">
+        <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8
+        a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+        <path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>""",
+
+    "harga": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+        fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round">
+        <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3
+        a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/>
+        <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>""",
+
+    "toko": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+        fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/></svg>""",
+
+    "termahal": """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+        fill="none" stroke="#5C1A28" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round">
+        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+        <polyline points="17 6 23 6 23 12"/></svg>""",
 }
 
 
@@ -284,11 +305,11 @@ class StatistikBar(QFrame):
                 border-radius: 8px;
             }
         """)
-        self.setMinimumHeight(82)
-        self.setMaximumHeight(104)
+        self.setMinimumHeight(65)
+        self.setMaximumHeight(85)
 
         self._layout = QHBoxLayout(self)
-        self._layout.setContentsMargins(16, 12, 16, 12)
+        self._layout.setContentsMargins(16, 8, 16, 8)
         self._layout.setSpacing(0)
 
         self.lbl_total    = self._buat_stat("Total Produk",     "–", "produk")
@@ -297,7 +318,7 @@ class StatistikBar(QFrame):
         self._layout.addWidget(self._sep())
         self.lbl_toko     = self._buat_stat("Jumlah Toko",      "–", "toko")
         self._layout.addWidget(self._sep())
-        self.lbl_termahal = self._buat_stat("Paling Mahal",     "–", "termahal")
+        self.lbl_termahal = self._buat_stat("Harga Paling Mahal", "–", "termahal")
 
         self.perbarui()
 
@@ -308,50 +329,81 @@ class StatistikBar(QFrame):
         sep.setStyleSheet("background: #E2D9CC; border: none;")
         return sep
 
-    def _buat_stat(self, label: str, nilai: str, ikon_key: str = "") -> QLabel:
-        """Buat satu kotak stat dengan ikon SVG kecil. Return label nilai."""
+    def _buat_stat(self, label: str, nilai: str, satuan: str = "") -> QLabel:
         container = QFrame()
         container.setStyleSheet("border: none; background: transparent;")
-        h = QHBoxLayout(container)
-        h.setContentsMargins(16, 0, 16, 0)
-        h.setSpacing(10)
-        h.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        # Layout utama HORIZONTAL (Ikon di kiri, teks di kanan)
+        main_layout = QHBoxLayout(container)
+        main_layout.setContentsMargins(12, 0, 12, 0)
+        main_layout.setSpacing(10)  # Jarak antara ikon dan tulisan
+        main_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        if ikon_key in _SVG_STAT:
+        # 1. Identifikasi kunci ikon berdasarkan string label asli
+        ikon_key = ""
+        teks_judul = label  # Standar teks jika tidak ada kecocokan
+        
+        if "Produk" in label:
+            ikon_key = "produk"
+            teks_judul = "Total Produk"
+        elif "Harga" in label:
+            ikon_key = "harga"
+            teks_judul = "Rata-Rata Harga"
+        elif "Toko" in label:
+            ikon_key = "toko"
+            teks_judul = "Jumlah Toko"
+        elif "Mahal" in label:
+            ikon_key = "termahal"
+            teks_judul = "Harga Paling Mahal"
+
+        # Render Ikon SVG di Sebelah Kiri
+        if ikon_key and ikon_key in _SVG_STAT:
             from PyQt6.QtSvg import QSvgRenderer
             from PyQt6.QtCore import QByteArray
-            renderer = QSvgRenderer(QByteArray(_SVG_STAT[ikon_key].encode()))
-            pix = QPixmap(18, 18)
-            pix.fill(Qt.GlobalColor.transparent)
-            p = QPainter(pix)
-            renderer.render(p)
+            
+            svg = _SVG_STAT[ikon_key]
+            r = QSvgRenderer(QByteArray(svg.encode()))
+            px = QPixmap(16, 16)  # Ukuran ikon yang pas untuk ditaruh di samping teks
+            px.fill(Qt.GlobalColor.transparent)
+            p = QPainter(px)
+            r.render(p)
             p.end()
+
             lbl_ikon = QLabel()
-            lbl_ikon.setPixmap(pix)
-            lbl_ikon.setFixedSize(18, 18)
+            lbl_ikon.setPixmap(px)
+            lbl_ikon.setAlignment(Qt.AlignmentFlag.AlignCenter)
             lbl_ikon.setStyleSheet("border: none; background: transparent;")
-            h.addWidget(lbl_ikon)
+            main_layout.addWidget(lbl_ikon)
 
-        v = QVBoxLayout()
-        v.setContentsMargins(0, 0, 0, 0)
-        v.setSpacing(1)
+        # 2. Layout VERTIKAL untuk Teks (Hanya 2 Baris)
+        v_text_layout = QVBoxLayout()
+        v_text_layout.setSpacing(2)
+        v_text_layout.setContentsMargins(0, 0, 0, 0)
+        v_text_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
 
-        lbl_l = QLabel(label)
-        lbl_l.setStyleSheet(
+        # Baris 1: Judul Kategori (Hanya menampilkan kata kunci tunggal seperti mockup)
+        lbl_label = QLabel(teks_judul)
+        lbl_label.setStyleSheet(
             "font-size: 11px; color: #8B7B6B; border: none; background: transparent;"
         )
-        lbl_v = QLabel(nilai)
-        lbl_v.setStyleSheet(
-            "font-size: 16px; font-weight: bold; color: #5C1A28; "
+
+        # Baris 2: Nilai Angka / Nama Produk Termahal
+        teks_tampil = f"{nilai} {satuan}".strip() if satuan else nilai
+        lbl_nilai = QLabel(teks_tampil)
+        lbl_nilai.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_nilai.setStyleSheet(
+            "font-size: 13px; font-weight: bold; color: #5C1A28; "
             "border: none; background: transparent;"
         )
-        lbl_v.setWordWrap(True)
 
-        v.addWidget(lbl_l)
-        v.addWidget(lbl_v)
-        h.addLayout(v)
+        v_text_layout.addWidget(lbl_label)
+        v_text_layout.addWidget(lbl_nilai)
+
+        # Gabungkan layout teks ke sebelah kanan ikon
+        main_layout.addLayout(v_text_layout)
+        
         self._layout.addWidget(container)
-        return lbl_v
+        return lbl_nilai
 
     def perbarui(self):
         try:
@@ -368,6 +420,31 @@ class StatistikBar(QFrame):
 
 
 # ── Halaman Utama ──────────────────────────────────────────────────────────
+_SVG_BOOKMARK = """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"
+stroke-linecap="round" stroke-linejoin="round">
+<path d="M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578
+a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z"/>
+</svg>"""
+
+_SVG_STORE = """<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"
+stroke-linecap="round" stroke-linejoin="round">
+<circle cx="8" cy="21" r="1"/>
+<circle cx="19" cy="21" r="1"/>
+<path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0
+1.95-1.57l1.65-7.43H5.12"/></svg>"""
+
+def _render_kecil(svg_str: str, ukuran: int = 14) -> QPixmap:
+    from PyQt6.QtSvg import QSvgRenderer
+    from PyQt6.QtCore import QByteArray
+    r = QSvgRenderer(QByteArray(svg_str.encode()))
+    px = QPixmap(ukuran, ukuran)
+    px.fill(Qt.GlobalColor.transparent)
+    p = QPainter(px)
+    r.render(p)
+    p.end()
+    return px
 
 class HalamanPencarian(QWidget):
 
@@ -450,8 +527,13 @@ class HalamanPencarian(QWidget):
         fb_layout.setContentsMargins(12, 6, 12, 6)
         fb_layout.setSpacing(10)
 
-        lbl_kat = QLabel("🔖 Kategori:")
-        lbl_kat.setStyleSheet("font-size: 12px; color: #555; border: none; background: transparent;")
+        # Label kategori dengan ikon SVG
+        lbl_kat = QLabel()
+        lbl_kat.setFixedSize(14, 14)
+        lbl_kat.setPixmap(_render_kecil(_SVG_BOOKMARK))
+        lbl_kat.setStyleSheet("border: none; background: transparent;")
+        lbl_kat_teks = QLabel("Kategori:")
+        lbl_kat_teks.setStyleSheet("font-size: 12px; color: #555; border: none; background: transparent;")
 
         self.combo_kategori = QComboBox()
         self.combo_kategori.addItem("Semua Kategori", userData="")
@@ -480,8 +562,13 @@ class HalamanPencarian(QWidget):
         sep_line.setFixedWidth(1)
         sep_line.setStyleSheet("background: #ccc; border: none;")
 
-        lbl_src = QLabel("🏬 Sumber:")
-        lbl_src.setStyleSheet("font-size: 12px; color: #555; border: none; background: transparent;")
+       # Label sumber dengan ikon SVG
+        lbl_src = QLabel()
+        lbl_src.setFixedSize(14, 14)
+        lbl_src.setPixmap(_render_kecil(_SVG_STORE))
+        lbl_src.setStyleSheet("border: none; background: transparent;")
+        lbl_src_teks = QLabel("Sumber:")
+        lbl_src_teks.setStyleSheet("font-size: 12px; color: #555; border: none; background: transparent;")
 
         self.combo_sumber = QComboBox()
         self.combo_sumber.addItems(["Semua Sumber", "PIHPS", "Supermarket"])
@@ -508,9 +595,11 @@ class HalamanPencarian(QWidget):
         self._lbl_count_filter.setStyleSheet("font-size: 11px; color: #888; border: none; background: transparent;")
 
         fb_layout.addWidget(lbl_kat)
+        fb_layout.addWidget(lbl_kat_teks)
         fb_layout.addWidget(self.combo_kategori)
         fb_layout.addWidget(sep_line)
         fb_layout.addWidget(lbl_src)
+        fb_layout.addWidget(lbl_src_teks)
         fb_layout.addWidget(self.combo_sumber)
         fb_layout.addStretch()
         fb_layout.addWidget(self._lbl_count_filter)
